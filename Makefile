@@ -28,7 +28,7 @@ PYML_COMPAT=$(shell \
 
 all: py.cmi pycaml_compat.cmi pyml.cma pyml.cmxa doc
 
-.PHONY: all tests tests.bytecode clean
+.PHONY: all tests tests.bytecode clean install
 
 tests: pyml_tests
 	./pyml_tests
@@ -40,6 +40,12 @@ doc: pywrappers.ml py.mli pycaml_compat.mli
 	mkdir -p $@
 	ocamldoc -html -d $@ $^
 	touch $@
+
+install:
+	ocamlfind install pyml \
+	  py.cmi pytypes.cmi pywrappers.cmi pycaml_compat.cmi \
+	  py.cmx pytypes.cmx pywrappers.cmx pycaml_compat.cmx \
+	  pyml.cma pyml.cmxa pyml.a META
 
 ifneq ($(MAKECMDGOALS),clean)
 include .depend
