@@ -51,14 +51,14 @@ ifneq ($(MAKECMDGOALS),clean)
 include .depend
 endif
 
-.depend: $(MODULES:=.ml) pyml_tests.ml
-	$(OCAMLDEP) py.mli pycaml_compat.mli $^ >$@
+.depend: $(MODULES:=.ml) $(MODULES:=.mli) pyml_tests.ml
+	$(OCAMLDEP) $^ >$@
 
 clean:
 	rm -f py.{cmi,cmx,cmo,a,o}
 	rm -f pyml.{cma,cmxa}
 	rm -f pytypes.{cmi,cmo,cmx,o}
-	rm -f pywrappers.{ml,cmi,cmo,cmx,o}
+	rm -f pywrappers.{mli,ml,cmi,cmo,cmx,o}
 	rm -f pyml_stubs.o
 	rm -f generate.{cmi,cmx}
 	rm -f pyml_compat.{ml,cmi,cmo,cmx,o}
@@ -70,8 +70,9 @@ clean:
 
 tarball:
 	mkdir pyml-$(VERSION)/
-	cp Makefile pyml_compat312.ml pyml_compat403.ml generate.ml \
-		py.ml py.mli pyml_stubs.c pytypes.ml pyml_tests.ml test.py \
+	cp Makefile pyml_compat312.ml pyml_compat403.ml pyml_compat.mli
+		generate.ml py.ml py.mli pyml_stubs.c pytypes.ml pytypes.mli \
+		pyml_tests.ml test.py \
 		pycaml_compat.ml pycaml_compat.mli README LICENSE META \
 		pyml-$(VERSION)/
 	rm -f pyml-$(VERSION).tar.gz
@@ -81,8 +82,9 @@ tarball:
 generate: pyml_compat.cmx generate.cmx
 	$(OCAMLOPT) $^ -o $@
 
-pywrappers.ml $(GENERATED): generate
+pywrappers.ml pywrappers.mli $(GENERATED): pytypes.cmi generate
 	./generate
+	$(OCAMLC) -i pywrappers.ml >pywrappers.mli
 
 pyml_tests: py.cmi pyml.cmxa pyml_tests.cmx
 	$(OCAMLOPT) $(OCAMLLDFLAGS) unix.cmxa pyml.cmxa pyml_tests.cmx -o $@
@@ -92,6 +94,8 @@ pyml_tests.bytecode: py.cmi pyml.cma pyml_tests.cmo
 
 pyml_compat.ml: $(PYML_COMPAT)
 	cp $< $@
+
+pyml_compat.cmx: pyml_compat.cmi
 
 %.cmi: %.mli
 	$(OCAMLC) $(OCAMLCFLAGS) -c $< -o $@
