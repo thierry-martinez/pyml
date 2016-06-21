@@ -8,13 +8,10 @@ GENERATED=pyml_dlsyms.inc pyml_wrappers.inc pyml.h
 
 VERSION=$(shell date "+%Y%m%d")
 
-OCAMLLIBFLAGS=-cclib "-L$(PWD) -lpyml_stubs"
+OCAMLLIBFLAGS=-cclib "-L. -lpyml_stubs"
 
 OCAMLLIBFLAGSNATIVE=$(OCAMLLIBFLAGS)
 OCAMLLIBFLAGSBYTECODE=-custom $(OCAMLLIBFLAGS)
-
-#OCAMLLIBFLAGS=-ccopt "`pkg-config --cflags python2`"
-#OCAMLLDFLAGS=-cclib "`pkg-config --libs python2`"
 
 OCAMLVERSION=$(shell $(OCAMLC) -version)
 
@@ -26,7 +23,7 @@ PYML_COMPAT=$(shell \
 	fi \
 )
 
-all: py.cmi pycaml_compat.cmi pyml.cma pyml.cmxa doc
+all: py.cmi pycaml_compat.cmi pyml.cma pyml.cmxa pyml.cmxs doc
 
 .PHONY: all tests tests.bytecode clean install
 
@@ -43,9 +40,12 @@ doc: pywrappers.ml py.mli pycaml_compat.mli
 
 install:
 	ocamlfind install pyml \
+	  py.mli \
 	  py.cmi pytypes.cmi pywrappers.cmi pycaml_compat.cmi \
 	  py.cmx pytypes.cmx pywrappers.cmx pycaml_compat.cmx \
-	  pyml.cma pyml.cmxa pyml.a META
+	  pyml.cma pyml.cmxa pyml.cmxs pyml.a \
+	  libpyml_stubs.a dllpyml_stubs.so \
+	  META
 
 ifneq ($(MAKECMDGOALS),clean)
 include .depend
@@ -69,13 +69,14 @@ clean:
 	rm -rf doc
 
 tarball:
-	mkdir py.ml-$(VERSION)/
-	cp Makefile pyml_compat312.ml pyml_compat403.ml generate.ml py.ml \
-		pyml_stubs.c pyml_tests.ml README \
-		py.ml-$(VERSION)/
-	rm -f py.ml-$(VERSION).tar.gz
-	tar -czf py.ml-$(VERSION).tar.gz py.ml-$(VERSION)/
-	rm -rf py.ml-$(VERSION)/
+	mkdir pyml-$(VERSION)/
+	cp Makefile pyml_compat312.ml pyml_compat403.ml generate.ml \
+		py.ml py.mli pyml_stubs.c pytypes.ml pyml_tests.ml test.py \
+		pycaml_compat.ml pycaml_compat.mli README LICENSE META \
+		pyml-$(VERSION)/
+	rm -f pyml-$(VERSION).tar.gz
+	tar -czf pyml-$(VERSION).tar.gz pyml-$(VERSION)/
+	rm -rf pyml-$(VERSION)/
 
 generate: pyml_compat.cmx generate.cmx
 	$(OCAMLOPT) $^ -o $@
@@ -104,11 +105,14 @@ pyml_compat.ml: $(PYML_COMPAT)
 pyml_stubs.o: pyml_stubs.c $(GENERATED)
 	$(OCAMLC) -c $< -o $@
 
+pyml.cma: $(MODULES:=.cmo) libpyml_stubs.a
+	$(OCAMLC) $(OCAMLLIBFLAGSBYTECODE) -a $(MODULES:=.cmo) -o $@
+
 pyml.cmxa: $(MODULES:=.cmx) libpyml_stubs.a
 	$(OCAMLOPT) $(OCAMLLIBFLAGSNATIVE) -a $(MODULES:=.cmx) -o $@
 
-pyml.cma: $(MODULES:=.cmo) libpyml_stubs.a
-	$(OCAMLC) $(OCAMLLIBFLAGSBYTECODE) -a $(MODULES:=.cmo) -o $@
+pyml.cmxs: $(MODULES:=.cmx) libpyml_stubs.a
+	$(OCAMLOPT) $(OCAMLLIBFLAGSNATIVE) -shared $(MODULES:=.cmx) -o $@
 
 libpyml_stubs.a: pyml_stubs.o
 	$(OCAMLMKLIB) -o pyml_stubs $<

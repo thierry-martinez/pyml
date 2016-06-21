@@ -2,14 +2,24 @@
 ====================================
 
 ``py.ml`` provides OCaml bindings for ``Python 2`` and ``Python
-3``. This library subsumes the pycaml library, which is no longer
-actively maintened.
+3``. This library subsumes the ``pycaml`` library, which is no longer
+actively maintained.
 
-Homepage: http://pyml.gforge.inria.fr
-Documentation: http://pyml.gforge.inria.fr/doc
-Git: git clone https://scm.gforge.inria.fr/anonscm/git/pyml/pyml.git
-Tracker for bug reports and feature requests:
+*Homepage:* http://pyml.gforge.inria.fr
+
+*Documentation:* http://pyml.gforge.inria.fr/doc
+
+*Git:* ``git clone http://pyml.gforge.inria.fr/git``
+
+*Git Repository Browser:* http://pyml.gforge.inria.fr/browser
+
+*Tracker for bug reports and feature requests:*
 http://pyml.gforge.inria.fr/tracker
+
+*OPAM:* ::
+
+  opam remote add pyml http://pyml.gforge.inria.fr
+  opam install pyml
 
 The Python library is linked at runtime and the same executable can be
 run in a Python 2 or a Python 3 environment. ``py.ml`` does not
