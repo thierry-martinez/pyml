@@ -1,7 +1,52 @@
-OCAMLC=ocamlc.opt
-OCAMLOPT=ocamlopt.opt
-OCAMLMKLIB=ocamlmklib
-OCAMLDEP=ocamldep
+OCAMLFIND=ocamlfind
+
+HAVE_OCAMLFIND=$(shell \
+	if $(OCAMLFIND) query -help >/dev/null 2>&1; then \
+		echo yes; \
+	else \
+		echo no; \
+	fi \
+)
+
+OCAMLC=$(shell \
+	if [ "$(HAVE_OCAMLFIND)" = yes ]; then \
+		echo $(OCAMLFIND) ocamlc; \
+	elif ocamlc.opt -version >/dev/null 2>&1; then \
+		echo ocamlc.opt; \
+	else \
+		echo ocamlc; \
+	fi \
+)
+OCAMLOPT=$(shell \
+	if [ "$(HAVE_OCAMLFIND)" = yes ]; then \
+		echo $(OCAMLFIND) ocamlopt; \
+	elif ocamlopt.opt -version >/dev/null 2>&1; then \
+		echo ocamlopt.opt; \
+	else \
+		echo ocamlopt; \
+	fi \
+)
+OCAMLMKLIB=$(shell \
+	if [ "$(HAVE_OCAMLFIND)" = yes ]; then \
+		echo $(OCAMLFIND) ocamlmklib; \
+	else \
+		echo ocamlmklib; \
+	fi \
+)
+OCAMLDEP=$(shell \
+	if [ "$(HAVE_OCAMLFIND)" = yes ]; then \
+		echo $(OCAMLFIND) ocamldep; \
+	else \
+		echo ocamldep; \
+	fi \
+)
+OCAMLDOC=$(shell \
+	if [ "$(HAVE_OCAMLFIND)" = yes ]; then \
+		echo $(OCAMLFIND) ocamldoc; \
+	else \
+		echo ocamldoc; \
+	fi \
+)
 
 MODULES=pyml_compat pytypes pywrappers py pycaml_compat
 GENERATED=pyml_dlsyms.inc pyml_wrappers.inc pyml.h
@@ -33,13 +78,13 @@ tests: pyml_tests
 tests.bytecode: pyml_tests.bytecode
 	./pyml_tests.bytecode
 
-doc: pywrappers.ml py.mli pycaml_compat.mli
+doc: py.mli pycaml_compat.mli pywrappers.ml
 	mkdir -p $@
-	ocamldoc -html -d $@ $^
+	$(OCAMLDOC) -html -d $@ $^
 	touch $@
 
 install:
-	ocamlfind install pyml \
+	$(OCAMLFIND) install pyml \
 	  py.mli \
 	  py.cmi pytypes.cmi pywrappers.cmi pycaml_compat.cmi \
 	  py.cmx pytypes.cmx pywrappers.cmx pycaml_compat.cmx \
@@ -48,7 +93,7 @@ install:
 	  META
 
 ifneq ($(MAKECMDGOALS),clean)
-include .depend
+-include .depend
 endif
 
 .depend: $(MODULES:=.ml) $(MODULES:=.mli) pyml_tests.ml
@@ -70,7 +115,7 @@ clean:
 
 tarball:
 	mkdir pyml-$(VERSION)/
-	cp Makefile pyml_compat312.ml pyml_compat403.ml pyml_compat.mli
+	cp Makefile pyml_compat312.ml pyml_compat403.ml pyml_compat.mli \
 		generate.ml py.ml py.mli pyml_stubs.c pytypes.ml pytypes.mli \
 		pyml_tests.ml test.py \
 		pycaml_compat.ml pycaml_compat.mli README LICENSE META \
@@ -82,9 +127,13 @@ tarball:
 generate: pyml_compat.cmx generate.cmx
 	$(OCAMLOPT) $^ -o $@
 
-pywrappers.ml pywrappers.mli $(GENERATED): pytypes.cmi generate
+generate.cmx: generate.ml pyml_compat.cmi pyml_compat.cmx
+
+pywrappers.ml $(GENERATED): generate
 	./generate
-	$(OCAMLC) -i pywrappers.ml >pywrappers.mli
+
+pywrappers.mli: pywrappers.ml pytypes.cmi
+	$(OCAMLC) -i $< >$@
 
 pyml_tests: py.cmi pyml.cmxa pyml_tests.cmx
 	$(OCAMLOPT) $(OCAMLLDFLAGS) unix.cmxa pyml.cmxa pyml_tests.cmx -o $@
