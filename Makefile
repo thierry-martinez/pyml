@@ -129,8 +129,10 @@ generate: pyml_compat.cmx generate.cmx
 
 generate.cmx: generate.ml pyml_compat.cmi pyml_compat.cmx
 
-pywrappers.ml $(GENERATED): generate
+pywrappers.ml pyml_wrappers.inc: generate
 	./generate
+
+pyml_wrappers.inc: pywrappers.ml
 
 pywrappers.mli: pywrappers.ml pytypes.cmi
 	$(OCAMLC) -i $< >$@
@@ -155,7 +157,7 @@ pyml_compat.cmx: pyml_compat.cmi
 %.cmx: %.ml
 	$(OCAMLOPT) $(OCAMLCFLAGS) -c $< -o $@
 
-pyml_stubs.o: pyml_stubs.c $(GENERATED)
+pyml_stubs.o: pyml_stubs.c pyml_wrappers.inc
 	$(OCAMLC) -c $< -o $@
 
 pyml.cma: $(MODULES:=.cmo) libpyml_stubs.a
