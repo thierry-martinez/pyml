@@ -402,10 +402,10 @@ module Dict = struct
   let del_item_string dict name =
     assert_int_success (Pywrappers.pydict_delitemstring dict name)
 
-  let get dict key =
+  let get_item dict key =
     check_not_null (Pywrappers.pydict_getitem dict key)
 
-  let get_string dict name =
+  let get_item_string dict name =
     check_not_null (Pywrappers.pydict_getitemstring dict name)
 
   let keys dict = check_not_null (Pywrappers.pydict_keys dict)
@@ -763,14 +763,19 @@ module Err = struct
   | ZeroDivisionError
 
   let clear () =
-    Pywrappers.pyerr_clear ()
+    Pywrappers.pyerr_clear ();
+    fetched_exception := None
 
   let exception_matches exc = Pywrappers.pyerr_exceptionmatches exc <> 0
 
   let fetch () =
-    match !fetched_exception with
-      None -> failwith "Py.pyerr_fetch: no exception"
-    | Some e -> e
+    let (ptype, pvalue, ptraceback) = pyerr_fetch_internal () in
+    if ptype = null then
+      None
+    else
+      Some (ptype, pvalue, ptraceback)
+
+  let fetched () = !fetched_exception
 
   let given_exception_matches given exc =
     Pywrappers.pyerr_givenexceptionmatches given exc <> 0
@@ -968,7 +973,11 @@ module Tuple = struct
 
   let of_array array = init (Array.length array) (Array.get array)
 
-  let to_array tuple = Array.init (size tuple) (get_item tuple)
+  let to_array tuple = Sequence.to_array tuple
+
+  let of_list list = of_array (Array.of_list list)
+
+  let to_list tuple = Sequence.to_list tuple
 
   let singleton v = init 1 (fun _ -> v)
 

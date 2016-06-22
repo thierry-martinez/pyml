@@ -296,13 +296,13 @@ module Dict: sig
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/dict.html#c.PyDict_DelItemString} PyDict_DelItemString} *)
 
-  val get: Object.t -> Object.t -> Object.t
+  val get_item: Object.t -> Object.t -> Object.t
   (** Wrapper for
-      {{:https://docs.python.org/3/c-api/dict.html#c.PyDict_Get} PyDict_Get} *)
+      {{:https://docs.python.org/3/c-api/dict.html#c.PyDict_GetItem} PyDict_GetItem} *)
 
-  val get_string: Object.t -> string -> Object.t
+  val get_item_string: Object.t -> string -> Object.t
   (** Wrapper for
-      {{:https://docs.python.org/3/c-api/dict.html#c.PyDict_GetString} PyDict_GetString} *)
+      {{:https://docs.python.org/3/c-api/dict.html#c.PyDict_GetItemString} PyDict_GetItemString} *)
 
   val keys: Object.t -> Object.t
   (** Wrapper for
@@ -365,9 +365,13 @@ module Err: sig
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/exceptions.html#c.PyErr_ExceptionMatches} PyErr_ExceptionMatches} *)
 
-  val fetch: unit -> Object.t * Object.t * Object.t
+  val fetch: unit -> (Object.t * Object.t * Object.t) option
   (** Wrapper for
-      {{:https://docs.python.org/3/c-api/exceptions.html#c.PyErr_Fetch} PyErr_Fetch} *)
+      {{:https://docs.python.org/3/c-api/exceptions.html#c.PyErr_Fetch} PyErr_Fetch}.
+   *)
+
+  val fetched: unit -> (Object.t * Object.t * Object.t) option
+  (** Exception fetched when {!Py.E} has been raised. *)
 
   val given_exception_matches: Object.t -> Object.t -> bool
   (** Wrapper for
@@ -900,9 +904,14 @@ module Tuple: sig
   val of_array: Object.t array -> Object.t
   (** [of_array a] returns the Python tuple with the same elements as [a]. *)
 
+  val of_list: Object.t list -> Object.t
+  (** [of_list l] returns the Python tuple with the same elements as [l]. *)
+
   val to_array: Object.t -> Object.t array
-  (** [to_array a] returns the array with the same elements as the Python tuple
-      [a]. *)
+  (** Equivalent to {!Sequence.to_array}. *)
+
+  val to_list: Object.t -> Object.t list
+  (** Equivalent to {!Sequence.to_list}. *)
 
   val singleton: Object.t -> Object.t
   (** [singleton o] returns the Python tuple [(o)]. *)

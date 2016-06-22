@@ -1,3 +1,5 @@
+(** Compatibility module for Pycaml users. *)
+
 type pyobject = Py.Object.t
 
 type pyobject_type =
@@ -260,9 +262,20 @@ val pyint_aslong: pyobject -> int64
 
 (* Type26 *)
 val pybytes_asstring: pyobject -> string
+(** Equivalent to {!pystring_asstring}. *)
+
 val pystring_asstring: pyobject -> string
+(** [pystring_asstring o] returns the string contained in the Python value [o].
+Equivalent to {!Py.String.to_string}: the function raises an exception if [o]
+is not a string, and, with Python 3, [o] can be either a Bytes or Unicode. *)
+
 val pymodule_getfilename: pyobject -> string
+(** Equivalent to {!Py.Module.get_filename}: raises an exception in case of
+error. *)
+
 val pymodule_getname: pyobject -> string
+(** Equivalent to {!Py.Module.get_name}: raises an exception in case of
+error. *)
 
 (* Type28 *)
 val pyimport_addmodule: string -> pyobject
@@ -337,7 +350,13 @@ val pyerr_setstring: (pyobject * string) -> unit
 
 (* Type47 *)
 val pyerr_fetch: (pyobject * pyobject * pyobject) -> (pyobject * pyobject * pyobject)
+(** Wrapper for
+    {{:https://docs.python.org/3/c-api/exceptions.html#c.PyErr_Fetch} PyErr_Fetch}.
+    The argument in ignored and [PyErr_NormalizeException] is implicitly
+    called. *)
+
 val pyerr_normalizeexception: (pyobject * pyobject * pyobject) -> (pyobject * pyobject * pyobject)
+(** Implemented as the identity function. *)
 
 (* Type48 *)
 val pyerr_restore: (pyobject * pyobject * pyobject) -> unit
@@ -381,3 +400,4 @@ val pytuple_fromsingle: pyobject -> pyobject
 val pytuple_toarray: pyobject -> pyobject array
 
 val register_ocamlpill_types: string array -> unit
+(** For compatibility only. Does nothing. *)

@@ -15,7 +15,13 @@ type wrapper = {
   }
 
 let wrappers =
-  [{ symbol = "Py_Exit";
+  [{ symbol = "_Py_NoneStruct";
+     arguments = Value;
+     result = PyObject false; };
+   { symbol = "_Py_TrueStruct";
+     arguments = Value;
+     result = PyObject false; };
+   { symbol = "Py_Exit";
      arguments = Fun [Int];
      result = NeverReturn; };
    { symbol = "Py_GetVersion";
@@ -36,6 +42,9 @@ let wrappers =
    { symbol = "Py_FdIsInteractive";
      arguments = Fun [File; String];
      result = Int; };
+   { symbol = "Py_Initialize";
+     arguments = Fun [];
+     result = Unit; };
    { symbol = "PyBool_Type";
      arguments = Value;
      result = PyObject false; };
@@ -904,12 +913,22 @@ let print_pycamls indent prefix channel wrappers =
   List.iter (print_pycaml indent prefix channel) wrappers
 
 let print_all_externals channel =
+  Printf.fprintf channel "(** Low-level bindings. *)
+(** The library has to be initialized via {!Py.initialize} first. *)
+
+";
   print_externals "" "" channel wrappers;
-  Printf.fprintf channel "\nmodule Python2 = struct\n";
+  Printf.fprintf channel "
+(** Python 2 specific bindings. *)
+module Python2 = struct\n";
   print_externals "  " "Python2_" channel wrappers_python2;
-  Printf.fprintf channel "end\n\nmodule Python3 = struct\n";
+  Printf.fprintf channel "end
+(** Python 3 specific bindings. *)
+module Python3 = struct\n";
   print_externals "  " "Python3_" channel wrappers_python3;
-  Printf.fprintf channel "end\n\nmodule Pycaml = struct\n";
+  Printf.fprintf channel "end\n
+(** Automatic wrappers for Pycaml_compat. *)
+module Pycaml = struct\n";
   print_pycamls "  " "" channel wrappers;
   print_pycamls "  " "Python2." channel wrappers_python2;
   print_pycamls "  " "Python3." channel wrappers_python3;

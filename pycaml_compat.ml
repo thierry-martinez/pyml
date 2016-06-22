@@ -128,7 +128,10 @@ let pymodule_getname = Py.Module.get_name
 
 let pyunicode_check v = int_of_bool (Py.Type.get v = Py.Type.Unicode)
 
-let pyerr_fetch _ = Py.Err.fetch ()
+let pyerr_fetch _ =
+  match Py.Err.fetch () with
+    None -> (Py.null, Py.null, Py.null)
+  | Some e -> e
 
 let pyerr_normalizeexception e = e
 
@@ -141,13 +144,6 @@ let pyint_fromint = Py.Long.of_int
 let pynone () = Py.none
 
 let pynull () = Py.null
-
-let input_of_int input =
-  match input with
-    256 -> Py.Single
-  | 257 -> Py.File
-  | 258 -> Py.Eval
-  | _ -> failwith "input_of_int"
 
 let pystring_asstring = Py.String.to_string
 
@@ -185,6 +181,13 @@ let pyeval_callobject (func, arg) =
 
 let pyimport_importmoduleex (name, globals, locals, fromlist) =
   Pywrappers.pyimport_importmodulelevel name globals locals fromlist (-1)
+
+let input_of_int input =
+  match input with
+    256 -> Py.Single
+  | 257 -> Py.File
+  | 258 -> Py.Eval
+  | _ -> failwith "input_of_int"
 
 let py_compilestring (str, filename, start) =
   if Py.version_major () <= 2 then
