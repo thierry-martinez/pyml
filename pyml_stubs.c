@@ -12,7 +12,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-//#include <Python.h>
+
+/* The following definitions are extracted and simplified from
+#include <Python.h>
+*/
 
 typedef ssize_t Py_ssize_t;
 
@@ -96,7 +99,6 @@ typedef struct {
 
 typedef PyObject *(*PyCFunction)(PyObject *, PyObject *);
 
-
 typedef struct PyMethodDef {
     const char *ml_name;
     PyCFunction ml_meth;
@@ -106,25 +108,32 @@ typedef struct PyMethodDef {
 
 typedef void (*PyCapsule_Destructor)(PyObject *);
 
+static void *_PyObject_NextNotImplemented;
+
+/* Global variables for the library */
+
 static int version_major;
 
 static void *library;
 
-void (*py_Initialize)(void);
+/* Functions that are special enough to deserved to be wrapped specifically */
 
-PyObject *(*pyCFunction_NewEx)(PyMethodDef *, PyObject *, PyObject *);
+/* Wrapped by pywrap_closure */
+static PyObject *(*pyCFunction_NewEx)(PyMethodDef *, PyObject *, PyObject *);
 
-void *(*pyCapsule_New)(void *, const char *, PyCapsule_Destructor);
-void *(*pyCapsule_GetPointer)(PyObject *, const char *);
+/* Wrapped by closure and capsuble */
+static void *(*pyCapsule_New)(void *, const char *, PyCapsule_Destructor);
+static void *(*pyCapsule_GetPointer)(PyObject *, const char *);
 
-PyObject *(*pyObject_CallFunctionObjArgs)(PyObject *, ...);
+/* Hack for multi-arguments */
+static PyObject *(*pyObject_CallFunctionObjArgs)(PyObject *, ...);
 
-void (*pyErr_Fetch)(PyObject **, PyObject **, PyObject **);
-void (*pyErr_NormalizeException)(PyObject **, PyObject **, PyObject **);
+/* Wrapped by PyErr_Fetch_wrapper */
+static void (*pyErr_Fetch)(PyObject **, PyObject **, PyObject **);
+static void (*pyErr_NormalizeException)(PyObject **, PyObject **, PyObject **);
 
-PyObject *_Py_FalseStruct;
-PyObject *_Py_NoneStruct;
-PyObject *_Py_TrueStruct;
+/* Resolved differently between Python 2 and Python 3 */
+static PyObject *_Py_FalseStruct;
 
 #include "pyml.h"
 
@@ -259,7 +268,7 @@ pywrap_compilerflags(PyCompilerFlags *flags)
 }
 */
 
-PyCompilerFlags *
+static PyCompilerFlags *
 pyunwrap_compilerflags(value v)
 {
     CAMLparam1(v);
@@ -285,14 +294,14 @@ pywrap_intref(int v)
 }
 */
 
-int
+static int
 pyunwrap_intref(value v)
 {
     CAMLparam1(v);
     CAMLreturnT(int, Int_val(Field(v, 0)));
 }
 
-PyObject *
+static PyObject *
 pycall_callback(PyObject *obj, PyObject *args)
 {
     CAMLparam0();
@@ -359,7 +368,7 @@ caml_aux(PyObject *obj)
     return (void *) v + sizeof(value);
 }
 
-value
+CAMLprim value
 pywrap_closure(value closure)
 {
     CAMLparam1(closure);
@@ -376,7 +385,7 @@ pywrap_closure(value closure)
     CAMLreturn(pywrap(f, true));
 }
 
-void *
+static void *
 resolve(const char *symbol)
 {
     void *result = dlsym(library, symbol);
@@ -385,14 +394,6 @@ resolve(const char *symbol)
         exit(EXIT_FAILURE);
     }
     return result;
-}
-
-void *_PyObject_NextNotImplemented;
-
-PyObject *
-mycallback(PyObject *obj, PyObject *args)
-{
-    return pyExc_Exception;
 }
 
 CAMLprim value
@@ -411,7 +412,6 @@ py_load_library(value version_major_ocaml, value filename_ocaml)
     else {
         library = RTLD_DEFAULT;
     }
-    py_Initialize = resolve("Py_Initialize");
     pyCFunction_NewEx = resolve("PyCFunction_NewEx");
     pyCapsule_New = resolve("PyCapsule_New");
     pyCapsule_GetPointer = resolve("PyCapsule_GetPointer");
@@ -419,8 +419,6 @@ py_load_library(value version_major_ocaml, value filename_ocaml)
     pyErr_Fetch = resolve("PyErr_Fetch");
     pyErr_NormalizeException = resolve("PyErr_NormalizeException");
     _PyObject_NextNotImplemented = resolve("_PyObject_NextNotImplemented");
-    _Py_NoneStruct = resolve("_Py_NoneStruct");
-    _Py_TrueStruct = resolve("_Py_TrueStruct");
     if (version_major <= 2) {
         _Py_FalseStruct = resolve("_Py_ZeroStruct");
     }
@@ -684,7 +682,7 @@ static void *xmalloc(size_t size)
     return p;
 }
 
-value
+static value
 pywrap_wide_string(wchar_t *ws) {
     CAMLparam0();
     CAMLlocal1(result);
@@ -700,7 +698,7 @@ pywrap_wide_string(wchar_t *ws) {
     CAMLreturn(result);
 }
 
-wchar_t *
+static wchar_t *
 pyunwrap_wide_string(value string_ocaml) {
     CAMLparam1(string_ocaml);
     char *s = String_val(string_ocaml);
