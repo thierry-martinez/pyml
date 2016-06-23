@@ -534,17 +534,20 @@ module List: sig
   val of_array: Object.t array -> Object.t
   (** [of_array a] returns the Python list with the same elements as [a]. *)
 
-  val of_list: Object.t list -> Object.t
-  (** [of_list l] returns the Python list with the same elements as [l]. *)
-
   val to_array: Object.t -> Object.t array
   (** Equivalent to {!Sequence.to_array}. *)
+
+  val of_list: Object.t list -> Object.t
+  (** [of_list l] returns the Python list with the same elements as [l]. *)
 
   val to_list: Object.t -> Object.t list
   (** Equivalent to {!Sequence.to_list}. *)
 
   val of_sequence: Object.t -> Object.t
   (** Equivalent to {!Sequence.list}. *)
+
+  val singleton: Object.t -> Object.t
+  (** [singleton o] returns the Python list [[o]]. *)
 end
 
 (** Interface for Python values with a [Mapping] interface. *)

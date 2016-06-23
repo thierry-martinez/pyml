@@ -981,8 +981,7 @@ module Tuple = struct
 
   let singleton v = init 1 (fun _ -> v)
 
-  let of_sequence sequence =
-    check_not_null (Pywrappers.pysequence_tuple sequence)
+  let of_sequence = Sequence.tuple
 end
 
 module Wrap = struct
@@ -1043,12 +1042,13 @@ module List = struct
 
   let of_array array = init (Array.length array) (Array.get array)
 
-  let of_list list = of_array (Array.of_list list)
-
-  let of_sequence sequence =
-    check_not_null (Pywrappers.pysequence_list sequence)
-
   let to_array = Sequence.to_array
 
+  let of_list list = of_array (Array.of_list list)
+
   let to_list = Sequence.to_list
+
+  let of_sequence = Sequence.list
+
+  let singleton v = init 1 (fun _ -> v)
 end
