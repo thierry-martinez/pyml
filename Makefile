@@ -102,15 +102,19 @@ endif
 	$(OCAMLDEP) $^ >$@
 
 clean:
-	rm -f py.{cmi,cmx,cmo,a,o}
-	rm -f pyml.{cma,cmxa}
-	rm -f pytypes.{cmi,cmo,cmx,o}
-	rm -f pywrappers.{mli,ml,cmi,cmo,cmx,o}
+	rm -f py.cmi py.cmx py.cmo py.a py.o
+	rm -f pyml.cma pyml.cmxa
+	rm -f pytypes.cmi pytypes.cmo pytypes.cmx pytypes.o
+	rm -f pywrappers.mli pywrappers.ml pywrappers.cmi pywrappers.cmo
+	rm -f pywrappers.cmx pywrappers.o
 	rm -f pyml_stubs.o
-	rm -f generate.{cmi,cmx}
-	rm -f pyml_compat.{ml,cmi,cmo,cmx,o}
-	rm -f pycaml_compat.{cmi,cmx,cmo,a,o}
-	rm -f pyml_tests.{cmi,cmx,cmo,a,o}
+	rm -f generate.cmi generate.cmx
+	rm -f pyml_compat.ml pyml_compat.cmi pyml_compat.cmo pyml_compat.cmx
+	rm -f pyml_compat.o
+	rm -f pycaml_compat.cmi pycaml_compat.cmx pycaml_compat.cmo
+	rm -f pycaml_compat.a pycaml_compat.o
+	rm -f pyml_tests.cmi pyml_tests.cmx pyml_tests.cmo pyml_tests.a
+	rm -f pyml_tests.o
 	rm -f $(GENERATED)
 	rm -f .depend
 	rm -rf doc
