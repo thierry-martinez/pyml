@@ -881,7 +881,7 @@ let print_pycaml indent prefix channel wrapper =
   let arguments_list =
     match arguments with
       Value | Deref -> []
-    | Fun list -> List.mapi (fun i _ -> Printf.sprintf "arg%d" i) list in
+    | Fun list -> Pyml_compat.mapi (fun i _ -> Printf.sprintf "arg%d" i) list in
   let arguments_tuple =
     match arguments with
       Value | Deref -> ""
@@ -897,7 +897,7 @@ let print_pycaml indent prefix channel wrapper =
   let converted_arguments_list =
     match arguments with
       Value | Deref -> []
-    | Fun list -> List.mapi convert list in
+    | Fun list -> Pyml_compat.mapi convert list in
   let arguments_curryfied =
     match arguments with
       Value | Deref -> ""
@@ -1076,7 +1076,7 @@ let print_stub prefix channel wrapper =
       Value | Deref | Fun [] -> "value unit"
     | Fun arguments' ->
         let value_arg i _ = Printf.sprintf "value arg%d_ocaml" i in
-        let stub_argument_list = List.mapi value_arg arguments' in
+        let stub_argument_list = Pyml_compat.mapi value_arg arguments' in
         String.concat ", " stub_argument_list in
   let arg_ocaml i = Printf.sprintf "arg%d_ocaml" i in
   let camlparam =
@@ -1108,7 +1108,7 @@ let print_stub prefix channel wrapper =
     let destruct_argument_list =
       match arguments with
         Value | Deref -> []
-      | Fun arguments' -> List.mapi destruct_argument arguments' in
+      | Fun arguments' -> Pyml_compat.mapi destruct_argument arguments' in
     String.concat "\n" destruct_argument_list in
   let result_type_c = string_of_type_c result in
   let make_arg i ty =
@@ -1119,7 +1119,7 @@ let print_stub prefix channel wrapper =
     match arguments with
       Value | Deref -> symbol_decapitalized
     | Fun arguments' ->
-        let arg_c_list = List.mapi make_arg arguments' in
+        let arg_c_list = Pyml_compat.mapi make_arg arguments' in
         let arg_c = String.concat ", " arg_c_list in
         Printf.sprintf "%s(%s)" symbol_decapitalized arg_c in
   let call =
@@ -1137,7 +1137,7 @@ let print_stub prefix channel wrapper =
     match arguments with
       Value | Deref -> ""
     | Fun arguments' ->
-        String.concat "" (List.mapi free_argument arguments') in
+        String.concat "" (Pyml_compat.mapi free_argument arguments') in
   let return = coercion_of_c result in
   Printf.fprintf channel "
 CAMLprim value
@@ -1162,7 +1162,7 @@ CAMLprim value
 }
 " (bytecode_name prefix symbol) (native_name prefix symbol)
       (String.concat ", "
-         (List.mapi (fun i _ -> Printf.sprintf "argv[%d]" i) arguments'))
+         (Pyml_compat.mapi (fun i _ -> Printf.sprintf "argv[%d]" i) arguments'))
 
 let print_stubs prefix channel wrappers =
   List.iter (print_stub prefix channel) wrappers

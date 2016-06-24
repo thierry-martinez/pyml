@@ -175,6 +175,14 @@ let () =
 
 let () =
   add_test
+    ~title:"reinitialize"
+    (fun () ->
+      Py.finalize ();
+      Py.initialize ()
+    )
+
+let () =
+  add_test
     ~title:"string conversion error"
     (fun () ->
       try

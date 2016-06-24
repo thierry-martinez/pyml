@@ -61,10 +61,12 @@ OCAMLLIBFLAGSBYTECODE=-custom $(OCAMLLIBFLAGS)
 OCAMLVERSION=$(shell $(OCAMLC) -version)
 
 PYML_COMPAT=$(shell \
-	if [ "$(OCAMLVERSION)" "<" 4.03.0 ]; then \
-	  echo pyml_compat312.ml; \
+	if [ "$(OCAMLVERSION)" "<" 4.00.0 ]; then \
+		echo pyml_compat312.ml; \
+	elif [ "$(OCAMLVERSION)" "<" 4.03.0 ]; then \
+		echo pyml_compat400.ml; \
 	else \
-	  echo pyml_compat403.ml; \
+		echo pyml_compat403.ml; \
 	fi \
 )
 
@@ -85,12 +87,12 @@ doc: py.mli pycaml_compat.mli pywrappers.ml
 
 install:
 	$(OCAMLFIND) install pyml \
-	  py.mli \
-	  py.cmi pytypes.cmi pywrappers.cmi pycaml_compat.cmi \
-	  py.cmx pytypes.cmx pywrappers.cmx pycaml_compat.cmx \
-	  pyml.cma pyml.cmxa pyml.cmxs pyml.a \
-	  libpyml_stubs.a dllpyml_stubs.so \
-	  META
+		py.mli \
+		py.cmi pytypes.cmi pywrappers.cmi pycaml_compat.cmi \
+		py.cmx pytypes.cmx pywrappers.cmx pycaml_compat.cmx \
+		pyml.cma pyml.cmxa pyml.cmxs pyml.a \
+		libpyml_stubs.a dllpyml_stubs.so \
+		META
 
 ifneq ($(MAKECMDGOALS),clean)
 -include .depend
