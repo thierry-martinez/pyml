@@ -6,4 +6,4 @@ let rec mapi_from f i l =
   | hd :: tl -> f i hd :: mapi_from f (succ i) tl
 
 let mapi f l =
-  mapi_from 0 l
+  mapi_from f 0 l

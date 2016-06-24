@@ -117,7 +117,8 @@ clean:
 
 tarball:
 	mkdir pyml-$(VERSION)/
-	cp Makefile pyml_compat312.ml pyml_compat403.ml pyml_compat.mli \
+	cp Makefile pyml_compat312.ml pyml_compat400.ml pyml_compat403.ml \
+		pyml_compat.mli \
 		generate.ml py.ml py.mli pyml_stubs.c pytypes.ml pytypes.mli \
 		pyml_tests.ml test.py \
 		pycaml_compat.ml pycaml_compat.mli README LICENSE META \
