@@ -195,7 +195,6 @@ let find_library () =
         [] -> failwith "Py.find_library: unable to find the Python library"
       | filename :: others ->
           begin
-            flush stderr;
             try load_library !version_major_value (Some filename)
             with Failure _ -> try_load_library others
           end in
