@@ -108,7 +108,7 @@ typedef struct PyMethodDef {
 
 typedef void (*PyCapsule_Destructor)(PyObject *);
 
-static void *_PyObject_NextNotImplemented;
+static void *Python__PyObject_NextNotImplemented;
 
 /* Global variables for the library */
 
@@ -119,21 +119,24 @@ static void *library;
 /* Functions that are special enough to deserved to be wrapped specifically */
 
 /* Wrapped by pywrap_closure */
-static PyObject *(*pyCFunction_NewEx)(PyMethodDef *, PyObject *, PyObject *);
+static PyObject *(*Python_PyCFunction_NewEx)
+(PyMethodDef *, PyObject *, PyObject *);
 
 /* Wrapped by closure and capsuble */
-static void *(*pyCapsule_New)(void *, const char *, PyCapsule_Destructor);
-static void *(*pyCapsule_GetPointer)(PyObject *, const char *);
+static void *(*Python_PyCapsule_New)
+(void *, const char *, PyCapsule_Destructor);
+static void *(*Python_PyCapsule_GetPointer)(PyObject *, const char *);
 
 /* Hack for multi-arguments */
-static PyObject *(*pyObject_CallFunctionObjArgs)(PyObject *, ...);
+static PyObject *(*Python_PyObject_CallFunctionObjArgs)(PyObject *, ...);
 
 /* Wrapped by PyErr_Fetch_wrapper */
-static void (*pyErr_Fetch)(PyObject **, PyObject **, PyObject **);
-static void (*pyErr_NormalizeException)(PyObject **, PyObject **, PyObject **);
+static void (*Python_PyErr_Fetch)(PyObject **, PyObject **, PyObject **);
+static void (*Python_PyErr_NormalizeException)
+(PyObject **, PyObject **, PyObject **);
 
 /* Resolved differently between Python 2 and Python 3 */
-static PyObject *_Py_FalseStruct;
+static PyObject *Python__Py_FalseStruct;
 
 #include "pyml.h"
 
@@ -162,12 +165,12 @@ static int pycompare(value v1, value v2)
     else if (!o1 && !o2)
         result = 0;
     else if (version_major <= 2)
-        Python2_pyObject_Cmp(o1, o2, &result);
-    else if (1 == pyObject_RichCompareBool(o1, o2, Py_EQ))
+        Python2_PyObject_Cmp(o1, o2, &result);
+    else if (1 == Python_PyObject_RichCompareBool(o1, o2, Py_EQ))
         result = 0;
-    else if (1 == pyObject_RichCompareBool(o1, o2, Py_LT))
+    else if (1 == Python_PyObject_RichCompareBool(o1, o2, Py_LT))
         result = -1;
-    else if (1 == pyObject_RichCompareBool(o1, o2, Py_GT))
+    else if (1 == Python_PyObject_RichCompareBool(o1, o2, Py_GT))
         result = 1;
     else
         result = -1;
@@ -178,7 +181,7 @@ static int pycompare(value v1, value v2)
 static long pyhash( value v )
 {
     if (getcustom(v))
-        return pyObject_Hash((PyObject *)getcustom(v));
+        return Python_PyObject_Hash((PyObject *)getcustom(v));
     else
         return 0L;
 }
@@ -206,6 +209,17 @@ enum code {
     CODE_FALSE
 };
 
+static void *
+resolve(const char *symbol)
+{
+    void *result = dlsym(library, symbol);
+    if (result == NULL) {
+        fprintf(stderr, "Cannot resolve %s.\n", symbol);
+        exit(EXIT_FAILURE);
+    }
+    return result;
+}
+
 static value
 pywrap(PyObject *obj, bool steal)
 {
@@ -214,13 +228,13 @@ pywrap(PyObject *obj, bool steal)
     if (obj == NULL) {
         CAMLreturn(Val_int(CODE_NULL));
     }
-    if (obj == _Py_NoneStruct) {
+    if (obj == Python__Py_NoneStruct) {
         CAMLreturn(Val_int(CODE_NONE));
     }
-    if (obj == _Py_TrueStruct) {
+    if (obj == Python__Py_TrueStruct) {
         CAMLreturn(Val_int(CODE_TRUE));
     }
-    if (obj == _Py_FalseStruct) {
+    if (obj == Python__Py_FalseStruct) {
         CAMLreturn(Val_int(CODE_FALSE));
     }
     if (!steal) {
@@ -239,11 +253,11 @@ pyunwrap(value v)
         case CODE_NULL:
             return NULL;
         case CODE_NONE:
-            return _Py_NoneStruct;
+            return Python__Py_NoneStruct;
         case CODE_TRUE:
-            return _Py_TrueStruct;
+            return Python__Py_TrueStruct;
         case CODE_FALSE:
-            return _Py_FalseStruct;
+            return Python__Py_FalseStruct;
         }
 
     return *((PyObject **)Data_custom_val(v));
@@ -307,11 +321,11 @@ pycall_callback(PyObject *obj, PyObject *args)
     CAMLparam0();
     CAMLlocal3(ml_out, ml_func, ml_args);
     PyObject *out;
-    void *p = pyCapsule_GetPointer(obj, "ocaml-closure");
+    void *p = Python_PyCapsule_GetPointer(obj, "ocaml-closure");
     if (p == NULL)
         {
-          Py_INCREF(_Py_NoneStruct);
-          return _Py_NoneStruct;
+          Py_INCREF(Python__Py_NoneStruct);
+          return Python__Py_NoneStruct;
         }
     ml_func = *(value *) p;
     ml_args = pywrap(args, false);
@@ -324,7 +338,7 @@ pycall_callback(PyObject *obj, PyObject *args)
 static void
 caml_destructor(PyObject *v, const char *capsule_name)
 {
-    value *valptr = (value *) pyCapsule_GetPointer(v, capsule_name);
+    value *valptr = (value *) Python_PyCapsule_GetPointer(v, capsule_name);
     caml_remove_global_root(valptr);
     free(valptr);
 }
@@ -342,7 +356,7 @@ camlwrap_closure(value val, void *aux_str, int size)
     *v = val;
     memcpy((void *)v + sizeof(value), aux_str, size);
     caml_register_global_root(v);
-    return pyCapsule_New(v, "ocaml-closure", camldestr_closure);
+    return Python_PyCapsule_New(v, "ocaml-closure", camldestr_closure);
 }
 
 static void
@@ -358,13 +372,13 @@ camlwrap_capsule(value val, void *aux_str, int size)
     *v = val;
     memcpy((void *)v + sizeof(value), aux_str, size);
     caml_register_global_root(v);
-    return pyCapsule_New(v, "ocaml-capsule", camldestr_capsule);
+    return Python_PyCapsule_New(v, "ocaml-capsule", camldestr_capsule);
 }
 
 static void *
 caml_aux(PyObject *obj)
 {
-    value *v = (value *) pyCapsule_GetPointer(obj, "ocaml-closure");
+    value *v = (value *) Python_PyCapsule_GetPointer(obj, "ocaml-closure");
     return (void *) v + sizeof(value);
 }
 
@@ -381,19 +395,8 @@ pywrap_closure(value closure)
     ml.ml_doc = "Anonymous closure";
     obj = camlwrap_closure(closure, &ml, sizeof(ml));
     ml_def = (PyMethodDef *) caml_aux(obj);
-    PyObject *f = pyCFunction_NewEx(ml_def, obj, NULL);
+    PyObject *f = Python_PyCFunction_NewEx(ml_def, obj, NULL);
     CAMLreturn(pywrap(f, true));
-}
-
-static void *
-resolve(const char *symbol)
-{
-    void *result = dlsym(library, symbol);
-    if (result == NULL) {
-        fprintf(stderr, "Cannot resolve %s.\n", symbol);
-        exit(EXIT_FAILURE);
-    }
-    return result;
 }
 
 CAMLprim value
@@ -412,21 +415,25 @@ py_load_library(value version_major_ocaml, value filename_ocaml)
     else {
         library = RTLD_DEFAULT;
     }
-    pyCFunction_NewEx = resolve("PyCFunction_NewEx");
-    pyCapsule_New = resolve("PyCapsule_New");
-    pyCapsule_GetPointer = resolve("PyCapsule_GetPointer");
-    pyObject_CallFunctionObjArgs = resolve("PyObject_CallFunctionObjArgs");
-    pyErr_Fetch = resolve("PyErr_Fetch");
-    pyErr_NormalizeException = resolve("PyErr_NormalizeException");
-    _PyObject_NextNotImplemented = resolve("_PyObject_NextNotImplemented");
+    Python_PyCFunction_NewEx = dlsym(library, "PyCFunction_NewEx");
+    if (Python_PyCFunction_NewEx == NULL) {
+        failwith("No Python symbol");
+        CAMLreturn(Val_unit);
+    }
+    Python_PyCapsule_New = resolve("PyCapsule_New");
+    Python_PyCapsule_GetPointer = resolve("PyCapsule_GetPointer");
+    Python_PyObject_CallFunctionObjArgs = resolve("PyObject_CallFunctionObjArgs");
+    Python_PyErr_Fetch = resolve("PyErr_Fetch");
+    Python_PyErr_NormalizeException = resolve("PyErr_NormalizeException");
+    Python__PyObject_NextNotImplemented = resolve("_PyObject_NextNotImplemented");
     if (version_major <= 2) {
-        _Py_FalseStruct = resolve("_Py_ZeroStruct");
+        Python__Py_FalseStruct = resolve("_Py_ZeroStruct");
     }
     else {
-        _Py_FalseStruct = resolve("_Py_FalseStruct");
+        Python__Py_FalseStruct = resolve("_Py_FalseStruct");
     }
 #include "pyml_dlsyms.inc"
-    py_Initialize();
+    Python_Py_Initialize();
     CAMLreturn(Val_unit);
 }
 
@@ -498,27 +505,28 @@ pytype(value object_ocaml)
     }
     unsigned long flags = object->ob_type->tp_flags;
     int result;
-    if ((PyObject *) object->ob_type == pyBool_Type) {
+    if ((PyObject *) object->ob_type == Python_PyBool_Type) {
         result = Bool;
     }
     else if (flags & Py_TPFLAGS_BYTES_SUBCLASS) {
         result = Bytes;
     }
-    else if (pyCallable_Check(object)) {
+    else if (Python_PyCallable_Check(object)) {
         result = Callable;
     }
-    else if (pyCapsule_IsValid(object, "ocaml-capsule")) {
+    else if (Python_PyCapsule_IsValid(object, "ocaml-capsule")) {
         result = Capsule;
     }
-    else if (pyCapsule_IsValid(object, "ocaml-closure")) {
+    else if (Python_PyCapsule_IsValid(object, "ocaml-closure")) {
         result = Closure;
     }
     else if (flags & Py_TPFLAGS_DICT_SUBCLASS) {
         result = Dict;
     }
     else if (
-        (PyObject *) object->ob_type == pyFloat_Type ||
-        pyType_IsSubtype((PyObject *) object->ob_type, pyFloat_Type)) {
+        (PyObject *) object->ob_type == Python_PyFloat_Type ||
+        Python_PyType_IsSubtype(
+            (PyObject *) object->ob_type, Python_PyFloat_Type)) {
         result = Float;
     }
     else if (flags & Py_TPFLAGS_LIST_SUBCLASS) {
@@ -528,11 +536,12 @@ pytype(value object_ocaml)
         result = Long;
     }
     else if (
-        (PyObject *) object->ob_type == pyModule_Type ||
-        pyType_IsSubtype((PyObject *) object->ob_type, pyModule_Type)) {
+        (PyObject *) object->ob_type == Python_PyModule_Type ||
+        Python_PyType_IsSubtype(
+            (PyObject *) object->ob_type, Python_PyModule_Type)) {
         result = Module;
     }
-    else if (object == _Py_NoneStruct) {
+    else if (object == Python__Py_NoneStruct) {
         result = NoneType;
     }
     else if (flags & Py_TPFLAGS_TUPLE_SUBCLASS) {
@@ -545,7 +554,7 @@ pytype(value object_ocaml)
         result = Unicode;
     }
     else if (object->ob_type->tp_iternext != NULL &&
-        object->ob_type->tp_iternext != &_PyObject_NextNotImplemented) {
+        object->ob_type->tp_iternext != &Python__PyObject_NextNotImplemented) {
         result = Iter;
     }
     else {
@@ -564,23 +573,23 @@ PyObject_CallFunctionObjArgs_wrapper(
     int argument_count = Wosize_val(arguments_ocaml);
     switch (argument_count) {
     case 0:
-        result = pyObject_CallFunctionObjArgs(callable);
+        result = Python_PyObject_CallFunctionObjArgs(callable);
         break;
     case 1:
-        result = pyObject_CallFunctionObjArgs
+        result = Python_PyObject_CallFunctionObjArgs
             (callable,
              pyunwrap(Field(arguments_ocaml, 0)),
              NULL);
         break;
     case 2:
-        result = pyObject_CallFunctionObjArgs
+        result = Python_PyObject_CallFunctionObjArgs
             (callable,
              pyunwrap(Field(arguments_ocaml, 0)),
              pyunwrap(Field(arguments_ocaml, 1)),
              NULL);
         break;
     case 3:
-        result = pyObject_CallFunctionObjArgs
+        result = Python_PyObject_CallFunctionObjArgs
             (callable,
              pyunwrap(Field(arguments_ocaml, 0)),
              pyunwrap(Field(arguments_ocaml, 1)),
@@ -588,7 +597,7 @@ PyObject_CallFunctionObjArgs_wrapper(
              NULL);
         break;
     case 4:
-        result = pyObject_CallFunctionObjArgs
+        result = Python_PyObject_CallFunctionObjArgs
             (callable,
              pyunwrap(Field(arguments_ocaml, 0)),
              pyunwrap(Field(arguments_ocaml, 1)),
@@ -597,7 +606,7 @@ PyObject_CallFunctionObjArgs_wrapper(
              NULL);
         break;
     case 5:
-        result = pyObject_CallFunctionObjArgs
+        result = Python_PyObject_CallFunctionObjArgs
             (callable,
              pyunwrap(Field(arguments_ocaml, 0)),
              pyunwrap(Field(arguments_ocaml, 1)),
@@ -632,7 +641,7 @@ pyunwrap_value(value x_ocaml) {
     CAMLparam1(x_ocaml);
     CAMLlocal2(v, pair);
     PyObject *x = pyunwrap(x_ocaml);
-    void *p = pyCapsule_GetPointer(x, "ocaml-capsule");
+    void *p = Python_PyCapsule_GetPointer(x, "ocaml-capsule");
     if (p == NULL) {
         fprintf(stderr, "pyunwrap_value: type mismatch");
         exit(EXIT_FAILURE);
@@ -649,8 +658,8 @@ PyErr_Fetch_wrapper(value unit) {
     CAMLparam1(unit);
     CAMLlocal1(result);
     PyObject *excType, *excValue, *excTraceback;
-    pyErr_Fetch(&excType, &excValue, &excTraceback);
-    pyErr_NormalizeException(&excType, &excValue, &excTraceback);
+    Python_PyErr_Fetch(&excType, &excValue, &excTraceback);
+    Python_PyErr_NormalizeException(&excType, &excValue, &excTraceback);
     result = caml_alloc(3, 0);
     Store_field(result, 0, pywrap(excType, false));
     Store_field(result, 1, pywrap(excValue, false));

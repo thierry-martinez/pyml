@@ -174,33 +174,35 @@ let initialize_version_value () =
   version_major_value := version_major;
   version_minor_value := version_minor
 
+let find_library () =
+  try
+    load_library !version_major_value None
+  with Failure _ ->
+    let (library_paths, library_filenames) =
+      find_library_path !version_major_value !version_minor_value in
+    let expand_filenames filename =
+      [Printf.sprintf "lib%s.so" filename;
+       Printf.sprintf "lib%s.dylib" filename] in
+    let library_filenames =
+      List.concat (List.map expand_filenames library_filenames) in
+    let expand_filepaths filename =
+      filename ::
+      List.map (fun path -> Filename.concat path filename) library_paths in
+    let library_filenames =
+      List.concat (List.map expand_filepaths library_filenames) in
+    let rec try_load_library library_filenames =
+      match library_filenames with
+        [] -> failwith "Py.find_library: unable to find the Python library"
+      | filename :: others ->
+          begin
+            flush stderr;
+            try load_library !version_major_value (Some filename)
+            with Failure _ -> try_load_library others
+          end in
+    try_load_library library_filenames
+
 let initialize_library () =
-  let (library_paths, library_filenames) =
-    find_library_path !version_major_value !version_minor_value in
-  let expand_filenames filename =
-    [Printf.sprintf "lib%s.so" filename;
-     Printf.sprintf "lib%s.dylib" filename] in
-  let library_filenames =
-    List.concat (List.map expand_filenames library_filenames) in
-  let expand_filepaths filename =
-    filename ::
-    List.map (fun path -> Filename.concat path filename) library_paths in
-  let library_filenames =
-    List.concat (List.map expand_filepaths library_filenames) in
-  let rec try_load_library library_filenames =
-    match library_filenames with
-      [] ->
-        begin
-          try load_library !version_major_value None
-          with Failure _ ->
-            failwith "Py.initialize_library: unable to find the Python library"
-        end
-    | filename :: others ->
-        begin
-          try load_library !version_major_value (Some filename)
-          with Failure _ -> try_load_library others
-        end in
-  try_load_library library_filenames;
+  find_library ();
   set_program_name !program_name;
   begin
     match !python_home with

@@ -170,7 +170,9 @@ let () =
         Py.Run.file channel "test.py" Py.File globals locals
       ) in
       if result <> Py.none then
-        failwith "Result None expected"
+        let result_str = Py.Object.to_string result in
+        let msg = Printf.sprintf "Result None expected but got %s" result_str in
+        failwith msg
     )
 
 let () =

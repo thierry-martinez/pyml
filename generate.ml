@@ -830,8 +830,7 @@ let string_of_type_ml ty =
   | NeverReturn -> "'a"
 
 let decapitalize prefix symbol =
-  prefix ^ Pyml_compat.lowercase (String.sub symbol 0 1)
-  ^ String.sub symbol 1 (String.length symbol - 1)
+  prefix ^ symbol
 
 let wrapper_name prefix symbol =
   Printf.sprintf "%s%s_wrapper" prefix symbol
@@ -917,7 +916,7 @@ let print_all_externals channel =
 (** The library has to be initialized via {!Py.initialize} first. *)
 
 ";
-  print_externals "" "" channel wrappers;
+  print_externals "" "Python_" channel wrappers;
   Printf.fprintf channel "
 (** Python 2 specific bindings. *)
 module Python2 = struct\n";
@@ -951,7 +950,7 @@ let print_dlsyms indent prefix channel wrappers =
   List.iter (print_dlsym indent prefix  channel) wrappers
 
 let print_all_dlsyms channel =
-  print_dlsyms "" "" channel wrappers;
+  print_dlsyms "" "Python_" channel wrappers;
   Printf.fprintf channel "if (version_major <= 2) {";
   print_dlsyms "    " "Python2_" channel wrappers_python2;
   Printf.fprintf channel "}\nelse {\n";
@@ -999,7 +998,7 @@ let print_declarations prefix channel wrappers =
   List.iter (print_declaration prefix channel) wrappers
 
 let print_all_declarations channel =
-  print_declarations "" channel wrappers;
+  print_declarations "Python_" channel wrappers;
   Printf.fprintf channel "\n/* Python 2 */\n";
   print_declarations "Python2_" channel wrappers_python2;
   Printf.fprintf channel "\n/* Python 3 */\n";
@@ -1168,7 +1167,7 @@ let print_stubs prefix channel wrappers =
   List.iter (print_stub prefix channel) wrappers
 
 let print_all_stubs channel =
-  print_stubs "" channel wrappers;
+  print_stubs "Python_" channel wrappers;
   Printf.fprintf channel "\n/* Python 2 */\n";
   print_stubs "Python2_" channel wrappers_python2;
   Printf.fprintf channel "\n/* Python 3 */\n";
