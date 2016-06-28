@@ -1142,7 +1142,9 @@ let print_stub prefix channel wrapper =
 CAMLprim value
 %s(%s)
 {
-%s%s
+%s
+assert_initialized();
+%s
 %s%s
 %s
 }

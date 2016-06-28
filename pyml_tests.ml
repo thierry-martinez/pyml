@@ -177,9 +177,29 @@ let () =
 
 let () =
   add_test
+    ~title:"boolean"
+    (fun () ->
+      try
+        if not (Py.Bool.to_bool (Py.Run.eval "True")) then
+          failwith "true is false";
+        if Py.Bool.to_bool (Py.Run.eval "False") then
+          failwith "false is true";
+      with Py.E (_, value) ->
+        failwith (Py.Object.to_string value))
+
+let () =
+  add_test
     ~title:"reinitialize"
     (fun () ->
       Py.finalize ();
+      begin
+        try
+          Py.Run.simple_string("not initialized");
+          raise Exit
+        with
+          Failure _ -> ()
+        | Exit -> failwith "Uncaught not initialized"
+      end;
       Py.initialize ()
     )
 

@@ -213,7 +213,7 @@ static void *
 resolve(const char *symbol)
 {
     void *result = dlsym(library, symbol);
-    if (result == NULL) {
+    if (!result) {
         fprintf(stderr, "Cannot resolve %s.\n", symbol);
         exit(EXIT_FAILURE);
     }
@@ -225,7 +225,7 @@ pywrap(PyObject *obj, bool steal)
 {
     CAMLparam0();
     CAMLlocal1(v);
-    if (obj == NULL) {
+    if (!obj) {
         CAMLreturn(Val_int(CODE_NULL));
     }
     if (obj == Python__Py_NoneStruct) {
@@ -269,7 +269,7 @@ pywrap_compilerflags(PyCompilerFlags *flags)
 {
     CAMLparam0();
     CAMLlocal2(ref, some);
-    if (flags == NULL) {
+    if (!flags) {
         CAMLreturn(Val_int(0));
     }
     else {
@@ -322,11 +322,10 @@ pycall_callback(PyObject *obj, PyObject *args)
     CAMLlocal3(ml_out, ml_func, ml_args);
     PyObject *out;
     void *p = Python_PyCapsule_GetPointer(obj, "ocaml-closure");
-    if (p == NULL)
-        {
-          Py_INCREF(Python__Py_NoneStruct);
-          return Python__Py_NoneStruct;
-        }
+    if (!p) {
+        Py_INCREF(Python__Py_NoneStruct);
+        return Python__Py_NoneStruct;
+    }
     ml_func = *(value *) p;
     ml_args = pywrap(args, false);
     ml_out = caml_callback(ml_func, ml_args);
@@ -382,10 +381,18 @@ caml_aux(PyObject *obj)
     return (void *) v + sizeof(value);
 }
 
+static void
+assert_initialized() {
+    if (!library) {
+        failwith("Run 'Py.initialize ()' first");
+    }
+}
+
 CAMLprim value
 pywrap_closure(value closure)
 {
     CAMLparam1(closure);
+    assert_initialized();
     PyMethodDef ml;
     PyObject *obj;
     PyMethodDef *ml_def;
@@ -407,18 +414,16 @@ py_load_library(value version_major_ocaml, value filename_ocaml)
     if (Is_block(filename_ocaml)) {
         char *filename = String_val(Field(filename_ocaml, 0));
         library = dlopen(filename, RTLD_LAZY);
-        if (library == NULL) {
+        if (!library) {
             failwith("Library not found");
-            CAMLreturn(Val_unit);
         }
     }
     else {
         library = RTLD_DEFAULT;
     }
     Python_PyCFunction_NewEx = dlsym(library, "PyCFunction_NewEx");
-    if (Python_PyCFunction_NewEx == NULL) {
+    if (!Python_PyCFunction_NewEx) {
         failwith("No Python symbol");
-        CAMLreturn(Val_unit);
     }
     Python_PyCapsule_New = resolve("PyCapsule_New");
     Python_PyCapsule_GetPointer = resolve("PyCapsule_GetPointer");
@@ -441,9 +446,11 @@ CAMLprim value
 py_finalize_library(value unit)
 {
     CAMLparam1(unit);
+    assert_initialized();
     if (library != RTLD_DEFAULT) {
         dlclose(library);
     }
+    library = NULL;
     CAMLreturn(Val_unit);
 }
 
@@ -499,8 +506,9 @@ CAMLprim value
 pytype(value object_ocaml)
 {
     CAMLparam1(object_ocaml);
+    assert_initialized();
     PyObject *object = pyunwrap(object_ocaml);
-    if (object == NULL) {
+    if (!object) {
         CAMLreturn(Val_int(Null));
     }
     unsigned long flags = object->ob_type->tp_flags;
@@ -568,6 +576,7 @@ PyObject_CallFunctionObjArgs_wrapper(
     value callable_ocaml, value arguments_ocaml)
 {
     CAMLparam2(callable_ocaml, arguments_ocaml);
+    assert_initialized();
     PyObject *callable = pyunwrap(callable_ocaml);
     PyObject *result;
     int argument_count = Wosize_val(arguments_ocaml);
@@ -629,6 +638,7 @@ CAMLprim value
 pywrap_value(value name_ocaml, value v) {
     CAMLparam2(name_ocaml, v);
     CAMLlocal1(pair);
+    assert_initialized();
     pair = caml_alloc(2, 0);
     Store_field(pair, 0, name_ocaml);
     Store_field(pair, 1, v);
@@ -640,9 +650,10 @@ CAMLprim value
 pyunwrap_value(value x_ocaml) {
     CAMLparam1(x_ocaml);
     CAMLlocal2(v, pair);
+    assert_initialized();
     PyObject *x = pyunwrap(x_ocaml);
     void *p = Python_PyCapsule_GetPointer(x, "ocaml-capsule");
-    if (p == NULL) {
+    if (!p) {
         fprintf(stderr, "pyunwrap_value: type mismatch");
         exit(EXIT_FAILURE);
     }
@@ -657,6 +668,7 @@ CAMLprim value
 PyErr_Fetch_wrapper(value unit) {
     CAMLparam1(unit);
     CAMLlocal1(result);
+    assert_initialized();
     PyObject *excType, *excValue, *excTraceback;
     Python_PyErr_Fetch(&excType, &excValue, &excTraceback);
     Python_PyErr_NormalizeException(&excType, &excValue, &excTraceback);
@@ -671,20 +683,18 @@ CAMLprim value
 pywrap_string_option(char *s) {
     CAMLparam0();
     CAMLlocal1(result);
-    if (s == NULL) {
+    if (!s) {
         CAMLreturn(Val_int(0));
     }
-    else {
-        result = caml_alloc(1, 0);
-        Store_field(result, 0, caml_copy_string(s));
-        CAMLreturn(result);
-    }
+    result = caml_alloc(1, 0);
+    Store_field(result, 0, caml_copy_string(s));
+    CAMLreturn(result);
 }
 
 static void *xmalloc(size_t size)
 {
     void *p = malloc(size);
-    if (p == NULL) {
+    if (!p) {
         fprintf(stderr, "Virtual memory exhausted\n");
         exit(1);
     }

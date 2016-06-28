@@ -389,45 +389,6 @@ module Capsule = struct
       (wrap, unwrap)
 end
 
-module Dict = struct
-  let clear = Pywrappers.pydict_clear
-
-  let copy v = check_not_null (Pywrappers.pydict_copy v)
-
-  let create () =
-    check_not_null (Pywrappers.pydict_new ())
-
-  let del_item dict item =
-    assert_int_success (Pywrappers.pydict_delitem dict item)
-
-  let del_item_string dict name =
-    assert_int_success (Pywrappers.pydict_delitemstring dict name)
-
-  let get_item dict key =
-    check_not_null (Pywrappers.pydict_getitem dict key)
-
-  let get_item_string dict name =
-    check_not_null (Pywrappers.pydict_getitemstring dict name)
-
-  let keys dict = check_not_null (Pywrappers.pydict_keys dict)
-
-  let items dict = check_not_null (Pywrappers.pydict_items dict)
-
-  let set_item dict key value =
-    assert_int_success (Pywrappers.pydict_setitem dict key value)
-
-  let set_item_string dict name value =
-    assert_int_success (Pywrappers.pydict_setitemstring dict name value)
-
-  let size dict =
-    let sz = Pywrappers.pydict_size dict in
-    assert_int_success sz;
-    sz
-
-  let values dict =
-    check_not_null (Pywrappers.pydict_values dict)
-end
-
 module Eval = struct
   let call_object_with_keywords func arg keyword =
     check_not_null (Pywrappers.pyeval_callobjectwithkeywords func arg keyword)
@@ -554,6 +515,8 @@ module Module = struct
 
   let get_name m =
     check_some (Pywrappers.pymodule_getname m)
+
+  let main () = Import.add_module "__main__"
 end
 
 module Number = struct
@@ -641,40 +604,6 @@ module Number = struct
 
   let number_xor v0 v1 =
     check_not_null (Pywrappers.pynumber_xor v0 v1)
-end
-
-module Run = struct
-  let any_file file filename =
-    assert_int_success
-      (Pywrappers.pyrun_anyfileexflags
-         (fd_of_descr (Unix.descr_of_in_channel file)) filename 0 None)
-
-  let file file filename start globals locals =
-    let fd = fd_of_descr (Unix.descr_of_in_channel file) in
-    check_not_null
-      (Pywrappers.pyrun_fileexflags fd filename start globals locals 0 None)
-
-  let interactive_one channel name =
-    let fd = fd_of_descr (Unix.descr_of_in_channel channel) in
-    assert_int_success (Pywrappers.pyrun_interactiveoneflags fd name None)
-
-  let interactive_loop channel name =
-    let fd = fd_of_descr (Unix.descr_of_in_channel channel) in
-    assert_int_success (Pywrappers.pyrun_interactiveloopflags fd name None)
-
-  let simple_file channel name =
-    let fd = fd_of_descr (Unix.descr_of_in_channel channel) in
-    assert_int_success (Pywrappers.pyrun_simplefileexflags fd name 0 None)
-
-  let simple_string string =
-    assert_int_success (Pywrappers.pyrun_simplestringflags string None)
-
-  let string string start globals locals =
-    check_not_null
-      (Pywrappers.pyrun_stringflags string start globals locals None)
-
-  let eval s =
-    string s Eval (Eval.get_globals ()) (Eval.get_locals ())
 end
 
 module Type = struct
@@ -983,6 +912,93 @@ module Tuple = struct
   let singleton v = init 1 (fun _ -> v)
 
   let of_sequence = Sequence.tuple
+
+  let of_pair (fst, snd) =
+    init 2 (function 0 -> fst | _ -> snd)
+
+  let to_pair pair =
+    let fst = get_item pair 0 in
+    let snd = get_item pair 1 in
+    (fst, snd)
+end
+
+module Dict = struct
+  let clear = Pywrappers.pydict_clear
+
+  let copy v = check_not_null (Pywrappers.pydict_copy v)
+
+  let create () =
+    check_not_null (Pywrappers.pydict_new ())
+
+  let del_item dict item =
+    assert_int_success (Pywrappers.pydict_delitem dict item)
+
+  let del_item_string dict name =
+    assert_int_success (Pywrappers.pydict_delitemstring dict name)
+
+  let get_item dict key =
+    check_not_null (Pywrappers.pydict_getitem dict key)
+
+  let get_item_string dict name =
+    check_not_null (Pywrappers.pydict_getitemstring dict name)
+
+  let keys dict = check_not_null (Pywrappers.pydict_keys dict)
+
+  let items dict = check_not_null (Pywrappers.pydict_items dict)
+
+  let set_item dict key value =
+    assert_int_success (Pywrappers.pydict_setitem dict key value)
+
+  let set_item_string dict name value =
+    assert_int_success (Pywrappers.pydict_setitemstring dict name value)
+
+  let size dict =
+    let sz = Pywrappers.pydict_size dict in
+    assert_int_success sz;
+    sz
+
+  let values dict =
+    check_not_null (Pywrappers.pydict_values dict)
+
+  let iter f dict =
+    Iter.iter begin fun pair ->
+      let (key, value) = Tuple.to_pair pair in
+      f key value
+    end (Object.get_iter (items dict))
+end
+
+module Run = struct
+  let any_file file filename =
+    assert_int_success
+      (Pywrappers.pyrun_anyfileexflags
+         (fd_of_descr (Unix.descr_of_in_channel file)) filename 0 None)
+
+  let file file filename start globals locals =
+    let fd = fd_of_descr (Unix.descr_of_in_channel file) in
+    check_not_null
+      (Pywrappers.pyrun_fileexflags fd filename start globals locals 0 None)
+
+  let interactive_one channel name =
+    let fd = fd_of_descr (Unix.descr_of_in_channel channel) in
+    assert_int_success (Pywrappers.pyrun_interactiveoneflags fd name None)
+
+  let interactive_loop channel name =
+    let fd = fd_of_descr (Unix.descr_of_in_channel channel) in
+    assert_int_success (Pywrappers.pyrun_interactiveloopflags fd name None)
+
+  let simple_file channel name =
+    let fd = fd_of_descr (Unix.descr_of_in_channel channel) in
+    assert_int_success (Pywrappers.pyrun_simplefileexflags fd name 0 None)
+
+  let simple_string string =
+    assert_int_success (Pywrappers.pyrun_simplestringflags string None)
+
+  let string string start globals locals =
+    check_not_null
+      (Pywrappers.pyrun_stringflags string start globals locals None)
+
+  let eval s =
+    string s Eval (Module.get_dict (Module.main ())) (Dict.create ())
 end
 
 module Wrap = struct

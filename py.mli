@@ -327,6 +327,10 @@ module Dict: sig
   val values: Object.t -> Object.t
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/dict.html#c.PyDict_Clear} PyDict_Str} *)
+
+  val iter: (Object.t -> Object.t -> unit) -> Object.t -> unit
+  (** [iter f o] applies [f key value] for each pair [(key, value)]
+      in the Python dictionary [o]. *)
 end
 
 module Err: sig
@@ -613,6 +617,10 @@ module Module: sig
   val get_name: Object.t -> string
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/module.html#c.PyModule_GetName} PyModule_GetName} *)
+
+  val main: unit -> Object.t
+  (** Returns the [__main__] module.
+      We have [main () = Py.Module.add_module "__main__"]. *)
 end
 
 (** Interface for Python values of type [Number]. *)
@@ -755,7 +763,8 @@ module Run: sig
       value.
       We have
       [Py.Run.eval e =
-       Py.Run.string e Py.Eval (Py.Eval.get_globals ()) (Py.Eval.get_locals ())
+       Py.Run.string e Py.Eval (Module.get_dict (Module.main ()))
+         (Dict.create ())
       ]. *)
 
   val file: in_channel -> string -> input -> Object.t -> Object.t -> Object.t
@@ -921,6 +930,13 @@ module Tuple: sig
 
   val of_sequence: Object.t -> Object.t
   (** Equivalent to {!Sequence.tuple}. *)
+
+  val of_pair: Object.t * Object.t -> Object.t
+  (** [of_pair (a, b)] returns the Python tuple [(a, b)]. *)
+
+  val to_pair: Object.t -> Object.t * Object.t
+  (** [to_pair o] returns the pair
+      [(Py.Tuple.get_item o 0), (Py.Tuple.get_item o 1)]. *)
 end
 
 (** Introspection of Python types *)
