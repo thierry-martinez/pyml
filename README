@@ -39,5 +39,5 @@ Bindings are split in three modules:
   bindings, with error handling and naming conventions closer to OCaml
   usages.
 
-- ``Pycaml_compat`` provides a signature close to the old `Pycaml`
+- ``Pycaml_compat`` provides a signature close to the old ``Pycaml``
   module, so as to ease migration.
