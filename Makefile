@@ -70,21 +70,18 @@ PYML_COMPAT:=$(shell \
 	fi \
 )
 
+.PHONY: all
 all: py.cmi pycaml_compat.cmi pyml.cma pyml.cmxa pyml.cmxs doc
 
-.PHONY: all tests tests.bytecode clean install
-
+.PHONY: tests
 tests: pyml_tests
 	./pyml_tests
 
+.PHONY: tests.bytecode
 tests.bytecode: pyml_tests.bytecode
 	./pyml_tests.bytecode
 
-doc: py.mli pycaml_compat.mli pywrappers.ml
-	mkdir -p $@
-	$(OCAMLDOC) -html -d $@ $^
-	touch $@
-
+.PHONY: install
 install:
 	$(OCAMLFIND) install pyml \
 		py.mli \
@@ -94,13 +91,7 @@ install:
 		libpyml_stubs.a dllpyml_stubs.so \
 		META
 
-ifneq ($(MAKECMDGOALS),clean)
--include .depend
-endif
-
-.depend: $(MODULES:=.ml) $(MODULES:=.mli) pyml_tests.ml
-	$(OCAMLDEP) $^ >$@
-
+.PHONY: clean
 clean:
 	rm -f py.cmi py.cmx py.cmo py.a py.o
 	rm -f pyml.cma pyml.cmxa
@@ -119,7 +110,10 @@ clean:
 	rm -f .depend
 	rm -rf doc
 
-tarball:
+.PHONY: tarball
+tarball: pyml-$(VERSION).tar.gz
+
+pyml-$(VERSION).tar.gz:
 	mkdir pyml-$(VERSION)/
 	cp Makefile pyml_compat312.ml pyml_compat400.ml pyml_compat403.ml \
 		pyml_compat.mli \
@@ -130,6 +124,18 @@ tarball:
 	rm -f pyml-$(VERSION).tar.gz
 	tar -czf pyml-$(VERSION).tar.gz pyml-$(VERSION)/
 	rm -rf pyml-$(VERSION)/
+
+doc: py.mli pycaml_compat.mli pywrappers.ml
+	mkdir -p $@
+	$(OCAMLDOC) -html -d $@ $^
+	touch $@
+
+ifneq ($(MAKECMDGOALS),clean)
+-include .depend
+endif
+
+.depend: $(MODULES:=.ml) $(MODULES:=.mli) pyml_tests.ml
+	$(OCAMLDEP) $^ >$@
 
 generate: pyml_compat.cmx generate.cmx
 	$(OCAMLOPT) $^ -o $@
