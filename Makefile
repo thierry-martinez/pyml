@@ -1,6 +1,6 @@
 OCAMLFIND=ocamlfind
 
-HAVE_OCAMLFIND=$(shell \
+HAVE_OCAMLFIND:=$(shell \
 	if $(OCAMLFIND) query -help >/dev/null 2>&1; then \
 		echo yes; \
 	else \
@@ -8,7 +8,7 @@ HAVE_OCAMLFIND=$(shell \
 	fi \
 )
 
-OCAMLC=$(shell \
+OCAMLC:=$(shell \
 	if [ "$(HAVE_OCAMLFIND)" = yes ]; then \
 		echo $(OCAMLFIND) ocamlc; \
 	elif ocamlc.opt -version >/dev/null 2>&1; then \
@@ -17,7 +17,7 @@ OCAMLC=$(shell \
 		echo ocamlc; \
 	fi \
 )
-OCAMLOPT=$(shell \
+OCAMLOPT:=$(shell \
 	if [ "$(HAVE_OCAMLFIND)" = yes ]; then \
 		echo $(OCAMLFIND) ocamlopt; \
 	elif ocamlopt.opt -version >/dev/null 2>&1; then \
@@ -26,21 +26,21 @@ OCAMLOPT=$(shell \
 		echo ocamlopt; \
 	fi \
 )
-OCAMLMKLIB=$(shell \
+OCAMLMKLIB:=$(shell \
 	if [ "$(HAVE_OCAMLFIND)" = yes ]; then \
 		echo $(OCAMLFIND) ocamlmklib; \
 	else \
 		echo ocamlmklib; \
 	fi \
 )
-OCAMLDEP=$(shell \
+OCAMLDEP:=$(shell \
 	if [ "$(HAVE_OCAMLFIND)" = yes ]; then \
 		echo $(OCAMLFIND) ocamldep; \
 	else \
 		echo ocamldep; \
 	fi \
 )
-OCAMLDOC=$(shell \
+OCAMLDOC:=$(shell \
 	if [ "$(HAVE_OCAMLFIND)" = yes ]; then \
 		echo $(OCAMLFIND) ocamldoc; \
 	else \
@@ -51,16 +51,16 @@ OCAMLDOC=$(shell \
 MODULES=pyml_compat pytypes pywrappers py pycaml_compat
 GENERATED=pyml_dlsyms.inc pyml_wrappers.inc pyml.h
 
-VERSION=$(shell date "+%Y%m%d")
+VERSION:=$(shell date "+%Y%m%d")
 
 OCAMLLIBFLAGS=-cclib "-L. -lpyml_stubs"
 
 OCAMLLIBFLAGSNATIVE=$(OCAMLLIBFLAGS)
 OCAMLLIBFLAGSBYTECODE=-custom $(OCAMLLIBFLAGS)
 
-OCAMLVERSION=$(shell $(OCAMLC) -version)
+OCAMLVERSION:=$(shell $(OCAMLC) -version)
 
-PYML_COMPAT=$(shell \
+PYML_COMPAT:=$(shell \
 	if [ "$(OCAMLVERSION)" "<" 4.00.0 ]; then \
 		echo pyml_compat312.ml; \
 	elif [ "$(OCAMLVERSION)" "<" 4.03.0 ]; then \
