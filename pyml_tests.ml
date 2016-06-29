@@ -262,14 +262,16 @@ let () =
         Py.Dict.set_item_string dict (string_of_int i) (Py.Long.of_int i)
       done;
       let table = Array.make 10 None in
-      Py.Dict.iter (fun key value ->
+      Py.Dict.iter begin fun key value ->
         let index = Py.Long.to_int value in
         assert (table.(index) = None);
-        table.(index) <- Some (Py.String.to_string key)) dict;
-      Array.iteri (fun i v ->
+        table.(index) <- Some (Py.String.to_string key)
+      end dict;
+      Array.iteri begin fun i v ->
         match v with
           None -> failwith "None!"
-        | Some v' -> assert (i = int_of_string v')) table)
+        | Some v' -> assert (i = int_of_string v')
+      end table)
 
 let () =
   prerr_endline "Initializing library...";
