@@ -105,19 +105,8 @@ clean:
 	rm -rf doc
 
 .PHONY: tarball
-tarball: pyml-$(VERSION).tar.gz
-
-pyml-$(VERSION).tar.gz:
-	mkdir pyml-$(VERSION)/
-	cp Makefile pyml_compat312.ml pyml_compat400.ml pyml_compat403.ml \
-		pyml_compat.mli \
-		generate.ml py.ml py.mli pyml_stubs.c pytypes.ml pytypes.mli \
-		pyml_tests.ml test.py \
-		pycaml_compat.ml pycaml_compat.mli README LICENSE META \
-		pyml-$(VERSION)/
-	rm -f pyml-$(VERSION).tar.gz
-	tar -czf pyml-$(VERSION).tar.gz pyml-$(VERSION)/
-	rm -rf pyml-$(VERSION)/
+tarball:
+	git archive --format=tar.gz HEAD >pyml-$(VERSION).tar.gz
 
 doc: py.mli pycaml_compat.mli pywrappers.ml
 	mkdir -p $@
