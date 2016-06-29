@@ -37,6 +37,14 @@ let () =
 
 let () =
   add_test
+    ~title:"library version"
+    (fun () ->
+      Printf.printf "Python library version %s\n" (Py.get_version ());
+      flush stdout
+    )
+
+let () =
+  add_test
     ~title:"hello world"
     (fun () ->
       Py.Run.simple_string "print('Hello world!')"
@@ -48,10 +56,9 @@ let () =
     (fun () ->
       let m = Py.Module.create "test" in
       Py.Dict.set_item_string (Py.Import.get_module_dict ()) "test" m;
+      let value_obtained = ref None in
       let callback arg =
-        Printf.printf "Callback gets %s\n"
-          (Py.String.to_string (Py.Tuple.get_item arg 1));
-        flush stdout;
+        value_obtained := Some (Py.String.to_string (Py.Tuple.get_item arg 1));
         Py.none in
       let c =
         Py.Class.init (Py.String.of_string "myClass")
@@ -62,6 +69,7 @@ let () =
 from test import myClass
 myClass().callback('OK')
 ";
+      assert (!value_obtained = Some "OK")
     )
 
 let () =
@@ -85,7 +93,7 @@ let () =
 from test import wrap, unwrap
 x = wrap('OK')
 print('Capsule type: {}'.format(x))
-print('Capsule contents: {}'.format(unwrap(x)))
+assert unwrap(x) == 'OK'
 ";
     )
 
@@ -102,8 +110,7 @@ raise Exception('Great')
 " Py.File globals locals in
         failwith "uncaught exception"
       with Py.E (_, value) ->
-        Printf.printf "Caught exception: %s\n" (Py.Object.to_string value);
-        flush stdout)
+        assert (Py.Object.to_string value = "Great"))
 
 let () =
   add_test
@@ -112,9 +119,6 @@ let () =
       let m = Py.Module.create "test" in
       Py.Dict.set_item_string (Py.Import.get_module_dict ()) "test" m;
       let f _ =
-        prerr_endline
-("Exception to string:" ^
-Py.Object.to_string (Pywrappers.pyexc_exception ()));
         raise (Py.Err (Py.Err.Exception, "Great")) in
       let mywrap = Py.Wrap.closure f in
       Py.Dict.set_item_string (Py.Module.get_dict m) "mywrap" mywrap;
@@ -122,8 +126,9 @@ Py.Object.to_string (Pywrappers.pyexc_exception ()));
 from test import mywrap
 try:
     mywrap()
+    raise Exception('No exception raised')
 except Exception as err:
-    print('Caught exception: ' + str(err))
+    assert str(err) == \"Great\"
 ";
     )
 
@@ -142,7 +147,7 @@ from test import mywrap
 try:
     mywrap()
 except Exception as err:
-    print('Caught exception: ' + err)
+    raise Exception('Should not be caught by Python')
 ";
         failwith "Uncaught exception"
       with Exit ->
@@ -244,14 +249,27 @@ let () =
   add_test
     ~title:"iterators"
     (fun () ->
-      try
-        prerr_endline
-          (String.concat ", "
-             (List.map Py.String.to_string
-                (Py.Iter.to_list
-                   (Py.Object.get_iter (Py.Run.eval "['a','b','c']")))))
-      with Py.E (_, value) ->
-        failwith (Py.Object.to_string value))
+      let iter = Py.Object.get_iter (Py.Run.eval "['a','b','c']") in
+      let list = List.map Py.String.to_string (Py.Iter.to_list iter) in
+      assert (list = ["a"; "b"; "c"]))
+
+let () =
+  add_test
+    ~title:"Dict.iter"
+    (fun () ->
+      let dict = Py.Dict.create () in
+      for i = 0 to 9 do
+        Py.Dict.set_item_string dict (string_of_int i) (Py.Long.of_int i)
+      done;
+      let table = Array.make 10 None in
+      Py.Dict.iter (fun key value ->
+        let index = Py.Long.to_int value in
+        assert (table.(index) = None);
+        table.(index) <- Some (Py.String.to_string key)) dict;
+      Array.iteri (fun i v ->
+        match v with
+          None -> failwith "None!"
+        | Some v' -> assert (i = int_of_string v')) table)
 
 let () =
   prerr_endline "Initializing library...";
