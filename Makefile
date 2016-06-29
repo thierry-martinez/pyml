@@ -93,7 +93,8 @@ install:
 .PHONY: clean
 clean:
 	for module in $(MODULES) generate pyml_tests; do \
-		rm -f $$module.cmi $$module.cmo $$module.cmx $$module.a $$module.o; \
+		rm -f $$module.cmi $$module.cmo $$module.cmx $$module.a \
+			$$module.o; \
 	done
 	rm -f pyml.cma pyml.cmxa pyml.cmxs pyml.a
 	rm -f pywrappers.mli pywrappers.ml pyml_dlsyms.inc pyml_wrappers.inc
