@@ -352,7 +352,7 @@ val pyerr_setstring: (pyobject * string) -> unit
 val pyerr_fetch: (pyobject * pyobject * pyobject) -> (pyobject * pyobject * pyobject)
 (** Wrapper for
     {{:https://docs.python.org/3/c-api/exceptions.html#c.PyErr_Fetch} PyErr_Fetch}.
-    The argument in ignored and [PyErr_NormalizeException] is implicitly
+    The argument is ignored and [PyErr_NormalizeException] is implicitly
     called. *)
 
 val pyerr_normalizeexception: (pyobject * pyobject * pyobject) -> (pyobject * pyobject * pyobject)
@@ -390,6 +390,13 @@ val pyunicode_decodeutf8: (string * string option) -> pyobject
 val pyunicode_asencodedstring: (pyobject * string * string) -> pyobject
 
 val make_pill_wrapping: string -> 'a -> ('a -> pyobject) * (pyobject -> 'a)
+(** [make_pill_wrapping name repr] returns a pair [(wrap, unwrap)]
+    (see {!Py.Capsule.make}).
+    It is implemented as [Py.Capsule.make name], and the argument [repr] is
+    ignored.
+    [Failure _] is raised if a wrapper has already been generated for a type of
+    the same name.
+    There is no need to call {!register_ocamlpill_types}. *)
 
 val py_is_true: pyobject -> bool
 

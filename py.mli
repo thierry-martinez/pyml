@@ -227,8 +227,8 @@ module Capsule: sig
       [unwrap w] transforms an opaque Python object previously obtained with
       [wrap v] into the original OCaml value [v],
       such that [unwrap (wrap v) = v].
-      [Failure] is raised if a wrapper has already been generated for a type of
-      the same name. *)
+      [Failure _] is raised if a wrapper has already been generated for a type
+      of the same name. *)
 
   val is_valid: Object.t -> string -> bool
   (** Wrapper for
