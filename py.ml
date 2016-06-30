@@ -458,7 +458,7 @@ module Iter = struct
       None -> acc
     | Some item -> to_rev_list ~acc:(item :: acc) v
 
-  let rec to_list v = List.rev (to_rev_list v)
+  let to_list v = List.rev (to_rev_list v)
 end
 
 module Long = struct
