@@ -945,7 +945,17 @@ module Tuple = struct
 
   let of_list_map f list = of_array_map f (Array.of_list list)
 
-  let to_list tuple = Sequence.to_list tuple
+  let to_list = Sequence.to_list
+
+  let to_list_map = Sequence.to_list_map
+
+  let fold_left = Sequence.fold_left
+
+  let fold_right = Sequence.fold_right
+
+  let for_all = Sequence.for_all
+
+  let exists = Sequence.exists
 
   let singleton v = init 1 (fun _ -> v)
 
@@ -1002,6 +1012,24 @@ module Dict = struct
     Iter.iter begin fun pair ->
       let (key, value) = Tuple.to_pair pair in
       f key value
+    end (Object.get_iter (items dict))
+
+  let fold f dict v =
+    Iter.fold_left begin fun v pair ->
+      let (key, value) = Tuple.to_pair pair in
+      f key value v
+    end v (Object.get_iter (items dict))
+
+  let for_all p dict =
+    Iter.for_all begin fun pair ->
+      let (key, value) = Tuple.to_pair pair in
+      p key value
+    end (Object.get_iter (items dict))
+
+  let exists p dict =
+    Iter.exists begin fun pair ->
+      let (key, value) = Tuple.to_pair pair in
+      p key value
     end (Object.get_iter (items dict))
 
   let bindings dict =
@@ -1120,6 +1148,16 @@ module List = struct
   let of_list_map f list = of_array_map f (Array.of_list list)
 
   let to_list = Sequence.to_list
+
+  let to_list_map = Sequence.to_list_map
+
+  let fold_left = Sequence.fold_left
+
+  let fold_right = Sequence.fold_right
+
+  let for_all = Sequence.for_all
+
+  let exists = Sequence.exists
 
   let of_sequence = Sequence.list
 

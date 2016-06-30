@@ -329,8 +329,22 @@ module Dict: sig
       {{:https://docs.python.org/3/c-api/dict.html#c.PyDict_Clear} PyDict_Str} *)
 
   val iter: (Object.t -> Object.t -> unit) -> Object.t -> unit
-  (** [iter f o] applies [f key value] for each pair [(key, value)]
-      in the Python dictionary [o]. *)
+  (** [iter f dict] applies [f key value] for each pair [(key, value)]
+      in the Python dictionary [dict]. *)
+
+  val fold: (Object.t -> Object.t -> 'a -> 'a) -> Object.t -> 'a -> 'a
+  (** [fold f dict v] returns [f key1 value1 (... (f keyn valuen dict))]
+      where [(key1, value1)], ..., [(keyn, valuen)] are the bindings of
+      the Python dictionary [dict]. *)
+
+  val for_all: (Object.t -> Object.t -> bool) -> Object.t -> bool
+  (** [for_all p dict] checks whether all the bindings [(key, value)] of the
+      Python dictionary [dict] satisfy the predicate [p key value]. *)
+
+  val exists: (Object.t -> Object.t -> bool) -> Object.t -> bool
+  (** [for_all p dict] checks that there is at least one binding [(key, value)]
+      among those of the Python dictionary [dict] that satisfies the predicate
+      [p key value]. *)
 
   val bindings: Object.t -> (Object.t * Object.t) list
   (** [bindings o] returns all the pairs [(key, value)] in the Python dictionary
@@ -593,6 +607,21 @@ module List: sig
 
   val to_list: Object.t -> Object.t list
   (** Equivalent to {!Sequence.to_list}. *)
+
+  val to_list_map: (Object.t -> 'a) -> Object.t -> 'a list
+  (** Equivalent to {!Sequence.to_list_map}. *)
+
+  val fold_left: ('a -> Object.t -> 'a) -> 'a -> Object.t -> 'a
+  (** Equivalent to {!Sequence.fold_left}. *)
+
+  val fold_right: (Object.t -> 'a -> 'a) -> Object.t -> 'a -> 'a
+  (** Equivalent to {!Sequence.fold_right}. *)
+
+  val for_all: (Object.t -> bool) -> Object.t -> bool
+  (** Equivalent to {!Sequence.for_all}. *)
+
+  val exists: (Object.t -> bool) -> Object.t -> bool
+  (** Equivalent to {!Sequence.exists}. *)
 
   val of_sequence: Object.t -> Object.t
   (** Equivalent to {!Sequence.list}. *)
@@ -1005,6 +1034,21 @@ module Tuple: sig
 
   val to_list: Object.t -> Object.t list
   (** Equivalent to {!Sequence.to_list}. *)
+
+  val to_list_map: (Object.t -> 'a) -> Object.t -> 'a list
+  (** Equivalent to {!Sequence.to_list_map}. *)
+
+  val fold_left: ('a -> Object.t -> 'a) -> 'a -> Object.t -> 'a
+  (** Equivalent to {!Sequence.fold_left}. *)
+
+  val fold_right: (Object.t -> 'a -> 'a) -> Object.t -> 'a -> 'a
+  (** Equivalent to {!Sequence.fold_right}. *)
+
+  val for_all: (Object.t -> bool) -> Object.t -> bool
+  (** Equivalent to {!Sequence.for_all}. *)
+
+  val exists: (Object.t -> bool) -> Object.t -> bool
+  (** Equivalent to {!Sequence.exists}. *)
 
   val singleton: Object.t -> Object.t
   (** [singleton o] returns the Python tuple [(o)]. *)
