@@ -913,6 +913,8 @@ module Sequence = struct
 end
 
 module Tuple = struct
+  include Sequence
+
   let create size =
     check_not_null (Pywrappers.pytuple_new size)
 
@@ -939,23 +941,9 @@ module Tuple = struct
   let of_array_map f array =
     init (Array.length array) (fun i -> f (Array.get array i))
 
-  let to_array tuple = Sequence.to_array tuple
-
   let of_list list = of_array (Array.of_list list)
 
   let of_list_map f list = of_array_map f (Array.of_list list)
-
-  let to_list = Sequence.to_list
-
-  let to_list_map = Sequence.to_list_map
-
-  let fold_left = Sequence.fold_left
-
-  let fold_right = Sequence.fold_right
-
-  let for_all = Sequence.for_all
-
-  let exists = Sequence.exists
 
   let singleton v = init 1 (fun _ -> v)
 
@@ -1121,6 +1109,8 @@ module Class = struct
 end
 
 module List = struct
+  include Sequence
+
   let create size = check_not_null (Pywrappers.pylist_new size)
 
   let get_item list index =
@@ -1141,23 +1131,9 @@ module List = struct
   let of_array_map f array =
     init (Array.length array) (fun i -> f (Array.get array i))
 
-  let to_array = Sequence.to_array
-
   let of_list list = of_array (Array.of_list list)
 
   let of_list_map f list = of_array_map f (Array.of_list list)
-
-  let to_list = Sequence.to_list
-
-  let to_list_map = Sequence.to_list_map
-
-  let fold_left = Sequence.fold_left
-
-  let fold_right = Sequence.fold_right
-
-  let for_all = Sequence.for_all
-
-  let exists = Sequence.exists
 
   let of_sequence = Sequence.list
 
