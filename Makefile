@@ -8,7 +8,7 @@ HAVE_OCAMLFIND:=$(shell \
 	fi \
 )
 
-ifeq ($(HAVE_OCAMLFIND),yes)
+ifneq ($(HAVE_OCAMLFIND),no)
 	OCAMLC=$(OCAMLFIND) ocamlc
 	ifneq ($(HAVE_OCAMLOPT),no)
 		OCAMLOPTEXE=$(OCAMLFIND) ocamlopt
@@ -83,7 +83,7 @@ all: all.bytecode $(ALLOPT)
 	@echo The py.ml library is compiled.
 	@echo Run \`make doc\' to build the documentation.
 	@echo Run \`make tests\' to check the test suite.
-ifeq ($(HAVE_OCAMLFIND),yes)
+ifneq ($(HAVE_OCAMLFIND),no)
 	@echo Run \`make install\' to install the library via ocamlfind.;
 endif
 
@@ -126,7 +126,7 @@ tests.native: pyml_tests.native
 
 .PHONY: install
 install:
-ifneq ($(HAVE_OCAMLFIND),yes)
+ifeq ($(HAVE_OCAMLFIND),no)
 	$(error ocamlfind is needed for 'make install')
 endif
 	$(OCAMLFIND) install pyml \
