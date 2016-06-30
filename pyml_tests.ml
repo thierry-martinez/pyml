@@ -250,7 +250,7 @@ let () =
     ~title:"iterators"
     (fun () ->
       let iter = Py.Object.get_iter (Py.Run.eval "['a','b','c']") in
-      let list = List.map Py.String.to_string (Py.Iter.to_list iter) in
+      let list = Py.Iter.to_list_map Py.String.to_string iter in
       assert (list = ["a"; "b"; "c"]))
 
 let () =

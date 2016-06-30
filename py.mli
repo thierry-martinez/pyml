@@ -331,6 +331,18 @@ module Dict: sig
   val iter: (Object.t -> Object.t -> unit) -> Object.t -> unit
   (** [iter f o] applies [f key value] for each pair [(key, value)]
       in the Python dictionary [o]. *)
+
+  val bindings: Object.t -> (Object.t * Object.t) list
+  (** [bindings o] returns all the pairs [(key, value)] in the Python dictionary
+      [o]. *)
+
+  val singleton: Object.t -> Object.t -> Object.t
+  (** [singleton key value] returns the one-element Python dictionary that maps
+      [key] to [value] *)
+
+  val singleton_string: string -> Object.t -> Object.t
+  (** [singleton key value] returns the one-element Python dictionary that maps
+      [key] to [value] *)
 end
 
 module Err: sig
@@ -504,18 +516,42 @@ end
 (** Interface for Python values of type [Iter]. *)
 module Iter: sig
   val next: Object.t -> Object.t option
-  (** [next o] returns the next value from the iteration [o].
+  (** [next i] returns the next value from the iteration [i].
       If there are no remaining values, returns [None].
       Wrapper for
       {{:https://docs.python.org/3/c-api/iter.html#c.PyIter_Next} PyIter_Next}. *)
 
   val iter: (Object.t -> unit) -> Object.t -> unit
-  (** [iter f o] iteratively calls [f v] with all the remaining values of the
-      iteration [o]. *)
+  (** [iter f i] iteratively calls [f v] with all the remaining values of the
+      iteration [i]. *)
 
   val to_list: Object.t -> Object.t list
-  (** [to_list o] returns the list of all the remaining values from the
-      iteration [o]. *)
+  (** [to_list i] returns the list of all the remaining values from the
+      iteration [i]. *)
+
+  val to_list_map: (Object.t -> 'a) -> Object.t -> 'a list
+  (** [to_list_map f i] returns the list of the results of [f] applied to all
+      the remaining values from the iteration [i].
+      [to_list_map f s] is equivalent to [List.map f (to_list s)] but is
+      tail-recursive and [f] is applied to the elements of [s] in the reverse
+      order. *)
+
+  val fold_left: ('a -> Object.t -> 'a) -> 'a -> Object.t -> 'a
+  (** [fold_left f v i] returns [(f (...(f v i1)...) in)] where [i1], ..., [in]
+      are the remaining values from the iteration [i]. *)
+
+  val fold_right: (Object.t -> 'a -> 'a) -> Object.t -> 'a -> 'a
+  (** [fold_right f i v] returns [(f i1 (...(f v in)...)] where [i1], ..., [in]
+      are the remaining values from the iteration [i].
+      This function is not tail-recursive. *)
+
+  val for_all: (Object.t -> bool) -> Object.t -> bool
+  (** [for_all p i] checks if [p] holds for all the remaining values from the
+      iteration [i]. *)
+
+  val exists: (Object.t -> bool) -> Object.t -> bool
+  (** [exists p i] checks if [p] holds for at least one of the remaining values
+      from the iteration [i]. *)
 end
 
 (** Interface for Python values of type [List]. *)
@@ -538,11 +574,22 @@ module List: sig
   val of_array: Object.t array -> Object.t
   (** [of_array a] returns the Python list with the same elements as [a]. *)
 
+  val of_array_map: ('a -> Object.t) -> 'a array -> Object.t
+  (** [of_array_map f a] returns the Python list [(f a0, ..., f ak)] where
+      [a0], ..., [ak] are the elements of [a]. *)
+
   val to_array: Object.t -> Object.t array
   (** Equivalent to {!Sequence.to_array}. *)
 
   val of_list: Object.t list -> Object.t
   (** [of_list l] returns the Python list with the same elements as [l]. *)
+
+  val of_list_map: ('a -> Object.t) -> 'a list -> Object.t
+  (** [of_list f l] returns the Python list [(f l1, ..., f ln)] where
+      [l1], ..., [ln] are the elements of [l].
+      [of_list_map f l] is equivalent to [of_list (List.map f l)] but is
+      tail-recursive and [f] is applied to the elements of [l] in the reverse
+      order. *)
 
   val to_list: Object.t -> Object.t list
   (** Equivalent to {!Sequence.to_list}. *)
@@ -869,6 +916,30 @@ module Sequence: sig
   val to_list: Object.t -> Object.t list
   (** [to_list s] returns the list with the same elements as the Python
       sequence [s]. *)
+
+  val to_list_map: (Object.t -> 'a) -> Object.t -> 'a list
+  (** [to_list_map f s] returns the list of the results of [f] applied to all
+      the elements of the Python sequence [s].
+      [to_list_map f s] is equivalent to [List.map f (to_list s)] but is
+      tail-recursive and [f] is applied to the elements of [s] in the reverse
+      order. *)
+
+  val fold_left: ('a -> Object.t -> 'a) -> 'a -> Object.t -> 'a
+  (** [fold_left f v s] returns [(f (...(f v s1)...) sn)] where [s1], ..., [sn]
+      are the elements of the Python sequence [s]. *)
+
+  val fold_right: (Object.t -> 'a -> 'a) -> Object.t -> 'a -> 'a
+  (** [fold_right f s v] returns [(f s1 (...(f v sn)...)] where [s1], ..., [sn]
+      are the elements of the Python sequence [s].
+      This function is tail-recursive. *)
+
+  val for_all: (Object.t -> bool) -> Object.t -> bool
+  (** [for_all p s] checks if [p] holds for all the elements of the Python
+      sequence [s]. *)
+
+  val exists: (Object.t -> bool) -> Object.t -> bool
+  (** [exists p s] checks if [p] holds for at least one of the elements of the
+      Python sequence [s]. *)
 end
 
 (** Interface for Python values of type [String], [Bytes] and [Unicode]. *)
@@ -916,8 +987,18 @@ module Tuple: sig
   val of_array: Object.t array -> Object.t
   (** [of_array a] returns the Python tuple with the same elements as [a]. *)
 
+  val of_array_map: ('a -> Object.t) -> 'a array -> Object.t
+  (** [of_array_map f a] returns the Python tuple [(f a0, ..., f ak)] where
+      [a0], ..., [ak] are the elements of [a]. *)
+
   val of_list: Object.t list -> Object.t
   (** [of_list l] returns the Python tuple with the same elements as [l]. *)
+
+  val of_list_map: ('a -> Object.t) -> 'a list -> Object.t
+  (** [of_list f l] returns the Python tuple [(f l1, ..., f ln)] where
+      [l1], ..., [ln] are the elements of [l].
+      [of_list_map f l] is equivalent to [of_list (List.map f l)] but is
+      tail-recursive. *)
 
   val to_array: Object.t -> Object.t array
   (** Equivalent to {!Sequence.to_array}. *)

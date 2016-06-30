@@ -444,21 +444,39 @@ module Import = struct
 end
 
 module Iter = struct
-  let next v = option (Pywrappers.pyiter_next v)
+  let next i = option (Pywrappers.pyiter_next i)
 
-  let rec iter f v =
-    match next v with
+  let rec iter f i =
+    match next i with
       None -> ()
     | Some item ->
         f item;
-        iter f v
+        iter f i
 
-  let rec to_rev_list ?(acc=[]) v =
-    match next v with
-      None -> acc
-    | Some item -> to_rev_list ~acc:(item :: acc) v
+  let rec fold_left f v i =
+    match next i with
+      None -> v
+    | Some item -> fold_left f (f v item) i
 
-  let to_list v = List.rev (to_rev_list v)
+  let rec fold_right f i v =
+    match next i with
+      None -> v
+    | Some item -> f item (fold_right f i v)
+
+  let to_list i = List.rev (fold_left (fun list item -> item :: list) [] i)
+
+  let to_list_map f i =
+    List.rev (fold_left (fun list item -> f item :: list) [] i)
+
+  let rec for_all p i =
+    match next i with
+      None -> true
+    | Some item -> p item && for_all p i
+
+  let rec exists p i =
+    match next i with
+      None -> false
+    | Some item -> p item || exists p i
 end
 
 module Long = struct
@@ -868,15 +886,30 @@ module Sequence = struct
 
   let to_array sequence = Array.init (size sequence) (get_item sequence)
 
-  let rec to_list_upto ?(tail=[]) upto sequence =
+  let rec fold_right_upto f upto sequence v =
     if upto > 0 then
       let i = pred upto in
-      to_list_upto ~tail:(get_item sequence i :: tail) i sequence
+      fold_right_upto f i sequence (f (get_item sequence i) v)
     else
-      tail
+      v
+
+  let fold_right f sequence v =
+    fold_right_upto f (length sequence) sequence v
 
   let to_list sequence =
-    to_list_upto (length sequence) sequence
+    fold_right (fun item list -> item :: list) sequence []
+
+  let to_list_map f sequence =
+    fold_right (fun item list -> f item :: list) sequence []
+
+  let fold_left f v sequence =
+    Iter.fold_left f v (Object.get_iter sequence)
+
+  let for_all p sequence =
+    Iter.for_all p (Object.get_iter sequence)
+
+  let exists p sequence =
+    Iter.exists p (Object.get_iter sequence)
 end
 
 module Tuple = struct
@@ -903,9 +936,14 @@ module Tuple = struct
 
   let of_array array = init (Array.length array) (Array.get array)
 
+  let of_array_map f array =
+    init (Array.length array) (fun i -> f (Array.get array i))
+
   let to_array tuple = Sequence.to_array tuple
 
   let of_list list = of_array (Array.of_list list)
+
+  let of_list_map f list = of_array_map f (Array.of_list list)
 
   let to_list tuple = Sequence.to_list tuple
 
@@ -965,6 +1003,19 @@ module Dict = struct
       let (key, value) = Tuple.to_pair pair in
       f key value
     end (Object.get_iter (items dict))
+
+  let bindings dict =
+    Iter.to_list_map Tuple.to_pair (Object.get_iter (items dict))
+
+  let singleton key value =
+    let result = create () in
+    set_item result key value;
+    result
+
+  let singleton_string key value =
+    let result = create () in
+    set_item_string result key value;
+    result
 end
 
 module Run = struct
@@ -1059,9 +1110,14 @@ module List = struct
 
   let of_array array = init (Array.length array) (Array.get array)
 
+  let of_array_map f array =
+    init (Array.length array) (fun i -> f (Array.get array i))
+
   let to_array = Sequence.to_array
 
   let of_list list = of_array (Array.of_list list)
+
+  let of_list_map f list = of_array_map f (Array.of_list list)
 
   let to_list = Sequence.to_list
 
