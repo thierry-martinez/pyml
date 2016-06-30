@@ -6,15 +6,12 @@ let add_test ~title f =
 let failed = ref false
 
 let launch_test (title, f) =
-  Printf.printf "Test '%s' ... " title;
-  flush stdout;
+  Printf.printf "Test '%s' ... %!" title;
   try
     f ();
-    Printf.printf "passed\n";
-    flush stdout;
+    Printf.printf "passed\n%!"
   with e ->
-    Printf.printf "raised an exception %s\n" (Printexc.to_string e);
-    flush stdout;
+    Printf.printf "raised an exception %s\n%!" (Printexc.to_string e);
     failed := true
 
 let rec launch_tests () =
@@ -31,16 +28,14 @@ let () =
   add_test
     ~title:"version"
     (fun () ->
-      Printf.printf "Python version %s\n" (Py.version ());
-      flush stdout
+      Printf.printf "Python version %s\n%!" (Py.version ())
     )
 
 let () =
   add_test
     ~title:"library version"
     (fun () ->
-      Printf.printf "Python library version %s\n" (Py.get_version ());
-      flush stdout
+      Printf.printf "Python library version %s\n%!" (Py.get_version ())
     )
 
 let () =
@@ -217,11 +212,9 @@ let () =
         failwith "uncaught exception"
       with
         Py.E (_, value) ->
-          Printf.printf "Caught exception: %s\n" (Py.Object.to_string value);
-          flush stdout
+          Printf.printf "Caught exception: %s\n%!" (Py.Object.to_string value)
       | Failure s ->
-          Printf.printf "Caught failure: %s\n" s;
-          flush stdout)
+          Printf.printf "Caught failure: %s\n%!" s)
 
 let () =
   add_test
@@ -231,8 +224,7 @@ let () =
         let _ = Py.Float.to_float (Py.String.of_string "a") in
         failwith "uncaught exception"
       with Py.E (_, value) ->
-        Printf.printf "Caught exception: %s\n" (Py.Object.to_string value);
-        flush stdout)
+        Printf.printf "Caught exception: %s\n%!" (Py.Object.to_string value))
 
 let () =
   add_test
@@ -242,8 +234,7 @@ let () =
         let _ = Py.Long.to_int (Py.String.of_string "a") in
         failwith "uncaught exception"
       with Py.E (_, value) ->
-        Printf.printf "Caught exception: %s\n" (Py.Object.to_string value);
-        flush stdout)
+        Printf.printf "Caught exception: %s\n%!" (Py.Object.to_string value))
 
 let () =
   add_test
