@@ -55,9 +55,13 @@ module Object: sig
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/object.html#c.PyObject_GetAttrString} PyObject_GetAttrString} *)
 
-  val get_item: t -> t -> t
+  val get_item: t -> t -> t option
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/object.html#c.PyObject_GetItem} PyObject_GetItem} *)
+
+  val get_item_string: t -> string -> t option
+  (** [get_item_string o key] returns the element corresponding to the object
+      [key] or [None] on failure. *)
 
   val get_iter: t -> t
   (** Wrapper for
@@ -115,14 +119,39 @@ module Object: sig
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/object.html#c.PyObject_SetItem} PyObject_SetItem} *)
 
+  val set_item_string: t -> string -> t -> unit
+  (** Wrapper for
+      {{:https://docs.python.org/3/c-api/object.html#c.PyObject_SetItemString} PyObject_SetItemString} *)
+
   val str: t -> t
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/object.html#c.PyObject_Str} PyObject_Str} *)
 
+  val string_of_repr: t -> string
+  (** [string_of_repr o] returns the string [repr o].
+      We have
+      [Py.Object.to_string o = Py.String.to_string (Py.Object.repr o)]. *)
+
   val to_string: t -> string
-  (** [to_string o] returns a string representation of object [o].
+  (** [to_string o] returns the string [str o].
       We have
       [Py.Object.to_string o = Py.String.to_string (Py.Object.str o)]. *)
+
+  val as_char_buffer: t -> string
+  (** Wrapper for
+      {{:https://docs.python.org/3/c-api/objbuffer.html#c.PyObject_AsCharBuffer} PyObject_AsCharBuffer} *)
+
+  val as_read_buffer: t -> string
+  (** Wrapper for
+      {{:https://docs.python.org/3/c-api/objbuffer.html#c.PyObject_AsReadBuffer} PyObject_AsReadBuffer} *)
+
+  val as_write_buffer: t -> string
+  (** Wrapper for
+      {{:https://docs.python.org/3/c-api/objbuffer.html#c.PyObject_AsWriteBuffer} PyObject_AsWriteBuffer} *)
+
+  val reference_count: t -> int
+  (** [reference_count o] returns the number of references to the Python
+      object [o]. *)
 end
 
 exception E of Object.t * Object.t
@@ -214,6 +243,30 @@ end
 (** Interface for Python values of type [Callable]. *)
 module Callable: sig
   val check: Object.t -> bool
+
+  val of_function: ?docstring:string -> (Object.t -> Object.t) -> Object.t
+  (** [of_function f] returns a Python callable object that calls the function
+      [f].
+      Arguments are passed as a tuple.
+      If [f] raises a Python exception
+      ([Py.E (errtype, errvalue)] or [Py.Err (errtype, msg)]),
+      this exception is raised as a Python exception
+      (via {!Err.set_object} or {!Err.set_error} respectively).
+      If [f] raises any other exception, this exception bypasses the Python
+      interpreter. *)
+
+  val of_function_array: ?docstring:string -> (Object.t array -> Object.t)
+    -> Object.t
+  (** Equivalent to {!of_function} but with an array of Python objects
+      instead of a tuple for passing arguments. *)
+
+  val to_function: Object.t -> Object.t -> Object.t
+  (** [to_function c] returns a function [f] such that [f args] calls the
+      Python callable [c] with the Python tuple [args] as arguments. *)
+
+  val to_function_array: Object.t -> Object.t array -> Object.t
+  (** Equivalent to {!to_function} but with an array of Python objects
+      instead of a tuple for passing arguments. *)
 end
 
 (** Embedding of OCaml values in Python. *)
@@ -223,34 +276,51 @@ module Capsule: sig
 
   val make: string -> ('a -> Object.t) * (Object.t -> 'a)
   (** For a given type ['a], [make s] returns a pair [(wrap, unwrap)].
-      [wrap v] transforms a value of type 'a to an opaque Python object.
-      [unwrap w] transforms an opaque Python object previously obtained with
-      [wrap v] into the original OCaml value [v],
+      [wrap v] transforms the value [v] of type 'a to an opaque Python object.
+      [unwrap w] transforms the opaque Python object [w] previously obtained
+      with [wrap v] into the original OCaml value [v],
       such that [unwrap (wrap v) = v].
       [Failure _] is raised if a wrapper has already been generated for a type
       of the same name. *)
+
+  val type_of: Object.t -> string
+  (** [type_of w] returns the type string associated to the opaque Python
+      object [w]. *)
 
   val is_valid: Object.t -> string -> bool
   (** Wrapper for
       {{: https://docs.python.org/3/c-api/capsule.html#c.PyCapsule_IsValid} PyCapsule_IsValid}.
       OCaml capsules have the name ["ocaml-capsule"].
       We have [check v = is_valid v "ocaml-capsule"]. *)
+
+  val unsafe_wrap_value: 'a -> Object.t
+  (** [unsafe_wrap_value v] transforms the value [v] to an opaque Python
+      object. *)
+
+  val unsafe_unwrap_value: Object.t -> 'a
+  (** [unsafe_unwrap_value v] transforms the opaque Python object [w]
+      previously obtained with [unsafe_wrap_value v] into the original OCaml
+      value [v]. *)
 end
 
 (** Defining a new class type *)
 module Class: sig
-  val init: Object.t -> Object.t ->
-    (string * Object.t) list ->
-      (string * (Object.t -> Object.t)) list -> Object.t
-  (** [init classname parents fields methods] returns a new class type.
+  val init: ?parents:Object.t -> ?fields:((string * Object.t) list) ->
+      ?methods:((string * (Object.t -> Object.t)) list) ->
+        Object.t -> Object.t
+  (** [init ~parents ~fields ~methods classname] Returns a new class type.
       @param classname is a Python string.
-      @param parents is a Python tuple for bases.
-      @param fields is an associative list for field values.
-      @param methods is an associative list for method closures. *)
+      @param parents is a Python tuple for bases (default: [()]).
+      @param fields is an associative list for field values (default : [[]]).
+      @param methods is an associative list for method closures
+      (default : [[]]). *)
 end
 
 (** Interface for Python values of type [Long]. *)
 module Long: sig
+  val check: Object.t -> bool
+  (** [check o] returns [true] if [o] is a Python long. *)
+
   val of_int64: int64 -> Object.t
   (** [of_int i] returns the Python long with the value [i].
       Wrapper for
@@ -296,13 +366,22 @@ module Dict: sig
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/dict.html#c.PyDict_DelItemString} PyDict_DelItemString} *)
 
-  val get_item: Object.t -> Object.t -> Object.t
+  val get_item: Object.t -> Object.t -> Object.t option
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/dict.html#c.PyDict_GetItem} PyDict_GetItem} *)
 
-  val get_item_string: Object.t -> string -> Object.t
+  val find: Object.t -> Object.t -> Object.t
+  (** [find p key] returns the object from Python dictionary [p] which has a key
+      [key]. [find] raises [Not_found] if the key [key] is not present. *)
+
+  val get_item_string: Object.t -> string -> Object.t option
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/dict.html#c.PyDict_GetItemString} PyDict_GetItemString} *)
+
+  val find_string: Object.t -> string -> Object.t
+  (** [find_string p key] returns the object from Python dictionary [p] which
+      has a key [key]. [find_string] raises [Not_found] if the key [key] is not
+      present. *)
 
   val keys: Object.t -> Object.t
   (** Wrapper for
@@ -362,6 +441,7 @@ end
 module Err: sig
   type t =
       Exception
+    | StandardError
     | ArithmeticError
     | LookupError
     | AssertionError
@@ -447,6 +527,9 @@ exception Err of Err.t * string
 (** Represents an exception to be set with {!Err.set_error} in a callback. *)
 
 module Eval: sig
+  val call_object: Object.t -> Object.t -> Object.t
+ (** See {{:https://docs.python.org/3.0/extending/extending.html} Extending Python with C or C++} *)
+
   val call_object_with_keywords: Object.t -> Object.t -> Object.t -> Object.t
  (** See {{:https://docs.python.org/3.0/extending/extending.html} Extending Python with C or C++} *)
 
@@ -465,6 +548,9 @@ end
 
 (** Interface for Python values of type [Float]. *)
 module Float: sig
+  val check: Object.t -> bool
+  (** [check o] returns [true] if [o] is a Python float. *)
+
   val of_float: float -> Object.t
   (** [of_float f] returns the Python long with the value [f].
       Wrapper for
@@ -570,17 +656,28 @@ end
 
 (** Interface for Python values of type [List]. *)
 module List: sig
+  val check: Object.t -> bool
+  (** [check v] returns [true] if [v] is a Python list. *)
+
   val create: int -> Object.t
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/list.html#c.PyList_New} PyList_New} *)
 
   val get_item: Object.t -> int -> Object.t
-  (** Wrapper for
-      {{:https://docs.python.org/3/c-api/list.html#c.PyList_GetItem} PyList_GetItem} *)
+  (** Equivalent to {!Sequence.get_item}. *)
+
+  val get: Object.t -> int -> Object.t
+  (** Equivalent to {!get_item}. *)
 
   val set_item: Object.t -> int -> Object.t -> unit
+  (** Equivalent to {!Sequence.set_item}. *)
+
+  val set: Object.t -> int -> Object.t -> unit
+  (** Equivalent to {!set_item}. *)
+
+  val size: Object.t -> int
   (** Wrapper for
-      {{:https://docs.python.org/3/c-api/list.html#c.PyList_SetItem} PyList_SetItem} *)
+      {{:https://docs.python.org/3/c-api/list.html#c.PyList_Size} PyList_Size} *)
 
   val init: int -> (int -> Object.t) -> Object.t
   (** [init n f] returns the Python list [[f 0, f 1, ..., f (n - 1)]]. *)
@@ -594,6 +691,9 @@ module List: sig
 
   val to_array: Object.t -> Object.t array
   (** Equivalent to {!Sequence.to_array}. *)
+
+  val to_array_map: (Object.t -> 'a) -> Object.t -> 'a array
+  (** Equivalent to {!Sequence.to_array_map}. *)
 
   val of_list: Object.t list -> Object.t
   (** [of_list l] returns the Python list with the same elements as [l]. *)
@@ -694,9 +794,32 @@ module Module: sig
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/module.html#c.PyModule_GetName} PyModule_GetName} *)
 
+  val get: Object.t -> string -> Object.t option
+  (** [get m key] returns the field [key] of the module [m].
+      We have
+[Py.Module.get m key = Py.Dict.get_item_string (Py.Module.get_dict m) key].
+   *)
+
+  val find: Object.t -> string -> Object.t
+  (** [find m key] returns the field [key] of the module [m].
+      We have
+[Py.Module.find m key = Py.Dict.find_string (Py.Module.get_dict m) key].
+   *)
+
+  val set: Object.t -> string -> Object.t -> unit
+  (** [set m key] sets the field [key] of the module [m].
+      We have
+[Py.Module.set m key value = Py.Dict.set_item_string (Py.Module.get_dict m) key value].
+      *)
+
   val main: unit -> Object.t
   (** Returns the [__main__] module.
-      We have [main () = Py.Module.add_module "__main__"]. *)
+      We have [Py.Module.main () = Py.Module.add_module "__main__"]. *)
+
+  val builtins: unit -> Object.t
+  (** Returns the [__builtins__] module.
+      We have
+[Py.Module.builtins () = Py.Module.find (Py.Module.main ()) "__builtins__"]. *)
 end
 
 (** Interface for Python values of type [Number]. *)
@@ -824,9 +947,38 @@ module Number: sig
   val number_xor: Object.t -> Object.t -> Object.t
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/number.html#c.PyNumber_Xor} PyNumber_Xor} *)
+
+  val check: Object.t -> bool
+  (** [check v] returns [true] if [v] is a Python float or a Python integer. *)
+
+  val to_float: Object.t -> float
+  (** [to_float v] returns the floating-point value equal to the Python integer
+      or Python float [v]. Raises a failure ([Failure _]) if [v] is neither a
+      float nor an integer. *)
 end
 
 type input = Pytypes.input = Single | File | Eval
+
+val try_finally: ('a -> 'b) -> 'a -> ('c -> unit) -> 'c -> 'b
+(** [try_finally f arg finally finally_arg] calls [f arg], and returns the
+    result of [f].
+    [finally finally_arg] is always closed after [f] has been called, even if
+    [f] raises an exception. *)
+
+val read_and_close: in_channel -> ('a -> 'b) -> 'a -> 'b
+(** [read_and_close channel f arg] calls [f arg], and returns the result of [f].
+    [channel] is always closed after [f] has been called, even if [f] raises an
+    exception.
+    This is an utility function that does not require Python to be
+    initialized. *)
+
+val write_and_close: out_channel -> ('a -> 'b) -> 'a -> 'b
+(** [write_and_close channel f arg] calls [f arg], and returns the result of
+    [f].
+    [channel] is always closed after [f] has been called, even if [f] raises an
+    exception.
+    This is an utility function that does not require Python to be
+    initialized. *)
 
 (** Interface for Python values of type [Run]. *)
 module Run: sig
@@ -866,6 +1018,19 @@ module Run: sig
   val string: string -> input -> Object.t -> Object.t -> Object.t
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/veryhigh.html#c.PyRun_String} PyRun_String} *)
+
+  val load: in_channel -> string -> unit
+  (** [load chan filename] loads the contents of the file opened in [chan].
+      We have
+      [Py.Run.load chan filename = ignore (Py.Run.file chan filename Py.File (Module.get_dict (Module.main ())) (Dict.create ()))]. *)
+
+  val interactive: unit -> unit
+  (** Runs the interactive loop.
+      We have [Py.Run.interactive () = Py.Run.interactive_loop stdin "<stdin>".
+   *)
+
+  val ipython: unit -> unit
+  (** Runs the IPython interactive loop. *)
 end
 
 (** Interface for Python values with a [Sequence] interface. *)
@@ -898,6 +1063,9 @@ module Sequence: sig
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/sequence.html#c.PySequence_GetItem} PySequence_GetItem} *)
 
+  val get: Object.t -> int -> Object.t
+  (** Equivalent to {!get_item}. *)
+
   val get_slice: Object.t -> int -> int -> Object.t
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/sequence.html#c.PySequence_GetSlice} PySequence_GetSlice} *)
@@ -914,6 +1082,10 @@ module Sequence: sig
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/sequence.html#c.PySequence_InPlaceRepeat} PySequence_InPlaceRepeat} *)
 
+  val length: Object.t -> int
+  (** Wrapper for
+      {{:https://docs.python.org/3/c-api/sequence.html#c.PySequence_Length} PySequence_Length} *)
+
   val list: Object.t -> Object.t
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/sequence.html#c.PySequence_List} PySequence_List} *)
@@ -925,6 +1097,9 @@ module Sequence: sig
   val set_item: Object.t -> int -> Object.t -> unit
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/sequence.html#c.PySequence_SetItem} PySequence_SetItem} *)
+
+  val set: Object.t -> int -> Object.t -> unit
+  (** Equivalent to {!set_item}. *)
 
   val set_slice: Object.t -> int -> int -> Object.t -> unit
   (** Wrapper for
@@ -941,6 +1116,10 @@ module Sequence: sig
   val to_array: Object.t -> Object.t array
   (** [to_array s] returns the array with the same elements as the Python
       sequence [s]. *)
+
+  val to_array_map: (Object.t -> 'a) -> Object.t -> 'a array
+  (** [to_array_map f s] returns the array of the results of [f] applied to
+      all the elements of the Python sequence [s]. *)
 
   val to_list: Object.t -> Object.t list
   (** [to_list s] returns the list with the same elements as the Python
@@ -971,21 +1150,76 @@ module Sequence: sig
       Python sequence [s]. *)
 end
 
+type byteorder =
+    LittleEndian
+  | BigEndian
+
 (** Interface for Python values of type [String], [Bytes] and [Unicode]. *)
 module String: sig
   val check: Object.t -> bool
   (** [check o] returns [o] if [o] is a Python string
       (either [Bytes] or [Unicode] with Python 3). *)
 
+  val format: Object.t -> Object.t -> Object.t
+  (** [format fmt args] returns the formatted Python string from the string
+      format [fmt] and the arguments [args].
+      This is analogous to [fmt % args].
+      With Python 2, if [fmt] is a String, wrapper for
+      {{:https://docs.python.org/2/c-api/string.html#c.PyString_Format} PyString_Format}.
+      With Python 3 or with Python 2 if [fmt] is Unicode, wrapper for
+      {{:https://docs.python.org/3/c-api/unicode.html#c.PyUnicode_Format} PyUnicode_Format}. *)
+
+  val as_UTF8_string: Object.t -> Object.t
+  (** Wrapper for
+      {{:https://docs.python.org/3/c-api/unicode.html#c.PyUnicode_AsUTF8String} PyUnicode_AsUTF8String} *)
+
+  val decode_UTF8: ?errors:string -> ?size:int -> string -> Object.t
+  (** Wrapper for
+      {{:https://docs.python.org/3/c-api/unicode.html#c.PyUnicode_DecodeUTF8} PyUnicode_DecodeUTF8}.
+      If [size] is omitted, the length of the string is used by default. *)
+
+  val decode_UTF16: ?errors:string -> ?size:int -> ?byteorder:byteorder
+    -> string -> Object.t * byteorder
+  (** Wrapper for
+      {{:https://docs.python.org/3/c-api/unicode.html#c.PyUnicode_DecodeUTF16} PyUnicode_DecodeUTF16}.
+      If [size] is omitted, the length of the string is used by default. *)
+
+  val decode_UTF32: ?errors:string -> ?size:int -> ?byteorder:byteorder
+    -> string -> Object.t * byteorder
+  (** Wrapper for
+      {{:https://docs.python.org/3/c-api/unicode.html#c.PyUnicode_DecodeUTF32} PyUnicode_DecodeUTF32}.
+      If [size] is omitted, the length of the string is used by default. *)
+
+  val length: Object.t -> int
+  (** [length s] returns the length of the Python string [s].
+      A failure ([Failure _]) is raised if [s] is neither a [Bytes] value
+      nor a [Unicode] value.
+      With Python 2,
+      if [s] is a String, wrapper for
+      {{:https://docs.python.org/2/c-api/string.html#c.PyString_Size} PyString_Size},
+      and if [s] is Unicode, wrapper for
+      {{:https://docs.python.org/2/c-api/unicode.html#c.PyUnicode_GetSize} PyUnicode_GetSize},
+      With Python 3,
+      if [s] is Bytes, wrapper for
+      {{:https://docs.python.org/2/c-api/bytes.html#c.PyBytes_Size} PyBytes_Size},
+      and if [s] is Unicode, wrapper for
+      {{:https://docs.python.org/2/c-api/unicode.html#c.PyUnicode_GetLength} PyUnicode_GetLength}. *)
+
   val of_string: string -> Object.t
   (** [of_string s] returns the Python string with the value [s]. *)
 
   val to_string: Object.t -> string
   (** [to_string o] returns the string contained in the Python value [o].
-      With Python 2, a Python exception ([Py.E _]) is raised if [o] is not a
-      string.
-      With Python 3, a failure ([Failure _]) is raised if [o] is neither a
-      [Bytes] value nor an [Unicode] value. *)
+      A failure ([Failure _]) is raised if [o] is neither a
+      [String]/[Bytes] value nor a [Unicode] value. *)
+
+  val of_unicode: ?size:int -> int array -> Object.t
+  (** [of_unicode codepoints] returns the Python Unicode string with the
+      codepoints [codepoints]. *)
+
+  val to_unicode: Object.t -> int array
+  (** [to_unicode s] returns the codepoints of the Python Unicode string
+      [s]. *)
 end
 
 (** Interface for Python values of type [Tuple]. *)
@@ -994,17 +1228,24 @@ module Tuple: sig
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/tuple.html#c.PyTuple_New} PyTuple_New} *)
 
+  val empty: Object.t
+  (** The empty tuple [()]. *)
+
   val get_item: Object.t -> int -> Object.t
-  (** Wrapper for
-      {{:https://docs.python.org/3/c-api/tuple.html#c.PyTuple_GetItem} PyTuple_GetItem} *)
+  (** Equivalent to {!Sequence.get_item}. *)
+
+  val get: Object.t -> int -> Object.t
+  (** Equivalent to {!get_item}. *)
+
+  val set_item: Object.t -> int -> Object.t -> unit
+  (** Equivalent to {!Sequence.set_item}. *)
+
+  val set: Object.t -> int -> Object.t -> unit
+  (** Equivalent to {!set_item}. *)
 
   val get_slice: Object.t -> int -> int -> Object.t
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/tuple.html#c.PyTuple_GetSlice} PyTuple_GetSlice} *)
-
-  val set_item: Object.t -> int -> Object.t -> unit
-  (** Wrapper for
-      {{:https://docs.python.org/3/c-api/tuple.html#c.PyTuple_SetItem} PyTuple_SetItem} *)
 
   val size: Object.t -> int
   (** Wrapper for
@@ -1032,6 +1273,9 @@ module Tuple: sig
   val to_array: Object.t -> Object.t array
   (** Equivalent to {!Sequence.to_array}. *)
 
+  val to_array_map: (Object.t -> 'a) -> Object.t -> 'a array
+  (** Equivalent to {!Sequence.to_array_map}. *)
+
   val to_list: Object.t -> Object.t list
   (** Equivalent to {!Sequence.to_list}. *)
 
@@ -1050,18 +1294,59 @@ module Tuple: sig
   val exists: (Object.t -> bool) -> Object.t -> bool
   (** Equivalent to {!Sequence.exists}. *)
 
-  val singleton: Object.t -> Object.t
-  (** [singleton o] returns the Python tuple [(o)]. *)
-
   val of_sequence: Object.t -> Object.t
   (** Equivalent to {!Sequence.tuple}. *)
 
+  val of_tuple1: Object.t -> Object.t
+  (** [of_tuple1 o0] returns the Python tuple [(o0)]. *)
+
+  val of_tuple2: Object.t * Object.t -> Object.t
+  (** [of_tuple4 (o0, o1)] returns the Python tuple [(o0, o1)]. *)
+
+  val of_tuple3: Object.t * Object.t * Object.t -> Object.t
+  (** [of_tuple4 (o0, o1, o2)] returns the Python tuple [(o0, o1, o2)]. *)
+
+  val of_tuple4: Object.t * Object.t * Object.t * Object.t -> Object.t
+  (** [of_tuple4 (o0, o1, o2, o3)] returns the Python tuple
+      [(o0, o1, o2, o3)]. *)
+
+  val of_tuple5:
+    Object.t * Object.t * Object.t * Object.t * Object.t -> Object.t
+  (** [of_tuple5 (o0, o1, o2, o3, o4)] returns the Python tuple
+      [(o0, o1, o2, o3, o4)]. *)
+
+  val to_tuple1: Object.t -> Object.t
+  (** [to_tuple1 t] returns the value [Py.Tuple.get_item t 0]. *)
+
+  val to_tuple2: Object.t -> Object.t * Object.t
+  (** [to_tuple5 t] returns the tuple [(Py.Tuple.get_item t 0,
+      Py.Tuple.get_item t 1)]. *)
+
+  val to_tuple3: Object.t -> Object.t * Object.t * Object.t
+  (** [to_tuple5 t] returns the tuple [(Py.Tuple.get_item t 0,
+      Py.Tuple.get_item t 1, Py.Tuple.get_item t 2)]. *)
+
+  val to_tuple4: Object.t -> Object.t * Object.t * Object.t * Object.t
+  (** [to_tuple5 t] returns the tuple [(Py.Tuple.get_item t 0,
+      Py.Tuple.get_item t 1, Py.Tuple.get_item t 2, Py.Tuple.get_item t 3)]. *)
+
+  val to_tuple5:
+    Object.t -> Object.t * Object.t * Object.t * Object.t * Object.t
+  (** [to_tuple5 t] returns the tuple [(Py.Tuple.get_item t 0,
+      Py.Tuple.get_item t 1, Py.Tuple.get_item t 2, Py.Tuple.get_item t 3,
+      Py.Tuple.get_item t 4)]. *)
+
+  val singleton: Object.t -> Object.t
+  (** Equivalent to {!of_tuple1}. *)
+
+  val to_singleton: Object.t -> Object.t
+  (** Equivalent to {!to_tuple1}. *)
+
   val of_pair: Object.t * Object.t -> Object.t
-  (** [of_pair (a, b)] returns the Python tuple [(a, b)]. *)
+  (** Equivalent to {!of_tuple2}. *)
 
   val to_pair: Object.t -> Object.t * Object.t
-  (** [to_pair o] returns the pair
-      [(Py.Tuple.get_item o 0), (Py.Tuple.get_item o 1)]. *)
+  (** Equivalent to {!to_tuple2}. *)
 end
 
 (** Introspection of Python types *)
@@ -1098,17 +1383,19 @@ module Type: sig
   val is_subtype: Object.t -> Object.t -> bool
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/type.html#c.PyType_IsSubtype} PyType_IsSubtype} *)
+
+  val name: t -> string
+  (** [name t] returns a string that represents the type [t]. *)
+
+  val mismatch: string -> Object.t -> 'a
+  (** [mismatch ty obj] raises a type mismatch [Failure _] that indicates that
+      an object of type [ty] was expected, but [obj] was found. *)
 end
 
-(** Wrappers for OCaml functions *)
-module Wrap: sig
-  val closure: (Object.t -> Object.t) -> Object.t
-  (** [closure f] returns a Python callable object that calls the function [f].
-      Arguments are passed as a tuple.
-      If [f] raises a Python exception
-      ([Py.E (errtype, errvalue)] or [Py.Err (errtype, msg)]),
-      this exception is raised as a Python exception
-      (via {!Err.set_object} or {!Err.set_error} respectively).
-      If [f] raises any other exception, this exception bypasses the Python
-      interpreter. *)
-end
+val set_argv: string array -> unit
+(** [set_argv argv] set Python's [sys.argv]. *)
+
+val last_value: unit -> Object.t
+(** [last_value ()] returns the last value that was computed in the
+    toplevel.
+    We have [Py.last_value = Py.Module.find (Py.Module.builtins ()) "_"]. *)

@@ -6,17 +6,25 @@ type compare = Pytypes.compare = LT | LE | EQ | NE | GT | GE
 
 external load_library: int -> string option -> unit = "py_load_library"
 external finalize_library: unit -> unit = "py_finalize_library"
-external pywrap_closure: (pyobject -> pyobject) -> pyobject = "pywrap_closure"
-external pywrap_value: string -> 'a -> pyobject = "pywrap_value"
-external pyunwrap_value: pyobject -> string * 'a = "pyunwrap_value"
+external pywrap_closure: string -> (pyobject -> pyobject) -> pyobject
+    = "pywrap_closure"
 external pynull: unit -> pyobject = "PyNull_wrapper"
 external pynone: unit -> pyobject = "PyNone_wrapper"
 external pytrue: unit -> pyobject = "PyTrue_wrapper"
 external pyfalse: unit -> pyobject = "PyFalse_wrapper"
+external pytuple_empty: unit -> pyobject = "PyTuple_Empty_wrapper"
 external pyobject_callfunctionobjargs: pyobject -> (pyobject array) -> pyobject
     = "PyObject_CallFunctionObjArgs_wrapper"
 external pyerr_fetch_internal: unit -> pyobject * pyobject * pyobject
     = "PyErr_Fetch_wrapper"
+external pystring_asstringandsize: pyobject -> string option
+    = "PyString_AsStringAndSize_wrapper"
+external pyobject_ascharbuffer: pyobject -> string option
+    = "PyObject_AsCharBuffer_wrapper"
+external pyobject_asreadbuffer: pyobject -> string option
+    = "PyObject_AsReadBuffer_wrapper"
+external pyobject_aswritebuffer: pyobject -> string option
+    = "PyObject_AsWriteBuffer_wrapper"
 
 external fd_of_descr: Unix.file_descr -> int = "%identity"
 
@@ -343,31 +351,16 @@ let option result =
   else
     Some result
 
-module Bool = struct
-  let t = pytrue ()
-
-  let f = pyfalse ()
-
-  let check v = v = t || v = f
-
-  let of_bool b = if b then t else f
-
-  let to_bool v =
-    if v = t then true
-    else if v = f then false
-    else failwith "Bool.to_bool: neither true nor false"
-end
-
-module Callable = struct
-  let check v = Pywrappers.pycallable_check v <> 0
-end
-
 module Capsule = struct
   let is_valid v name  = Pywrappers.pycapsule_isvalid v name <> 0
 
   let check v = is_valid v "ocaml-capsule"
 
   let table = Hashtbl.create 17
+
+  external unsafe_wrap_value: 'a -> pyobject = "pywrap_value"
+
+  external unsafe_unwrap_value: pyobject -> 'a = "pyunwrap_value"
 
   let make name =
     try
@@ -377,9 +370,9 @@ module Capsule = struct
            name)
     with Not_found ->
       Hashtbl.add table name ();
-      let wrap v = pywrap_value name v in
+      let wrap v = unsafe_wrap_value (name, v) in
       let unwrap x =
-        let name', v = pyunwrap_value x in
+        let name', v = unsafe_unwrap_value x in
         if name <> name' then
           failwith
             (Printf.sprintf
@@ -387,27 +380,22 @@ module Capsule = struct
                name' name);
         v in
       (wrap, unwrap)
+
+  let type_of x = fst (unsafe_unwrap_value x)
 end
 
 module Eval = struct
   let call_object_with_keywords func arg keyword =
     check_not_null (Pywrappers.pyeval_callobjectwithkeywords func arg keyword)
 
+  let call_object func arg =
+    call_object_with_keywords func arg null
+
   let get_builtins () = check_not_null (Pywrappers.pyeval_getbuiltins ())
 
   let get_globals () = check_not_null (Pywrappers.pyeval_getglobals ())
 
   let get_locals () = check_not_null (Pywrappers.pyeval_getlocals ())
-end
-
-module Float = struct
-  let of_float = Pywrappers.pyfloat_fromdouble
-
-  let to_float v =
-    let result = Pywrappers.pyfloat_asdouble v in
-    if result = -1.0 then
-      check_error ();
-    result
 end
 
 module Import = struct
@@ -479,20 +467,6 @@ module Iter = struct
     | Some item -> p item || exists p i
 end
 
-module Long = struct
-  let of_int64 v =
-    check_not_null (Pywrappers.pylong_fromlong v)
-
-  let to_int64 v =
-    let result = Pywrappers.pylong_aslong v in
-    check_error ();
-    result
-
-  let of_int v = of_int64 (Int64.of_int v)
-
-  let to_int v = Int64.to_int (to_int64 v)
-end
-
 module Mapping = struct
   let check v = Pywrappers.pymapping_check v <> 0
 
@@ -521,20 +495,117 @@ module Method = struct
   let self m = option (Pywrappers.pymethod_self m)
 end
 
-module Module = struct
-  let create name =
-    check_not_null (Pywrappers.pymodule_new name)
+let object_repr obj = check_not_null (Pywrappers.pyobject_repr obj)
 
-  let get_dict m =
-    check_not_null (Pywrappers.pymodule_getdict m)
+let as_UTF8_string s =
+  if !version_major_value >= 3 then
+    check_not_null (Pywrappers.Python3.pyunicode_asutf8string s)
+  else
+    check_not_null (Pywrappers.Python2.pyunicodeucs2_asutf8string s)
 
-  let get_filename m =
-    check_some (Pywrappers.pymodule_getfilename m)
+module Type = struct
+  type t =
+      Unknown
+    | Bool
+    | Bytes
+    | Callable
+    | Capsule
+    | Closure
+    | Dict
+    | Float
+    | List
+    | Long
+    | Module
+    | None
+    | Null
+    | Tuple
+    | Type
+    | Unicode
+    | Iter
 
-  let get_name m =
-    check_some (Pywrappers.pymodule_getname m)
+  external get: pyobject -> t = "pytype"
 
-  let main () = Import.add_module "__main__"
+  let is_subtype a b =
+    bool_of_int (Pywrappers.pytype_issubtype a b)
+
+  let name t =
+    match t with
+      Unknown -> "Unknown"
+    | Bool -> "Bool"
+    | Bytes -> "Bytes"
+    | Callable -> "Callable"
+    | Capsule -> "Capsule"
+    | Closure -> "Closure"
+    | Dict -> "Dict"
+    | Float -> "Float"
+    | List -> "List"
+    | Long -> "Long"
+    | Module -> "Module"
+    | None -> "None"
+    | Null -> "Null"
+    | Tuple -> "Tuple"
+    | Type -> "Type"
+    | Unicode -> "Unicode"
+    | Iter -> "Iter"
+
+  let to_string s =
+    match get s with
+      Bytes -> Some (pystring_asstringandsize s)
+    | Unicode -> Some (pystring_asstringandsize (as_UTF8_string s))
+    | _ -> None
+
+  let string_of_repr item =
+    match to_string (object_repr item) with
+      None -> failwith "Py.Object.string_of_repr"
+    | Some repr -> check_some repr
+
+  let mismatch t o =
+    failwith
+      (Printf.sprintf "Type mismatch: %s expected. Got: %s (%s)"
+         t (name (get o)) (string_of_repr o))
+end
+
+module Bool = struct
+  let t = pytrue ()
+
+  let f = pyfalse ()
+
+  let check v = v = t || v = f
+
+  let of_bool b = if b then t else f
+
+  let to_bool v =
+    if v = t then true
+    else if v = f then false
+    else Type.mismatch "True or False" v
+end
+
+module Float = struct
+  let check o = Type.get o = Type.Float
+
+  let of_float = Pywrappers.pyfloat_fromdouble
+
+  let to_float v =
+    let result = Pywrappers.pyfloat_asdouble v in
+    if result = -1.0 then
+      check_error ();
+    result
+end
+
+module Long = struct
+  let check o = Type.get o = Type.Long
+
+  let of_int64 v =
+    check_not_null (Pywrappers.pylong_fromlong v)
+
+  let to_int64 v =
+    let result = Pywrappers.pylong_aslong v in
+    check_error ();
+    result
+
+  let of_int v = of_int64 (Int64.of_int v)
+
+  let to_int v = Int64.to_int (to_int64 v)
 end
 
 module Number = struct
@@ -622,33 +693,23 @@ module Number = struct
 
   let number_xor v0 v1 =
     check_not_null (Pywrappers.pynumber_xor v0 v1)
+
+  let check v =
+    match Type.get v with
+      Type.Float
+    | Type.Long -> true
+    | _ -> false
+
+  let to_float v =
+    match Type.get v with
+      Type.Float -> Float.to_float v
+    | Type.Long -> Int64.to_float (Long.to_int64 v)
+    | _ -> Type.mismatch "Long or Float" v
 end
 
-module Type = struct
-  type t =
-      Unknown
-    | Bool
-    | Bytes
-    | Callable
-    | Capsule
-    | Closure
-    | Dict
-    | Float
-    | List
-    | Long
-    | Module
-    | None
-    | Null
-    | Tuple
-    | Type
-    | Unicode
-    | Iter
-
-  external get: pyobject -> t = "pytype"
-
-  let is_subtype a b =
-    bool_of_int (Pywrappers.pytype_issubtype a b)
-end
+type byteorder =
+    LittleEndian
+  | BigEndian
 
 module String = struct
   let check_bytes s =
@@ -662,29 +723,117 @@ module String = struct
       Type.Bytes | Type.Unicode -> true
     | _ -> false
 
-  let as_UTF8_string s =
-    check_not_null (Pywrappers.Python3.pyunicode_asutf8string s)
+  let as_UTF8_string = as_UTF8_string
+
+  let decode_UTF8 ?errors ?size s =
+    let size' =
+      match size with
+        None -> String.length s
+      | Some size' -> size' in
+    let decoded_string =
+      if !version_major_value >= 3 then
+        Pywrappers.Python3.pyunicode_decodeutf8 s size' errors
+      else
+        Pywrappers.Python2.pyunicodeucs2_decodeutf8 s size' errors in
+    check_not_null decoded_string
+
+  let decode_UTF16_32 decode_python2 decode_python3 errors size byteorder s =
+    let size' =
+      match size with
+        None -> String.length s
+      | Some size' -> size' in
+    let byteorder' =
+      match byteorder with
+        None -> 0
+      | Some LittleEndian -> -1
+      | Some BigEndian -> 1 in
+    let byteorder_ref = ref byteorder' in
+    let decoded_string =
+      if !version_major_value >= 3 then
+        decode_python3 s size' errors byteorder_ref
+      else
+        decode_python2 s size' errors byteorder_ref in
+    ignore (check_not_null decoded_string);
+    let decoded_byteorder =
+      match !byteorder_ref with
+        -1 -> LittleEndian
+      | 1 -> BigEndian
+      | _ -> failwith "Py.decode_UTF16/32: unknown endianess value" in
+    (decoded_string, decoded_byteorder)
+
+  let decode_UTF16 ?errors ?size ?byteorder s =
+    decode_UTF16_32 Pywrappers.Python2.pyunicodeucs2_decodeutf16
+      Pywrappers.Python3.pyunicode_decodeutf16 errors size byteorder s
+
+  let decode_UTF32 ?errors ?size ?byteorder s =
+    decode_UTF16_32 Pywrappers.Python2.pyunicodeucs2_decodeutf32
+      Pywrappers.Python3.pyunicode_decodeutf32 errors size byteorder s
+
+  let of_unicode ?size int_array =
+    let size' =
+      match size with
+        None -> Array.length int_array
+      | Some size' -> size' in
+    if !version_major_value >= 3 then
+      check_not_null
+        (Pywrappers.Python3.pyunicode_fromkindanddata 4 int_array size')
+    else
+      check_not_null
+        (Pywrappers.Python2.pyunicodeucs2_fromunicode int_array size')
+
+  let to_unicode s =
+    if !version_major_value >= 3 then
+      check_some (Pywrappers.Python3.pyunicode_asucs4copy s)
+    else
+      check_some (Pywrappers.Python2.pyunicodeucs2_asunicode s)
+
+  let string_type_mismatch obj = Type.mismatch "String or Unicode" obj
+
+  let format fmt args =
+    match Type.get fmt with
+      Type.Unicode ->
+        if !version_major_value >= 3 then
+          check_not_null (Pywrappers.Python3.pyunicode_format fmt args)
+        else
+          check_not_null (Pywrappers.Python2.pyunicodeucs2_format fmt args)
+    | Type.Bytes ->
+        if !version_major_value >= 3 then
+          failwith "No format on Bytes in Python 3"
+        else
+          check_not_null (Pywrappers.Python2.pystring_format fmt args)
+    | _ -> string_type_mismatch fmt
+
+  let length s =
+    match Type.get s with
+      Type.Unicode ->
+        if !version_major_value >= 3 then
+          Pywrappers.Python3.pyunicode_getlength s
+        else
+          Pywrappers.Python2.pyunicodeucs2_getsize s
+    | Type.Bytes ->
+        if !version_major_value >= 3 then
+          Pywrappers.Python3.pybytes_size s
+        else
+          Pywrappers.Python2.pystring_size s
+    | _ -> string_type_mismatch s
 
   let of_string s =
+    let len = String.length s in
     if !version_major_value >= 3 then
-      check_not_null (Pywrappers.Python3.pyunicode_fromstring s)
+      check_not_null (Pywrappers.Python3.pyunicode_fromstringandsize s len)
     else
-      check_not_null (Pywrappers.Python2.pystring_fromstring s)
+      check_not_null (Pywrappers.Python2.pystring_fromstringandsize s len)
 
-  let to_string s: string =
-    if !version_major_value >= 3 then
-      match Type.get s with
-        Type.Bytes -> check_some (Pywrappers.Python3.pybytes_asstring s)
-      | Type.Unicode ->
-          check_some (Pywrappers.Python3.pybytes_asstring (as_UTF8_string s))
-      | _ -> failwith "Py.String: not a string"
-    else
-      check_some (Pywrappers.Python2.pystring_asstring s)
+  let to_string s =
+    match Type.to_string s with
+      None -> string_type_mismatch s
+    | Some s -> check_some s
 end
 
 module Err = struct
   type t =
     Exception
+  | StandardError
   | ArithmeticError
   | LookupError
   | AssertionError
@@ -748,6 +897,11 @@ module Err = struct
     let exc =
       match error with
         Exception -> Pywrappers.pyexc_exception ()
+      | StandardError ->
+          if !version_major_value <= 2 then
+            Pywrappers.Python2.pyexc_standarderror ()
+          else
+            Pywrappers.pyexc_exception ()
       | ArithmeticError -> Pywrappers.pyexc_arithmeticerror ()
       | LookupError -> Pywrappers.pyexc_lookuperror ()
       | AssertionError -> Pywrappers.pyexc_assertionerror ()
@@ -793,7 +947,9 @@ module Object = struct
     check_not_null (Pywrappers.pyobject_getattrstring obj attr)
 
   let get_item obj key =
-    check_not_null (Pywrappers.pyobject_getitem obj key)
+    option (Pywrappers.pyobject_getitem obj key)
+
+  let get_item_string obj key = get_item obj (String.of_string key)
 
   let get_iter obj =
     check_not_null (Pywrappers.pyobject_getiter obj)
@@ -818,7 +974,7 @@ module Object = struct
       (Pywrappers.pyobject_print obj
          (fd_of_descr (Unix.descr_of_out_channel out_channel)) 1)
 
-  let repr obj = check_not_null (Pywrappers.pyobject_repr obj)
+  let repr = object_repr
 
   let rich_compare a b cmp =
     check_not_null (Pywrappers.pyobject_richcompare a b cmp)
@@ -835,10 +991,21 @@ module Object = struct
   let set_item obj key value =
     assert_int_success (Pywrappers.pyobject_setitem obj key value)
 
+  let set_item_string obj key value = set_item obj (String.of_string key) value
+
   let str obj = check_not_null (Pywrappers.pyobject_str obj)
 
-  let to_string item =
-    String.to_string (check_not_null (Pywrappers.pyobject_str item))
+  let string_of_repr = Type.string_of_repr
+
+  let to_string item = String.to_string (str item)
+
+  let as_char_buffer obj = check_some (pyobject_ascharbuffer obj)
+
+  let as_read_buffer obj = check_some (pyobject_asreadbuffer obj)
+
+  let as_write_buffer obj = check_some (pyobject_aswritebuffer obj)
+
+  external reference_count: pyobject -> int = "pyrefcount"
 end
 
 module Sequence = struct
@@ -856,6 +1023,8 @@ module Sequence = struct
   let fast s msg = check_not_null (Pywrappers.pysequence_fast s msg)
 
   let get_item sequence index = Pywrappers.pysequence_getitem sequence index
+
+  let get = get_item
 
   let get_slice s i0 i1 =
     check_not_null (Pywrappers.pysequence_getslice s i0 i1)
@@ -877,6 +1046,8 @@ module Sequence = struct
   let set_item s index value =
     assert_int_success (Pywrappers.pysequence_setitem s index value)
 
+  let set = set_item
+
   let set_slice s i0 i1 value =
     assert_int_success (Pywrappers.pysequence_setslice s i0 i1 value)
 
@@ -885,6 +1056,9 @@ module Sequence = struct
   let tuple sequence = check_not_null (Pywrappers.pysequence_tuple sequence)
 
   let to_array sequence = Array.init (size sequence) (get_item sequence)
+
+  let to_array_map f sequence =
+    Array.init (size sequence) (fun index -> f (get_item sequence index))
 
   let rec fold_right_upto f upto sequence v =
     if upto > 0 then
@@ -918,14 +1092,10 @@ module Tuple = struct
   let create size =
     check_not_null (Pywrappers.pytuple_new size)
 
-  let get_item tuple index =
-    check_not_null (Pywrappers.pytuple_getitem tuple index)
+  let empty = pytuple_empty ()
 
   let get_slice tuple i0 i1 =
     check_not_null (Pywrappers.pytuple_getslice tuple i0 i1)
-
-  let set_item tuple index item =
-    assert_int_success (Pywrappers.pytuple_setitem tuple index item)
 
   let size tuple = check_int (Pywrappers.pytuple_size tuple)
 
@@ -945,17 +1115,66 @@ module Tuple = struct
 
   let of_list_map f list = of_array_map f (Array.of_list list)
 
-  let singleton v = init 1 (fun _ -> v)
-
   let of_sequence = Sequence.tuple
 
-  let of_pair (fst, snd) =
-    init 2 (function 0 -> fst | _ -> snd)
+  let of_tuple1 v0 = init 1 (function _ -> v0)
 
-  let to_pair pair =
-    let fst = get_item pair 0 in
-    let snd = get_item pair 1 in
-    (fst, snd)
+  let of_tuple2 (v0, v1) = init 2 (function 0 -> v0 | _ -> v1)
+
+  let of_tuple3 (v0, v1, v2) = init 3 (function 0 -> v0 | 1 -> v1 | _ -> v2)
+
+  let of_tuple4 (v0, v1, v2, v3) =
+    init 4 (function 0 -> v0 | 1 -> v1 | 2 -> v2 | _ -> v3)
+
+  let of_tuple5 (v0, v1, v2, v3, v4) =
+    init 5 (function 0 -> v0 | 1 -> v1 | 2 -> v2 | 3 -> v3 | _ -> v4)
+
+  let to_tuple1 v = get_item v 0
+
+  let to_tuple2 v = (get_item v 0, get_item v 1)
+
+  let to_tuple3 v = (get_item v 0, get_item v 1, get_item v 2)
+
+  let to_tuple4 v = (get_item v 0, get_item v 1, get_item v 2, get_item v 3)
+
+  let to_tuple5 v =
+    (get_item v 0, get_item v 1, get_item v 2, get_item v 3, get_item v 4)
+
+  let singleton = of_tuple1
+
+  let to_singleton = to_tuple1
+
+  let of_pair = of_tuple2
+
+  let to_pair = to_tuple2
+end
+
+module Callable = struct
+  let check v = Pywrappers.pycallable_check v <> 0
+
+  let of_function ?(docstring = "Anonymous closure") f =
+    let f' parameter =
+      try f parameter with
+        E (errtype, errvalue) ->
+         Err.set_object errtype errvalue;
+         null
+      | Err (errtype, msg) ->
+         Err.set_error errtype msg;
+         null in
+    pywrap_closure docstring f'
+
+  let of_function_array ?docstring f =
+    of_function ?docstring (fun args -> f (Tuple.to_array args))
+
+  let to_function c =
+    if not (check c) then
+      Type.mismatch "Callable" c;
+    function args ->
+      Eval.call_object c args
+
+  let to_function_array c =
+    let f = to_function c in
+    (fun args -> f (Tuple.of_array args))
 end
 
 module Dict = struct
@@ -973,10 +1192,20 @@ module Dict = struct
     assert_int_success (Pywrappers.pydict_delitemstring dict name)
 
   let get_item dict key =
-    check_not_null (Pywrappers.pydict_getitem dict key)
+    option (Pywrappers.pydict_getitem dict key)
+
+  let find dict key =
+    match get_item dict key with
+      None -> raise Not_found
+    | Some value -> value
 
   let get_item_string dict name =
-    check_not_null (Pywrappers.pydict_getitemstring dict name)
+    option (Pywrappers.pydict_getitemstring dict name)
+
+  let find_string dict key =
+    match get_item_string dict key with
+      None -> raise Not_found
+    | Some value -> value
 
   let keys dict = check_not_null (Pywrappers.pydict_keys dict)
 
@@ -1034,6 +1263,57 @@ module Dict = struct
     result
 end
 
+module Module = struct
+  let create name =
+    check_not_null (Pywrappers.pymodule_new name)
+
+  let get_dict m =
+    check_not_null (Pywrappers.pymodule_getdict m)
+
+  let get_filename m =
+    check_some (Pywrappers.pymodule_getfilename m)
+
+  let get_name m =
+    check_some (Pywrappers.pymodule_getname m)
+
+  let get m key = Dict.get_item_string (get_dict m) key
+
+  let find m key = Dict.find_string (get_dict m) key
+
+  let set m key value = Dict.set_item_string (get_dict m) key value
+
+  let main () = Import.add_module "__main__"
+
+  let builtins () = find (main ()) "__builtins__"
+end
+
+let try_finally f arg finally finally_arg =
+  try
+    let result = f arg in
+    finally finally_arg;
+    result
+  with e ->
+    finally finally_arg;
+    raise e
+
+let read_and_close channel f arg =
+  try
+    let result = f arg in
+    close_in channel;
+    result
+  with e ->
+    close_in_noerr channel;
+    raise e
+
+let write_and_close channel f arg =
+  try
+    let result = f arg in
+    close_out channel;
+    result
+  with e ->
+    close_out_noerr channel;
+    raise e
+
 module Run = struct
   let any_file file filename =
     assert_int_success
@@ -1066,29 +1346,34 @@ module Run = struct
 
   let eval s =
     string s Eval (Module.get_dict (Module.main ())) (Dict.create ())
-end
 
-module Wrap = struct
-  let closure f =
-    let f' parameter =
-      try f parameter with
-        E (errtype, errvalue) ->
-         Err.set_object errtype errvalue;
-         null
-      | Err (errtype, msg) ->
-         Err.set_error errtype msg;
-         null in
-    pywrap_closure f'
+  let load chan filename =
+    ignore
+      (file chan filename File
+         (Module.get_dict (Module.main ())) (Dict.create ()))
+
+  let interactive () = interactive_loop stdin "<stdin>"
+
+  let ipython () =
+    simple_string "
+try:
+  from IPython import embed
+  embed()
+except ImportError:
+  from IPython.Shell import IPShellEmbed
+  ipshell = IPShellEmbed(argv=[''])
+  ipshell()
+"
 end
 
 module Class = struct
-  let init classname parents fields methods =
+  let init ?(parents = Tuple.empty) ?(fields = []) ?(methods = []) classname =
     let dict = Dict.create () in
     let add_field (name, value) = Dict.set_item_string dict name value in
     List.iter add_field fields;
     if version_major () >= 3 then
       let add_method (name, closure) =
-        let closure' = check_not_null (Wrap.closure closure) in
+        let closure' = check_not_null (Callable.of_function closure) in
         let m =
           check_not_null (Pywrappers.Python3.pyinstancemethod_new closure') in
         Dict.set_item_string dict name m in
@@ -1101,7 +1386,7 @@ module Class = struct
         check_not_null
           (Pywrappers.Python2.pyclass_new parents dict classname) in
       let add_method (name, closure) =
-        let closure' = check_not_null (Wrap.closure closure) in
+        let closure' = check_not_null (Callable.of_function closure) in
         let m = check_not_null (Pywrappers.pymethod_new closure' null c) in
         Dict.set_item_string dict name m in
       List.iter add_method methods;
@@ -1111,13 +1396,11 @@ end
 module List = struct
   include Sequence
 
+  let check v = Type.get v = Type.List
+
   let create size = check_not_null (Pywrappers.pylist_new size)
 
-  let get_item list index =
-    check_not_null (Pywrappers.pylist_getitem list index)
-
-  let set_item list index value =
-    assert_int_success (Pywrappers.pylist_setitem list index value)
+  let size list = check_int (Pywrappers.pylist_size list)
 
   let init size f =
     let result = create size in
@@ -1139,3 +1422,10 @@ module List = struct
 
   let singleton v = init 1 (fun _ -> v)
 end
+
+let set_argv argv =
+  let sys = Import.import_module "sys" in
+  let sys_dict = Module.get_dict sys in
+  Dict.set_item_string sys_dict "argv" (List.of_array_map String.of_string argv)
+
+let last_value () = Module.find (Module.builtins ()) "_"

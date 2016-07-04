@@ -138,6 +138,19 @@ static void (*Python_PyErr_NormalizeException)
 /* Resolved differently between Python 2 and Python 3 */
 static PyObject *Python__Py_FalseStruct;
 
+/* Buffer and size */
+static int (*Python_PyString_AsStringAndSize)
+(PyObject *, char **, Py_ssize_t *);
+static int (*Python_PyObject_AsCharBuffer)
+(PyObject *, const char **, Py_ssize_t *);
+static int (*Python_PyObject_AsReadBuffer)
+(PyObject *, const void **, Py_ssize_t *);
+static int (*Python_PyObject_AsWriteBuffer)
+(PyObject *, void **, Py_ssize_t *);
+
+/* Internal use only */
+static void (*Python_PyMem_Free)(void *);
+
 #include "pyml.h"
 
 static void *getcustom( value v )
@@ -164,7 +177,7 @@ static int pycompare(value v1, value v2)
         result = 1;
     else if (!o1 && !o2)
         result = 0;
-    else if (version_major <= 2)
+    else if (version_major < 3)
         Python2_PyObject_Cmp(o1, o2, &result);
     else if (1 == Python_PyObject_RichCompareBool(o1, o2, Py_EQ))
         result = 0;
@@ -206,7 +219,8 @@ enum code {
     CODE_NULL,
     CODE_NONE,
     CODE_TRUE,
-    CODE_FALSE
+    CODE_FALSE,
+    CODE_TUPLE_EMPTY
 };
 
 static void *
@@ -221,27 +235,32 @@ resolve(const char *symbol)
 }
 
 static value
-pywrap(PyObject *obj, bool steal)
+pywrap(PyObject *object, bool steal)
 {
     CAMLparam0();
     CAMLlocal1(v);
-    if (!obj) {
+    if (!object) {
         CAMLreturn(Val_int(CODE_NULL));
     }
-    if (obj == Python__Py_NoneStruct) {
+    if (object == Python__Py_NoneStruct) {
         CAMLreturn(Val_int(CODE_NONE));
     }
-    if (obj == Python__Py_TrueStruct) {
+    if (object == Python__Py_TrueStruct) {
         CAMLreturn(Val_int(CODE_TRUE));
     }
-    if (obj == Python__Py_FalseStruct) {
+    if (object == Python__Py_FalseStruct) {
         CAMLreturn(Val_int(CODE_FALSE));
     }
+    unsigned long flags = object->ob_type->tp_flags;
+    if (flags & Py_TPFLAGS_TUPLE_SUBCLASS
+        && Python_PySequence_Length(object) == 0) {
+        CAMLreturn(Val_int(CODE_TUPLE_EMPTY));
+    }
     if (!steal) {
-        Py_INCREF(obj);
+        Py_INCREF(object);
     }
     v = caml_alloc_custom(&pyops, sizeof(PyObject *), 100, 30000000);
-    *((PyObject **)Data_custom_val(v)) = obj;
+    *((PyObject **)Data_custom_val(v)) = object;
     CAMLreturn(v);
 }
 
@@ -258,6 +277,8 @@ pyunwrap(value v)
             return Python__Py_TrueStruct;
         case CODE_FALSE:
             return Python__Py_FalseStruct;
+        case CODE_TUPLE_EMPTY:
+            return Python_PyTuple_New(0);
         }
 
     return *((PyObject **)Data_custom_val(v));
@@ -388,10 +409,24 @@ assert_initialized() {
     }
 }
 
+static void
+assert_python2() {
+    if (version_major != 2) {
+        failwith("Python 2 needed");
+    }
+}
+
+static void
+assert_python3() {
+    if (version_major != 3) {
+        failwith("Python 3 needed");
+    }
+}
+
 CAMLprim value
-pywrap_closure(value closure)
+pywrap_closure(value docstring, value closure)
 {
-    CAMLparam1(closure);
+    CAMLparam2(docstring, closure);
     assert_initialized();
     PyMethodDef ml;
     PyObject *obj;
@@ -399,7 +434,7 @@ pywrap_closure(value closure)
     ml.ml_name = "anonymous_closure";
     ml.ml_meth = pycall_callback;
     ml.ml_flags = 1;
-    ml.ml_doc = "Anonymous closure";
+    ml.ml_doc = String_val(docstring);
     obj = camlwrap_closure(closure, &ml, sizeof(ml));
     ml_def = (PyMethodDef *) caml_aux(obj);
     PyObject *f = Python_PyCFunction_NewEx(ml_def, obj, NULL);
@@ -427,16 +462,24 @@ py_load_library(value version_major_ocaml, value filename_ocaml)
     }
     Python_PyCapsule_New = resolve("PyCapsule_New");
     Python_PyCapsule_GetPointer = resolve("PyCapsule_GetPointer");
-    Python_PyObject_CallFunctionObjArgs = resolve("PyObject_CallFunctionObjArgs");
+    Python_PyObject_CallFunctionObjArgs =
+        resolve("PyObject_CallFunctionObjArgs");
     Python_PyErr_Fetch = resolve("PyErr_Fetch");
     Python_PyErr_NormalizeException = resolve("PyErr_NormalizeException");
-    Python__PyObject_NextNotImplemented = resolve("_PyObject_NextNotImplemented");
-    if (version_major <= 2) {
-        Python__Py_FalseStruct = resolve("_Py_ZeroStruct");
+    Python__PyObject_NextNotImplemented =
+        resolve("_PyObject_NextNotImplemented");
+    Python_PyObject_AsCharBuffer = resolve("PyObject_AsCharBuffer");
+    Python_PyObject_AsReadBuffer = resolve("PyObject_AsReadBuffer");
+    Python_PyObject_AsWriteBuffer = resolve("PyObject_AsWriteBuffer");
+    if (version_major >= 3) {
+        Python__Py_FalseStruct = resolve("_Py_FalseStruct");
+        Python_PyString_AsStringAndSize = resolve("PyBytes_AsStringAndSize");
     }
     else {
-        Python__Py_FalseStruct = resolve("_Py_FalseStruct");
+        Python__Py_FalseStruct = resolve("_Py_ZeroStruct");
+        Python_PyString_AsStringAndSize = resolve("PyString_AsStringAndSize");
     }
+    Python_PyMem_Free = resolve("PyMem_Free");
 #include "pyml_dlsyms.inc"
     Python_Py_Initialize();
     CAMLreturn(Val_unit);
@@ -451,6 +494,7 @@ py_finalize_library(value unit)
         dlclose(library);
     }
     library = NULL;
+    version_major = 0;
     CAMLreturn(Val_unit);
 }
 
@@ -480,6 +524,13 @@ PyFalse_wrapper(value unit)
 {
     CAMLparam1(unit);
     CAMLreturn(Val_int(CODE_FALSE));
+}
+
+CAMLprim value
+PyTuple_Empty_wrapper(value unit)
+{
+    CAMLparam1(unit);
+    CAMLreturn(Val_int(CODE_TUPLE_EMPTY));
 }
 
 enum pytype_labels {
@@ -579,7 +630,7 @@ PyObject_CallFunctionObjArgs_wrapper(
     assert_initialized();
     PyObject *callable = pyunwrap(callable_ocaml);
     PyObject *result;
-    int argument_count = Wosize_val(arguments_ocaml);
+    mlsize_t argument_count = Wosize_val(arguments_ocaml);
     switch (argument_count) {
     case 0:
         result = Python_PyObject_CallFunctionObjArgs(callable);
@@ -635,21 +686,19 @@ PyObject_CallFunctionObjArgs_wrapper(
 }
 
 CAMLprim value
-pywrap_value(value name_ocaml, value v) {
-    CAMLparam2(name_ocaml, v);
-    CAMLlocal1(pair);
+pywrap_value(value v)
+{
+    CAMLparam1(v);
     assert_initialized();
-    pair = caml_alloc(2, 0);
-    Store_field(pair, 0, name_ocaml);
-    Store_field(pair, 1, v);
-    PyObject *result = camlwrap_capsule(pair, NULL, 0);
+    PyObject *result = camlwrap_capsule(v, NULL, 0);
     CAMLreturn(pywrap(result, true));
 }
 
 CAMLprim value
-pyunwrap_value(value x_ocaml) {
+pyunwrap_value(value x_ocaml)
+{
     CAMLparam1(x_ocaml);
-    CAMLlocal2(v, pair);
+    CAMLlocal1(v);
     assert_initialized();
     PyObject *x = pyunwrap(x_ocaml);
     void *p = Python_PyCapsule_GetPointer(x, "ocaml-capsule");
@@ -658,14 +707,12 @@ pyunwrap_value(value x_ocaml) {
         exit(EXIT_FAILURE);
     }
     v = *(value *) p;
-    pair = caml_alloc(2, 0);
-    Store_field(pair, 0, Field(v, 0));
-    Store_field(pair, 1, Field(v, 1));
-    CAMLreturn(pair);
+    CAMLreturn(v);
 }
 
 CAMLprim value
-PyErr_Fetch_wrapper(value unit) {
+PyErr_Fetch_wrapper(value unit)
+{
     CAMLparam1(unit);
     CAMLlocal1(result);
     assert_initialized();
@@ -680,7 +727,8 @@ PyErr_Fetch_wrapper(value unit) {
 }
 
 CAMLprim value
-pywrap_string_option(char *s) {
+pywrap_string_option(char *s)
+{
     CAMLparam0();
     CAMLlocal1(result);
     if (!s) {
@@ -689,6 +737,14 @@ pywrap_string_option(char *s) {
     result = caml_alloc(1, 0);
     Store_field(result, 0, caml_copy_string(s));
     CAMLreturn(result);
+}
+
+CAMLprim value
+pyrefcount(value pyobj)
+{
+  CAMLparam1(pyobj);
+  PyObject *obj = pyunwrap(pyobj);
+  CAMLreturn(Val_int(obj->ob_refcnt));
 }
 
 static void *xmalloc(size_t size)
@@ -702,7 +758,8 @@ static void *xmalloc(size_t size)
 }
 
 static value
-pywrap_wide_string(wchar_t *ws) {
+pywrap_wide_string(wchar_t *ws)
+{
     CAMLparam0();
     CAMLlocal1(result);
     size_t n = wcstombs(NULL, ws, 0);
@@ -718,7 +775,8 @@ pywrap_wide_string(wchar_t *ws) {
 }
 
 static wchar_t *
-pyunwrap_wide_string(value string_ocaml) {
+pyunwrap_wide_string(value string_ocaml)
+{
     CAMLparam1(string_ocaml);
     char *s = String_val(string_ocaml);
     size_t n = mbstowcs(NULL, s, 0);
@@ -730,5 +788,104 @@ pyunwrap_wide_string(value string_ocaml) {
     mbstowcs(ws, s, n);
     CAMLreturnT(wchar_t *, ws);
 }
+
+static int16_t *
+pyunwrap_ucs2(value array_ocaml)
+{
+    CAMLparam1(array_ocaml);
+    mlsize_t len = Wosize_val(array_ocaml);
+    int16_t *result = xmalloc(len * sizeof(int16_t));
+    size_t i;
+    for (i = 0; i < len; i++) {
+        result[i] = Field(array_ocaml, i);
+    }
+    CAMLreturnT(int16_t *, result);
+}
+
+static int32_t *
+pyunwrap_ucs4(value array_ocaml)
+{
+    CAMLparam1(array_ocaml);
+    mlsize_t len = Wosize_val(array_ocaml);
+    int32_t *result = xmalloc(len * sizeof(int32_t));
+    size_t i;
+    for (i = 0; i < len; i++) {
+        result[i] = Field(array_ocaml, i);
+    }
+    CAMLreturnT(int32_t *, result);
+}
+
+static value
+pywrap_ucs2_option(int16_t *buffer)
+{
+    CAMLparam0();
+    CAMLlocal2(result, array);
+    mlsize_t len;
+    if (buffer == NULL) {
+        CAMLreturn(Val_int(0));
+    }
+    len = 0;
+    while (buffer[len]) {
+        len++;
+    }
+    array = caml_alloc(len, 0);
+    size_t i;
+    for (i = 0; i < len; i++) {
+        Store_field(array, i, buffer[i]);
+    }
+    result = caml_alloc(1, 0);
+    Store_field(result, 0, array);
+    CAMLreturn(result);
+}
+
+static value
+pywrap_ucs4_option_and_free(int32_t *buffer)
+{
+    CAMLparam0();
+    CAMLlocal2(result, array);
+    mlsize_t len;
+    if (buffer == NULL) {
+        CAMLreturn(Val_int(0));
+    }
+    len = 0;
+    while (buffer[len]) {
+        len++;
+    }
+    array = caml_alloc(len, 0);
+    size_t i;
+    for (i = 0; i < len; i++) {
+        Store_field(array, i, buffer[i]);
+    }
+    result = caml_alloc(1, 0);
+    Store_field(result, 0, array);
+    Python_PyMem_Free(buffer);
+    CAMLreturn(result);
+}
+
+#define StringAndSize_wrapper(func, byte_type)                                 \
+    CAMLprim value                                                             \
+    func##_wrapper(value arg_ocaml)                                            \
+    {                                                                          \
+        CAMLparam1(arg_ocaml);                                                 \
+        CAMLlocal2(result, string);                                            \
+        PyObject *arg = pyunwrap(arg_ocaml);                                   \
+        byte_type *buffer;                                                     \
+        Py_ssize_t length;                                                     \
+        int return_value;                                                      \
+        return_value = Python_##func(arg, &buffer, &length);                   \
+        if (return_value == -1) {                                              \
+            CAMLreturn(Val_int(0));                                            \
+        }                                                                      \
+        string = caml_alloc_string(length);                                    \
+        memcpy(String_val(string), buffer, length);                            \
+        result = caml_alloc(1, 0);                                             \
+        Store_field(result, 0, string);                                        \
+        CAMLreturn(result);                                                    \
+    }
+
+StringAndSize_wrapper(PyString_AsStringAndSize, char);
+StringAndSize_wrapper(PyObject_AsCharBuffer, const char);
+StringAndSize_wrapper(PyObject_AsReadBuffer, const void);
+StringAndSize_wrapper(PyObject_AsWriteBuffer, void);
 
 #include "pyml_wrappers.inc"

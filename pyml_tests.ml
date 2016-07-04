@@ -10,8 +10,13 @@ let launch_test (title, f) =
   try
     f ();
     Printf.printf "passed\n%!"
-  with e ->
-    Printf.printf "raised an exception %s\n%!" (Printexc.to_string e);
+  with
+    Py.E (_, value) ->
+    Printf.printf "raised a Python exception: %s\n%!"
+        (Py.Object.to_string value);
+    failed := true
+  | e ->
+    Printf.printf "raised an exception: %s\n%!" (Printexc.to_string e);
     failed := true
 
 let rec launch_tests () =
@@ -49,17 +54,15 @@ let () =
   add_test
     ~title:"class"
     (fun () ->
-      let m = Py.Module.create "test" in
-      Py.Dict.set_item_string (Py.Import.get_module_dict ()) "test" m;
+      let m = Py.Import.add_module "test" in
       let value_obtained = ref None in
       let callback arg =
         value_obtained := Some (Py.String.to_string (Py.Tuple.get_item arg 1));
         Py.none in
       let c =
         Py.Class.init (Py.String.of_string "myClass")
-          (Py.Tuple.create 0) []
-          [("callback", callback)] in
-      Py.Dict.set_item_string (Py.Module.get_dict m) "myClass" c;
+          ~methods:[("callback", callback)] in
+      Py.Module.set m "myClass" c;
       Py.Run.simple_string "
 from test import myClass
 myClass().callback('OK')
@@ -69,21 +72,24 @@ myClass().callback('OK')
 
 let () =
   add_test
+    ~title:"empty tuple"
+    (fun () ->
+      assert (Py.Tuple.create 0 = Py.Tuple.empty))
+
+let () =
+  add_test
     ~title:"capsule"
     (fun () ->
       let (wrap, unwrap) = Py.Capsule.make "string" in
-      let m = Py.Module.create "test" in
-      Py.Dict.set_item_string (Py.Import.get_module_dict ()) "test" m;
-      let pywrap arg =
-        let s = Py.String.to_string (Py.Tuple.get_item arg 0) in
+      let m = Py.Import.add_module "test" in
+      let pywrap args =
+        let s = Py.String.to_string args.(0) in
         wrap s in
-      let pyunwrap arg =
-        let s = unwrap (Py.Tuple.get_item arg 0) in
+      let pyunwrap args =
+        let s = unwrap args.(0) in
         Py.String.of_string s in
-      Py.Dict.set_item_string (Py.Module.get_dict m) "wrap"
-        (Py.Wrap.closure pywrap);
-      Py.Dict.set_item_string (Py.Module.get_dict m) "unwrap"
-        (Py.Wrap.closure pyunwrap);
+      Py.Module.set m "wrap" (Py.Callable.of_function_array pywrap);
+      Py.Module.set m "unwrap" (Py.Callable.of_function_array pyunwrap);
       Py.Run.simple_string "
 from test import wrap, unwrap
 x = wrap('OK')
@@ -111,12 +117,11 @@ let () =
   add_test
     ~title:"ocaml exception"
     (fun () ->
-      let m = Py.Module.create "test" in
-      Py.Dict.set_item_string (Py.Import.get_module_dict ()) "test" m;
+      let m = Py.Import.add_module "test" in
       let f _ =
         raise (Py.Err (Py.Err.Exception, "Great")) in
-      let mywrap = Py.Wrap.closure f in
-      Py.Dict.set_item_string (Py.Module.get_dict m) "mywrap" mywrap;
+      let mywrap = Py.Callable.of_function f in
+      Py.Module.set m "mywrap" mywrap;
       Py.Run.simple_string "
 from test import mywrap
 try:
@@ -131,11 +136,10 @@ let () =
   add_test
     ~title:"ocaml other exception"
     (fun () ->
-      let m = Py.Module.create "test" in
-      Py.Dict.set_item_string (Py.Import.get_module_dict ()) "test" m;
+      let m = Py.Import.add_module "test" in
       let f _ = raise Exit in
-      let mywrap = Py.Wrap.closure f in
-      Py.Dict.set_item_string (Py.Module.get_dict m) "mywrap" mywrap;
+      let mywrap = Py.Callable.of_function f in
+      Py.Module.set m "mywrap" mywrap;
       try
         Py.Run.simple_string "
 from test import mywrap
@@ -149,15 +153,14 @@ except Exception as err:
         ()
     )
 
-let read_file filename f =
-  let channel = open_in filename in
-  try
-    let result = f channel in
-    close_in channel;
-    result
-  with e ->
-    close_in_noerr channel;
-    raise e
+let with_temp_file contents f =
+  let (file, channel) = Filename.open_temp_file "test" ".py" in
+  Py.try_finally begin fun () ->
+    Py.write_and_close channel (output_string channel) contents;
+    let channel = open_in file in
+    Py.read_and_close channel f (file, channel)
+  end ()
+    Sys.remove file
 
 let () =
   add_test
@@ -166,9 +169,10 @@ let () =
       let main = Py.Import.add_module "__main__" in
       let globals = Py.Module.get_dict main in
       let locals = Py.Dict.create () in
-      let result = read_file "test.py" (fun channel ->
-        Py.Run.file channel "test.py" Py.File globals locals
-      ) in
+      let result = with_temp_file "print(\"Hello, world!\")"
+        begin fun (file, channel) ->
+         Py.Run.file channel "test.py" Py.File globals locals
+        end in
       if result <> Py.none then
         let result_str = Py.Object.to_string result in
         let msg = Printf.sprintf "Result None expected but got %s" result_str in
@@ -263,6 +267,44 @@ let () =
           None -> failwith "None!"
         | Some v' -> assert (i = int_of_string v')
       end table)
+
+let () =
+  add_test
+    ~title:"unicode"
+    (fun () ->
+      let codepoints = [| 8203; 127; 83; 2384; 0; 12 |] in
+      let python_string = Py.String.of_unicode codepoints in
+      let ocaml_string = Py.String.to_string python_string in
+      let python_string' = Py.String.decode_UTF8 ocaml_string in
+      let codepoints' = Py.String.to_unicode python_string' in
+      assert (codepoints = codepoints'))
+
+let () =
+  add_test
+    ~title:"interactive loop"
+    (fun () ->
+      with_temp_file "42"
+        begin fun (file, channel) ->
+          let stdin_backup = Unix.dup Unix.stdin in
+          Unix.dup2 (Unix.descr_of_in_channel channel) Unix.stdin;
+          Py.try_finally
+            Py.Run.interactive ()
+            (Unix.dup2 stdin_backup) Unix.stdin
+        end;
+      assert (Py.Long.to_int (Py.last_value ()) = 42))
+
+let () =
+  add_test
+    ~title:"IPython"
+    (fun () ->
+      with_temp_file "exit"
+        begin fun (file, channel) ->
+          let stdin_backup = Unix.dup Unix.stdin in
+          Unix.dup2 (Unix.descr_of_in_channel channel) Unix.stdin;
+          Py.try_finally
+            Py.Run.ipython ()
+            (Unix.dup2 stdin_backup) Unix.stdin
+        end)
 
 let () =
   prerr_endline "Initializing library...";

@@ -57,7 +57,7 @@ else
 	TESTSOPT=tests.native
 endif
 
-MODULES=pyml_compat pytypes pywrappers py pycaml_compat
+MODULES=pyml_compat pytypes pywrappers py pycaml
 
 VERSION:=$(shell date "+%Y%m%d")
 
@@ -131,8 +131,8 @@ ifeq ($(HAVE_OCAMLFIND),no)
 endif
 	$(OCAMLFIND) install pyml \
 		py.mli \
-		py.cmi pytypes.cmi pywrappers.cmi pycaml_compat.cmi \
-		py.cmx pytypes.cmx pywrappers.cmx pycaml_compat.cmx \
+		py.cmi pytypes.cmi pywrappers.cmi pycaml.cmi \
+		py.cmx pytypes.cmx pywrappers.cmx pycaml.cmx \
 		pyml.cma pyml.cmxa pyml.cmxs pyml.a \
 		libpyml_stubs.a dllpyml_stubs.so \
 		META
@@ -156,7 +156,7 @@ clean:
 tarball:
 	git archive --format=tar.gz HEAD >pyml-$(VERSION).tar.gz
 
-doc: py.mli pycaml_compat.mli pywrappers.ml
+doc: py.mli pycaml.mli pywrappers.ml
 	mkdir -p $@
 	$(OCAMLDOC) -html -d $@ $^
 	touch $@
