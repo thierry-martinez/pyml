@@ -1371,7 +1371,7 @@ module Type: sig
       [Long] covers both the [Int] values of Python 2
       and the [Long] values of Python 3.
       [Capsule] corresponds to the values created with {!Py.Capsule}.
-      [Closure] corresponds to the values created with {!Py.Wrap.closure}. *)
+      [Closure] corresponds to the values created with {!Py.Callable}. *)
 
   val get: Object.t -> t
   (** [get o] returns the type of the Python value [o]. *)
