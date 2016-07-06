@@ -466,11 +466,18 @@ module Iter = struct
     | Some item -> p item || exists p i
 end
 
+let find_exception option =
+  match option with
+    None -> raise Not_found
+  | Some result -> result
+
 module Mapping = struct
   let check v = Pywrappers.pymapping_check v <> 0
 
   let get_item_string mapping key =
-    check_not_null (Pywrappers.pymapping_getitemstring mapping key)
+    option (Pywrappers.pymapping_getitemstring mapping key)
+
+  let find_string mapping key = find_exception (get_item_string mapping key)
 
   let has_key mapping key = Pywrappers.pymapping_haskey mapping key <> 0
 
@@ -940,15 +947,23 @@ module Object = struct
     assert_int_success (Pywrappers.pyobject_delitemstring obj item)
 
   let get_attr obj attr =
-    check_not_null (Pywrappers.pyobject_getattr obj attr)
+    option (Pywrappers.pyobject_getattr obj attr)
+
+  let find_attr obj attr = find_exception (get_attr obj attr)
 
   let get_attr_string obj attr =
-    check_not_null (Pywrappers.pyobject_getattrstring obj attr)
+    option (Pywrappers.pyobject_getattrstring obj attr)
+
+  let find_attr_string obj attr = find_exception (get_attr_string obj attr)
 
   let get_item obj key =
     option (Pywrappers.pyobject_getitem obj key)
 
+  let find_item obj attr = find_exception (get_item obj attr)
+
   let get_item_string obj key = get_item obj (String.of_string key)
+
+  let find_item_string obj attr = find_exception (get_item_string obj attr)
 
   let get_iter obj =
     check_not_null (Pywrappers.pyobject_getiter obj)
@@ -1198,18 +1213,12 @@ module Dict = struct
   let get_item dict key =
     option (Pywrappers.pydict_getitem dict key)
 
-  let find dict key =
-    match get_item dict key with
-      None -> raise Not_found
-    | Some value -> value
+  let find dict key = find_exception (get_item dict key)
 
   let get_item_string dict name =
     option (Pywrappers.pydict_getitemstring dict name)
 
-  let find_string dict key =
-    match get_item_string dict key with
-      None -> raise Not_found
-    | Some value -> value
+  let find_string dict key = find_exception (get_item_string dict key)
 
   let keys dict = check_not_null (Pywrappers.pydict_keys dict)
 
@@ -1280,15 +1289,20 @@ module Module = struct
   let get_name m =
     check_some (Pywrappers.pymodule_getname m)
 
-  let get m key = Dict.get_item_string (get_dict m) key
+  let get m key = Object.get_attr_string (get_dict m) key
 
   let find m key = Dict.find_string (get_dict m) key
 
+(*
   let set m key value = Dict.set_item_string (get_dict m) key value
+*)
+  let set m key value = Object.set_attr_string m key value
 
   let remove m key = Dict.del_item_string (get_dict m) key
 
   let main () = Import.add_module "__main__"
+
+  let sys () = Import.import_module "sys"
 
   let builtins () = find (main ()) "__builtins__"
 end
@@ -1431,8 +1445,7 @@ module List = struct
 end
 
 let set_argv argv =
-  let sys = Import.import_module "sys" in
-  let sys_dict = Module.get_dict sys in
-  Dict.set_item_string sys_dict "argv" (List.of_array_map String.of_string argv)
+  Object.set_attr_string (Module.sys ()) "argv"
+    (List.of_array_map String.of_string argv)
 
 let last_value () = Module.find (Module.builtins ()) "_"

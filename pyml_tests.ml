@@ -62,7 +62,7 @@ let () =
       let c =
         Py.Class.init (Py.String.of_string "myClass")
           ~methods:[("callback", callback)] in
-      Py.Module.set m "myClass" c;
+      Py.Object.set_attr_string m "myClass" c;
       assert (Py.Run.simple_string "
 from test import myClass
 myClass().callback('OK')
@@ -96,8 +96,9 @@ let () =
       let pyunwrap args =
         let s = unwrap args.(0) in
         Py.String.of_string s in
-      Py.Module.set m "wrap" (Py.Callable.of_function_array pywrap);
-      Py.Module.set m "unwrap" (Py.Callable.of_function_array pyunwrap);
+      Py.Object.set_attr_string m "wrap" (Py.Callable.of_function_array pywrap);
+      Py.Object.set_attr_string m "unwrap"
+        (Py.Callable.of_function_array pyunwrap);
       assert (Py.Run.simple_string "
 from test import wrap, unwrap
 x = wrap('OK')
@@ -110,13 +111,10 @@ let () =
   add_test
     ~title:"exception"
     (fun () ->
-      let main = Py.Import.add_module "__main__" in
-      let globals = Py.Module.get_dict main in
-      let locals = Py.Dict.create () in
       try
-        let _ = Py.Run.string "
+        let _ = Py.Run.eval ~start:Py.File "
 raise Exception('Great')
-" Py.File globals locals in
+" in
         failwith "uncaught exception"
       with Py.E (_, value) ->
         assert (Py.Object.to_string value = "Great"))
@@ -129,7 +127,7 @@ let () =
       let f _ =
         raise (Py.Err (Py.Err.Exception, "Great")) in
       let mywrap = Py.Callable.of_function f in
-      Py.Module.set m "mywrap" mywrap;
+      Py.Object.set_attr_string m "mywrap" mywrap;
       assert (Py.Run.simple_string "
 from test import mywrap
 try:
@@ -147,7 +145,7 @@ let () =
       let m = Py.Import.add_module "test" in
       let f _ = raise Exit in
       let mywrap = Py.Callable.of_function f in
-      Py.Module.set m "mywrap" mywrap;
+      Py.Object.set_attr_string m "mywrap" mywrap;
       try
         assert (Py.Run.simple_string "
 from test import mywrap
@@ -170,16 +168,36 @@ let with_temp_file contents f =
   end ()
     Sys.remove file
 
+let with_pipe f =
+  let (read, write) = Unix.pipe () in
+  let in_channel = Unix.in_channel_of_descr read
+  and out_channel = Unix.out_channel_of_descr write in
+  Py.try_finally (f in_channel) out_channel
+    (fun () ->
+      close_in in_channel;
+      close_out out_channel) ()
+
+let with_stdin_from channel f arg =
+  let stdin_backup = Unix.dup Unix.stdin in
+  Unix.dup2 (Unix.descr_of_in_channel channel) Unix.stdin;
+  Py.try_finally
+    f arg
+    (Unix.dup2 stdin_backup) Unix.stdin
+
+let with_stdin_from_string s f arg =
+  with_pipe begin fun in_channel out_channel ->
+    output_string out_channel s;
+    close_out out_channel;
+    with_stdin_from in_channel f arg
+  end
+
 let () =
   add_test
     ~title:"run file"
     (fun () ->
-      let main = Py.Import.add_module "__main__" in
-      let globals = Py.Module.get_dict main in
-      let locals = Py.Dict.create () in
       let result = with_temp_file "print(\"Hello, world!\")"
         begin fun (file, channel) ->
-         Py.Run.file channel "test.py" Py.File globals locals
+         Py.Run.load channel "test.py"
         end in
       if result <> Py.none then
         let result_str = Py.Object.to_string result in
@@ -286,29 +304,6 @@ let () =
       let python_string' = Py.String.decode_UTF8 ocaml_string in
       let codepoints' = Py.String.to_unicode python_string' in
       assert (codepoints = codepoints'))
-
-let with_stdin_from channel f arg =
-  let stdin_backup = Unix.dup Unix.stdin in
-  Unix.dup2 (Unix.descr_of_in_channel channel) Unix.stdin;
-  Py.try_finally
-    f arg
-    (Unix.dup2 stdin_backup) Unix.stdin
-
-let with_pipe f =
-  let (read, write) = Unix.pipe () in
-  let in_channel = Unix.in_channel_of_descr read
-  and out_channel = Unix.out_channel_of_descr write in
-  Py.try_finally (f in_channel) out_channel
-    (fun () ->
-      close_in in_channel;
-      close_out out_channel) ()
-
-let with_stdin_from_string s f arg =
-  with_pipe begin fun in_channel out_channel ->
-    output_string out_channel s;
-    close_out out_channel;
-    with_stdin_from in_channel f arg
-  end
 
 let () =
   add_test

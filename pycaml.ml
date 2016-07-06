@@ -728,7 +728,7 @@ let float_array_to_python = Py.List.of_array_map Py.Float.of_float
 let register_for_python stuff =
   let ocaml_module = Py.Import.add_module "ocaml" in
   let register (python_name, value) =
-    Py.Module.set ocaml_module python_name value in
+    Py.Object.set_attr_string ocaml_module python_name value in
   Array.iter register stuff
 
 let register_pre_functions_for_python stuff =

@@ -47,21 +47,37 @@ module Object: sig
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/object.html#c.PyObject_DelItemString} PyObject_DelItemString} *)
 
-  val get_attr: t -> t -> t
+  val get_attr: t -> t -> t option
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/object.html#c.PyObject_GetAttr} PyObject_GetAttr} *)
 
-  val get_attr_string: t -> string -> t
+  val find_attr: t -> t -> t
+  (** Equivalent to {!get_attr} but raises a [Not_found] exception in case of
+      failure.*)
+
+  val get_attr_string: t -> string -> t option
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/object.html#c.PyObject_GetAttrString} PyObject_GetAttrString} *)
+
+  val find_attr_string: t -> string -> t
+  (** Equivalent to {!get_attr_string} but raises a [Not_found] exception in
+      case of failure.*)
 
   val get_item: t -> t -> t option
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/object.html#c.PyObject_GetItem} PyObject_GetItem} *)
 
+  val find_item: t -> t -> t
+  (** Equivalent to {!get_item} but raises a [Not_found] exception in
+      case of failure. *)
+
   val get_item_string: t -> string -> t option
   (** [get_item_string o key] returns the element corresponding to the object
       [key] or [None] on failure. *)
+
+  val find_item_string: t -> string -> t
+  (** Equivalent to {!get_item_string} but raises a [Not_found] exception in
+      case of failure. *)
 
   val get_iter: t -> t
   (** Wrapper for
@@ -372,7 +388,8 @@ module Dict: sig
 
   val find: Object.t -> Object.t -> Object.t
   (** [find p key] returns the object from Python dictionary [p] which has a key
-      [key]. [find] raises [Not_found] if the key [key] is not present. *)
+      [key]. Equivalent to {!get_item} but [find] raises [Not_found] if the key
+      [key] is not present. *)
 
   val get_item_string: Object.t -> string -> Object.t option
   (** Wrapper for
@@ -380,8 +397,8 @@ module Dict: sig
 
   val find_string: Object.t -> string -> Object.t
   (** [find_string p key] returns the object from Python dictionary [p] which
-      has a key [key]. [find_string] raises [Not_found] if the key [key] is not
-      present. *)
+      has a key [key]. Equivalent to {!get_item_string} but [find_string] raises
+      [Not_found] if the key [key] is not present. *)
 
   val keys: Object.t -> Object.t
   (** Wrapper for
@@ -736,9 +753,13 @@ module Mapping: sig
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/mapping.html#c.PyMapping_Check} PyMapping_Check} *)
 
-  val get_item_string: Object.t -> string -> Object.t
+  val get_item_string: Object.t -> string -> Object.t option
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/mapping.html#c.PyMapping_GetItemString} PyMapping_GetItemString} *)
+
+  val find_string: Object.t -> string -> Object.t
+  (** Equivalent to {!get_item_string} but raises a [Not_found] exception in
+      case of failure. *)
 
   val has_key: Object.t -> Object.t -> bool
   (** Wrapper for
@@ -794,33 +815,13 @@ module Module: sig
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/module.html#c.PyModule_GetName} PyModule_GetName} *)
 
-  val get: Object.t -> string -> Object.t option
-  (** [get m key] returns the field [key] of the module [m].
-      We have
-[Py.Module.get m key = Py.Dict.get_item_string (Py.Module.get_dict m) key].
-   *)
-
-  val find: Object.t -> string -> Object.t
-  (** [find m key] returns the field [key] of the module [m].
-      We have
-[Py.Module.find m key = Py.Dict.find_string (Py.Module.get_dict m) key].
-   *)
-
-  val set: Object.t -> string -> Object.t -> unit
-  (** [set m key] sets the field [key] of the module [m].
-      We have
-[Py.Module.set m key value = Py.Dict.set_item_string (Py.Module.get_dict m) key value].
-      *)
-
-  val remove: Object.t -> string -> unit
-  (** [remove m key] removes the field [key] of the module [m].
-      We have
-[Py.Module.remove m key = Py.Dict.del_item_string (Py.Module.get_dict m) key].
-   *)
-
   val main: unit -> Object.t
   (** Returns the [__main__] module.
       We have [Py.Module.main () = Py.Module.add_module "__main__"]. *)
+
+  val sys: unit -> Object.t
+  (** Returns the [sys] module.
+      We have [Py.Module.sys () = Py.Module.import_module "sys"]. *)
 
   val builtins: unit -> Object.t
   (** Returns the [__builtins__] module.
