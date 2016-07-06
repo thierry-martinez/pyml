@@ -1014,7 +1014,7 @@ module Run: sig
 
   val interactive: unit -> unit
   (** Runs the interactive loop.
-      We have [Py.Run.interactive () = Py.Run.interactive_loop stdin "<stdin>".
+      We have [Py.Run.interactive () = Py.Run.interactive_loop stdin "<stdin>"].
    *)
 
   val ipython: unit -> unit

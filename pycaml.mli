@@ -406,7 +406,7 @@ val make_ocamlpill_wrapper_unwrapper : string -> 'a -> ('a -> pyobject) * (pyobj
 (** py.ml: the signature has been changed from
     [string -> 'a -> ('a -> pyobject) * (pyobject -> 'b)]
     to
-    [string -> 'a -> ('a -> pyobject) * (pyobject -> 'a).
+    [string -> 'a -> ('a -> pyobject) * (pyobject -> 'a)].
     The second argument is ignored and the function calls {!Py.Capsule.make}.
     Applying the function twice to the same type name raises a failure
     ([Failure _]). *)
@@ -415,7 +415,7 @@ val make_pill_wrapping : string -> 'a -> ('a -> pyobject) * (pyobject -> 'a) (* 
 (** py.ml: the signature has been changed from
     [string -> 'a -> ('a -> pyobject) * (pyobject -> 'b)]
     to
-    [string -> 'a -> ('a -> pyobject) * (pyobject -> 'a).
+    [string -> 'a -> ('a -> pyobject) * (pyobject -> 'a)].
     The second argument is ignored and the function calls {!Py.Capsule.make}.
     Applying the function twice to the same type name raises a failure
     ([Failure _]). *)
