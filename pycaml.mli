@@ -409,7 +409,7 @@ val make_ocamlpill_wrapper_unwrapper : string -> 'a -> ('a -> pyobject) * (pyobj
     [string -> 'a -> ('a -> pyobject) * (pyobject -> 'a).
     The second argument is ignored and the function calls {!Py.Capsule.make}.
     Applying the function twice to the same type name raises a failure
-    ([Failure _]). *).
+    ([Failure _]). *)
 
 val make_pill_wrapping : string -> 'a -> ('a -> pyobject) * (pyobject -> 'a) (* A less cumbersome synonym. *)
 (** py.ml: the signature has been changed from
@@ -418,7 +418,7 @@ val make_pill_wrapping : string -> 'a -> ('a -> pyobject) * (pyobject -> 'a) (* 
     [string -> 'a -> ('a -> pyobject) * (pyobject -> 'a).
     The second argument is ignored and the function calls {!Py.Capsule.make}.
     Applying the function twice to the same type name raises a failure
-    ([Failure _]). *).
+    ([Failure _]). *)
 
 (** Also, we want to be able to pass optional arguments from python to OCaml.
     The convention which we use for now is as follows:
