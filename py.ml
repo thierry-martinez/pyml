@@ -98,8 +98,7 @@ let run_command command read_stderr =
     Unix.open_process_full command (Unix.environment ()) in
   let result =
     try
-      if read_stderr then input_line error
-      else input_line input
+      input_line (if read_stderr then error else input)
     with _ ->
       begin
         try
@@ -1282,6 +1281,8 @@ module Module = struct
 
   let set m key value = Dict.set_item_string (get_dict m) key value
 
+  let remove m key = Dict.del_item_string (get_dict m) key
+
   let main () = Import.add_module "__main__"
 
   let builtins () = find (main ()) "__builtins__"
@@ -1338,24 +1339,25 @@ module Run = struct
     assert_int_success (Pywrappers.pyrun_simplefileexflags fd name 0 None)
 
   let simple_string string =
-    assert_int_success (Pywrappers.pyrun_simplestringflags string None)
+    Pywrappers.pyrun_simplestringflags string None = 0
 
-  let string string start globals locals =
+  let string s start globals locals =
     check_not_null
-      (Pywrappers.pyrun_stringflags string start globals locals None)
+      (Pywrappers.pyrun_stringflags s start globals locals None)
 
-  let eval s =
-    string s Eval (Module.get_dict (Module.main ())) (Dict.create ())
+  let eval ?(start = Eval) ?(globals = Module.get_dict (Module.main ()))
+      ?(locals = Dict.create ()) s =
+    string s start globals locals
 
-  let load chan filename =
-    ignore
-      (file chan filename File
-         (Module.get_dict (Module.main ())) (Dict.create ()))
+  let load ?(start = File) ?(globals = Module.get_dict (Module.main ()))
+      ?(locals = Dict.create ()) chan filename =
+    file chan filename start globals locals
 
   let interactive () = interactive_loop stdin "<stdin>"
 
   let ipython () =
-    simple_string "
+    ignore
+      (eval ~start:File "
 try:
   from IPython import embed
   embed()
@@ -1363,7 +1365,7 @@ except ImportError:
   from IPython.Shell import IPShellEmbed
   ipshell = IPShellEmbed(argv=[''])
   ipshell()
-"
+")
 end
 
 module Class = struct

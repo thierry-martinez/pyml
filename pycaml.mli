@@ -377,6 +377,9 @@ val python_pre_interfaced_function :
     the ocamlpill [x] to the registered type string.
 *)
 val register_ocamlpill_types : string array -> unit
+(** py.ml: Pill types are not required to be registered.
+    This function does nothing and is provided for compatibility only. *)
+
 val ocamlpill_type_of : pyobject -> string
 
 (** Given an ocamlpill type name (which was registered before using
@@ -400,10 +403,22 @@ val check_pill_type : ?position:'a -> ?exn_name:string -> string -> pyobject -> 
 val make_ocamlpill_wrapper_unwrapper : string -> 'a -> ('a -> pyobject) * (pyobject -> 'a) (* Deprecated, I guess.
                                                                                               Use |make_pill_wrapping|
                                                                                               instead. *)
-val make_pill_wrapping : string -> 'a -> ('a -> pyobject) * (pyobject -> 'a) (* A less cumbersome synonym.
+(** py.ml: the signature has been changed from
+    [string -> 'a -> ('a -> pyobject) * (pyobject -> 'b)]
+    to
+    [string -> 'a -> ('a -> pyobject) * (pyobject -> 'a).
+    The second argument is ignored and the function calls {!Py.Capsule.make}.
+    Applying the function twice to the same type name raises a failure
+    ([Failure _]). *).
 
-TM16: changed 'b in 'a  *)
-
+val make_pill_wrapping : string -> 'a -> ('a -> pyobject) * (pyobject -> 'a) (* A less cumbersome synonym. *)
+(** py.ml: the signature has been changed from
+    [string -> 'a -> ('a -> pyobject) * (pyobject -> 'b)]
+    to
+    [string -> 'a -> ('a -> pyobject) * (pyobject -> 'a).
+    The second argument is ignored and the function calls {!Py.Capsule.make}.
+    Applying the function twice to the same type name raises a failure
+    ([Failure _]). *).
 
 (** Also, we want to be able to pass optional arguments from python to OCaml.
     The convention which we use for now is as follows:
@@ -681,7 +696,7 @@ val pytuple_size : pyobject -> int
 val pytuple_getitem : pyobject * int -> pyobject
 val pytuple_setitem : pyobject * int * pyobject -> int
 val pytuple_getslice : pyobject * int * int -> pyobject
-(* TM16: Changed result type int into pyobject *)
+(** py.ml: the result type has been changed from [int] to [pyobject]. *)
 
 val pyslice_new : pyobject * pyobject * pyobject -> pyobject
   (* val pyslice_getindices : pyobject * int -> (int * int * int) option   <- Currently not supported *)
@@ -796,10 +811,10 @@ val pysequence_concat : pyobject * pyobject -> pyobject
 val pysequence_repeat : pyobject * int -> pyobject
 val pysequence_getitem : pyobject * int -> pyobject
 val pysequence_getslice : pyobject * int * int -> pyobject
-(* TM16: Changed result type int into pyobject *)
+(** py.ml: the result type has been changed from [int] to [pyobject]. *)
 val pysequence_setitem : pyobject * int * pyobject -> int
 val pysequence_delitem : pyobject * int -> int
-(* TM16: Removed one of the pyobject arguments *)
+(** py.ml: one of the two [pyobject] arguments has been removed. *)
 val pysequence_setslice : pyobject * int * int * pyobject -> int
 val pysequence_delslice : pyobject * int * int -> int
 val pysequence_tuple : pyobject -> pyobject

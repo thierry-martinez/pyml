@@ -47,7 +47,7 @@ let () =
   add_test
     ~title:"hello world"
     (fun () ->
-      Py.Run.simple_string "print('Hello world!')"
+      assert (Py.Run.simple_string "print('Hello world!')")
     )
 
 let () =
@@ -63,10 +63,10 @@ let () =
         Py.Class.init (Py.String.of_string "myClass")
           ~methods:[("callback", callback)] in
       Py.Module.set m "myClass" c;
-      Py.Run.simple_string "
+      assert (Py.Run.simple_string "
 from test import myClass
 myClass().callback('OK')
-";
+");
       assert (!value_obtained = Some "OK")
     )
 
@@ -90,12 +90,12 @@ let () =
         Py.String.of_string s in
       Py.Module.set m "wrap" (Py.Callable.of_function_array pywrap);
       Py.Module.set m "unwrap" (Py.Callable.of_function_array pyunwrap);
-      Py.Run.simple_string "
+      assert (Py.Run.simple_string "
 from test import wrap, unwrap
 x = wrap('OK')
 print('Capsule type: {}'.format(x))
 assert unwrap(x) == 'OK'
-";
+");
     )
 
 let () =
@@ -122,14 +122,14 @@ let () =
         raise (Py.Err (Py.Err.Exception, "Great")) in
       let mywrap = Py.Callable.of_function f in
       Py.Module.set m "mywrap" mywrap;
-      Py.Run.simple_string "
+      assert (Py.Run.simple_string "
 from test import mywrap
 try:
     mywrap()
     raise Exception('No exception raised')
 except Exception as err:
     assert str(err) == \"Great\"
-";
+");
     )
 
 let () =
@@ -141,13 +141,13 @@ let () =
       let mywrap = Py.Callable.of_function f in
       Py.Module.set m "mywrap" mywrap;
       try
-        Py.Run.simple_string "
+        assert (Py.Run.simple_string "
 from test import mywrap
 try:
     mywrap()
 except Exception as err:
     raise Exception('Should not be caught by Python')
-";
+");
         failwith "Uncaught exception"
       with Exit ->
         ()
@@ -198,7 +198,7 @@ let () =
       Py.finalize ();
       begin
         try
-          Py.Run.simple_string("not initialized");
+          assert (Py.Run.simple_string "not initialized");
           raise Exit
         with
           Failure _ -> ()
@@ -279,32 +279,43 @@ let () =
       let codepoints' = Py.String.to_unicode python_string' in
       assert (codepoints = codepoints'))
 
+let with_stdin_from channel f arg =
+  let stdin_backup = Unix.dup Unix.stdin in
+  Unix.dup2 (Unix.descr_of_in_channel channel) Unix.stdin;
+  Py.try_finally
+    f arg
+    (Unix.dup2 stdin_backup) Unix.stdin
+
+let with_pipe f =
+  let (read, write) = Unix.pipe () in
+  let in_channel = Unix.in_channel_of_descr read
+  and out_channel = Unix.out_channel_of_descr write in
+  Py.try_finally (f in_channel) out_channel
+    (fun () ->
+      close_in in_channel;
+      close_out out_channel) ()
+
+let with_stdin_from_string s f arg =
+  with_pipe begin fun in_channel out_channel ->
+    output_string out_channel s;
+    close_out out_channel;
+    with_stdin_from in_channel f arg
+  end
+
 let () =
   add_test
     ~title:"interactive loop"
     (fun () ->
-      with_temp_file "42"
-        begin fun (file, channel) ->
-          let stdin_backup = Unix.dup Unix.stdin in
-          Unix.dup2 (Unix.descr_of_in_channel channel) Unix.stdin;
-          Py.try_finally
-            Py.Run.interactive ()
-            (Unix.dup2 stdin_backup) Unix.stdin
-        end;
+      with_stdin_from_string "42"
+        Py.Run.interactive ();
       assert (Py.Long.to_int (Py.last_value ()) = 42))
 
 let () =
   add_test
     ~title:"IPython"
     (fun () ->
-      with_temp_file "exit"
-        begin fun (file, channel) ->
-          let stdin_backup = Unix.dup Unix.stdin in
-          Unix.dup2 (Unix.descr_of_in_channel channel) Unix.stdin;
-          Py.try_finally
-            Py.Run.ipython ()
-            (Unix.dup2 stdin_backup) Unix.stdin
-        end)
+      with_stdin_from_string "exit"
+        Py.Run.ipython ())
 
 let () =
   prerr_endline "Initializing library...";

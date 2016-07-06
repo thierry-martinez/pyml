@@ -812,6 +812,12 @@ module Module: sig
 [Py.Module.set m key value = Py.Dict.set_item_string (Py.Module.get_dict m) key value].
       *)
 
+  val remove: Object.t -> string -> unit
+  (** [remove m key] removes the field [key] of the module [m].
+      We have
+[Py.Module.remove m key = Py.Dict.del_item_string (Py.Module.get_dict m) key].
+   *)
+
   val main: unit -> Object.t
   (** Returns the [__main__] module.
       We have [Py.Module.main () = Py.Module.add_module "__main__"]. *)
@@ -982,18 +988,40 @@ val write_and_close: out_channel -> ('a -> 'b) -> 'a -> 'b
 
 (** Interface for Python values of type [Run]. *)
 module Run: sig
+  val eval: ?start:input -> ?globals:Object.t -> ?locals:Object.t -> string
+    -> Object.t
+  (** [eval ~start ~globals ~locals e]
+      evaluates the Python expression [e] and returns the computed value.
+      We have
+[Py.Run.eval ~start ~globals ~locals e = Py.Run.String e start globals locals].
+      @param start is the initial input mode (default: [Eval]).
+      @param globals is the global symbol directory
+      (default: Module.get_dict (Module.main ())).
+      @param locals is the local symbol directory (default: [Dict.create ()]).
+   *)
+
+  val load: ?start:input -> ?globals:Object.t -> ?locals:Object.t ->
+    in_channel -> string -> Object.t
+  (** [load ~start ~globals ~locals chan filename] loads the contents of the file
+      opened in [chan].
+      We have
+[Py.Run.load ~start ~globals ~locals chan filename = Py.Run.file chan filename start globals locals].
+      @param start is the initial input mode (default: [File]).
+      @param globals is the global symbol directory
+      (default: Module.get_dict (Module.main ())).
+      @param locals is the local symbol directory (default: [Dict.create ()]). *)
+
+  val interactive: unit -> unit
+  (** Runs the interactive loop.
+      We have [Py.Run.interactive () = Py.Run.interactive_loop stdin "<stdin>".
+   *)
+
+  val ipython: unit -> unit
+  (** Runs the IPython interactive loop. *)
+
   val any_file: in_channel -> string -> unit
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/veryhigh.html#c.PyRun_AnyFile} PyRun_AnyFile} *)
-
-  val eval: string -> Object.t
-  (** [eval e] evaluates the Python expression [e] and returns the computed
-      value.
-      We have
-      [Py.Run.eval e =
-       Py.Run.string e Py.Eval (Module.get_dict (Module.main ()))
-         (Dict.create ())
-      ]. *)
 
   val file: in_channel -> string -> input -> Object.t -> Object.t -> Object.t
   (** Wrapper for
@@ -1011,26 +1039,13 @@ module Run: sig
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/veryhigh.html#c.PyRun_SimpleFile} PyRun_SimpleFile} *)
 
-  val simple_string: string -> unit
+  val simple_string: string -> bool
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/veryhigh.html#c.PyRun_SimpleString} PyRun_SimpleString} *)
 
   val string: string -> input -> Object.t -> Object.t -> Object.t
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/veryhigh.html#c.PyRun_String} PyRun_String} *)
-
-  val load: in_channel -> string -> unit
-  (** [load chan filename] loads the contents of the file opened in [chan].
-      We have
-      [Py.Run.load chan filename = ignore (Py.Run.file chan filename Py.File (Module.get_dict (Module.main ())) (Dict.create ()))]. *)
-
-  val interactive: unit -> unit
-  (** Runs the interactive loop.
-      We have [Py.Run.interactive () = Py.Run.interactive_loop stdin "<stdin>".
-   *)
-
-  val ipython: unit -> unit
-  (** Runs the IPython interactive loop. *)
 end
 
 (** Interface for Python values with a [Sequence] interface. *)
