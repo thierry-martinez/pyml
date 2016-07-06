@@ -78,6 +78,14 @@ let () =
 
 let () =
   add_test
+    ~title:"make tuple"
+    (fun () ->
+      assert
+        (Py.Tuple.to_singleton (Py.Tuple.singleton (Py.Long.of_int 0))
+           = Py.Long.of_int 0))
+
+let () =
+  add_test
     ~title:"capsule"
     (fun () ->
       let (wrap, unwrap) = Py.Capsule.make "string" in

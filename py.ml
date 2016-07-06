@@ -1098,6 +1098,11 @@ module Tuple = struct
 
   let size tuple = check_int (Pywrappers.pytuple_size tuple)
 
+  let set_item s index value =
+    assert_int_success (Pywrappers.pytuple_setitem s index value)
+
+  let set = set_item
+
   let init size f =
     let result = create size in
     for index = 0 to size - 1 do

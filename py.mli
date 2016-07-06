@@ -1253,7 +1253,8 @@ module Tuple: sig
   (** Equivalent to {!get_item}. *)
 
   val set_item: Object.t -> int -> Object.t -> unit
-  (** Equivalent to {!Sequence.set_item}. *)
+  (** Wrapper for
+      {{:https://docs.python.org/3/c-api/sequence.html#c.PyTuple_SetItem} PyTuple_SetItem} *)
 
   val set: Object.t -> int -> Object.t -> unit
   (** Equivalent to {!set_item}. *)
