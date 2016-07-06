@@ -24,9 +24,7 @@ http://pyml.gforge.inria.fr/tracker
 The Python library is linked at runtime and the same executable can be
 run in a Python 2 or a Python 3 environment. ``py.ml`` does not
 require any Python library at compile time, nor any other
-dependency. Bindings provide high level functions to convert strings
-back and forth between OCaml and Python that handle Unicode strings
-transparently (``Py.String.of_string`` and ``Py.String.to_string``).
+dependency.
 
 Bindings are split in three modules:
 
