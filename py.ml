@@ -1307,32 +1307,33 @@ module Module = struct
   let builtins () = find (main ()) "__builtins__"
 end
 
-let try_finally f arg finally finally_arg =
-  try
-    let result = f arg in
-    finally finally_arg;
-    result
-  with e ->
-    finally finally_arg;
-    raise e
+module Utils = struct
+  let try_finally f arg finally finally_arg =
+    try
+      let result = f arg in
+      finally finally_arg;
+      result
+    with e ->
+      finally finally_arg;
+      raise e
 
-let read_and_close channel f arg =
-  try
-    let result = f arg in
-    close_in channel;
-    result
-  with e ->
-    close_in_noerr channel;
-    raise e
-
-let write_and_close channel f arg =
-  try
-    let result = f arg in
-    close_out channel;
-    result
-  with e ->
-    close_out_noerr channel;
-    raise e
+  let read_and_close channel f arg =
+    try
+      let result = f arg in
+      close_in channel;
+      result
+    with e ->
+      close_in_noerr channel;
+      raise e
+  let write_and_close channel f arg =
+    try
+      let result = f arg in
+      close_out channel;
+      result
+    with e ->
+      close_out_noerr channel;
+      raise e
+end
 
 module Run = struct
   let any_file file filename =

@@ -343,7 +343,7 @@ let python_eval = pyrun_simplestring
 
 let python_load filename =
   let channel = open_in filename in
-  ignore (Py.read_and_close channel (Py.Run.load channel) filename)
+  ignore (Py.Utils.read_and_close channel (Py.Run.load channel) filename)
 
 let pybytes_asstringandsize = Py.String.to_string
 

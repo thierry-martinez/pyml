@@ -966,27 +966,6 @@ end
 
 type input = Pytypes.input = Single | File | Eval
 
-val try_finally: ('a -> 'b) -> 'a -> ('c -> unit) -> 'c -> 'b
-(** [try_finally f arg finally finally_arg] calls [f arg], and returns the
-    result of [f].
-    [finally finally_arg] is always closed after [f] has been called, even if
-    [f] raises an exception. *)
-
-val read_and_close: in_channel -> ('a -> 'b) -> 'a -> 'b
-(** [read_and_close channel f arg] calls [f arg], and returns the result of [f].
-    [channel] is always closed after [f] has been called, even if [f] raises an
-    exception.
-    This is an utility function that does not require Python to be
-    initialized. *)
-
-val write_and_close: out_channel -> ('a -> 'b) -> 'a -> 'b
-(** [write_and_close channel f arg] calls [f arg], and returns the result of
-    [f].
-    [channel] is always closed after [f] has been called, even if [f] raises an
-    exception.
-    This is an utility function that does not require Python to be
-    initialized. *)
-
 (** Interface for Python values of type [Run]. *)
 module Run: sig
   val eval: ?start:input -> ?globals:Object.t -> ?locals:Object.t -> string
@@ -1416,3 +1395,28 @@ val last_value: unit -> Object.t
 (** [last_value ()] returns the last value that was computed in the
     toplevel.
     We have [Py.last_value = Py.Module.find (Py.Module.builtins ()) "_"]. *)
+
+module Utils: sig
+    (** This module declares utility functions that does not require Python to
+        be initialized. *)
+
+val try_finally: ('a -> 'b) -> 'a -> ('c -> unit) -> 'c -> 'b
+(** [try_finally f arg finally finally_arg] calls [f arg], and returns the
+    result of [f].
+    [finally finally_arg] is always closed after [f] has been called, even if
+    [f] raises an exception. *)
+
+val read_and_close: in_channel -> ('a -> 'b) -> 'a -> 'b
+(** [read_and_close channel f arg] calls [f arg], and returns the result of [f].
+    [channel] is always closed after [f] has been called, even if [f] raises an
+    exception.
+    This is an utility function that does not require Python to be
+    initialized. *)
+
+val write_and_close: out_channel -> ('a -> 'b) -> 'a -> 'b
+(** [write_and_close channel f arg] calls [f arg], and returns the result of
+    [f].
+    [channel] is always closed after [f] has been called, even if [f] raises an
+    exception.
+ *)
+end

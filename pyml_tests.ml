@@ -161,10 +161,10 @@ except Exception as err:
 
 let with_temp_file contents f =
   let (file, channel) = Filename.open_temp_file "test" ".py" in
-  Py.try_finally begin fun () ->
-    Py.write_and_close channel (output_string channel) contents;
+  Py.Utils.try_finally begin fun () ->
+    Py.Utils.write_and_close channel (output_string channel) contents;
     let channel = open_in file in
-    Py.read_and_close channel f (file, channel)
+    Py.Utils.read_and_close channel f (file, channel)
   end ()
     Sys.remove file
 
@@ -172,7 +172,7 @@ let with_pipe f =
   let (read, write) = Unix.pipe () in
   let in_channel = Unix.in_channel_of_descr read
   and out_channel = Unix.out_channel_of_descr write in
-  Py.try_finally (f in_channel) out_channel
+  Py.Utils.try_finally (f in_channel) out_channel
     (fun () ->
       close_in in_channel;
       close_out out_channel) ()
@@ -180,7 +180,7 @@ let with_pipe f =
 let with_stdin_from channel f arg =
   let stdin_backup = Unix.dup Unix.stdin in
   Unix.dup2 (Unix.descr_of_in_channel channel) Unix.stdin;
-  Py.try_finally
+  Py.Utils.try_finally
     f arg
     (Unix.dup2 stdin_backup) Unix.stdin
 
