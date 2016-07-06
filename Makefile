@@ -154,7 +154,8 @@ clean:
 
 .PHONY: tarball
 tarball:
-	git archive --format=tar.gz HEAD >pyml-$(VERSION).tar.gz
+	git archive --format=tar.gz --prefix=pyml-$(VERSION)/ HEAD \
+		>pyml-$(VERSION).tar.gz
 
 doc: py.mli pycaml.mli pywrappers.ml
 	mkdir -p $@
