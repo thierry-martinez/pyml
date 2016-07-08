@@ -39,6 +39,14 @@ module Object: sig
   type t = Pytypes.pyobject
   (** The type of a Python value. *)
 
+  val del_attr: t -> t -> unit
+  (** Wrapper for
+      {{:https://docs.python.org/3/c-api/object.html#c.PyObject_DelAttr} PyObject_DelAttr} *)
+
+  val del_attr_string: t -> string -> unit
+  (** Wrapper for
+      {{:https://docs.python.org/3/c-api/object.html#c.PyObject_DelAttrString} PyObject_DelAttrString} *)
+
   val del_item: t -> t -> unit
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/object.html#c.PyObject_DelItem} PyObject_DelItem} *)
@@ -259,6 +267,9 @@ end
 (** Interface for Python values of type [Callable]. *)
 module Callable: sig
   val check: Object.t -> bool
+  (** [check v] returns [true] if [v] is callable.
+      Wrapper for
+      {{: https://docs.python.org/3/c-api/object.html#c.PyCallable_Check} PyCallable_Check}. *)
 
   val of_function: ?docstring:string -> (Object.t -> Object.t) -> Object.t
   (** [of_function f] returns a Python callable object that calls the function
@@ -335,7 +346,7 @@ end
 (** Interface for Python values of type [Long]. *)
 module Long: sig
   val check: Object.t -> bool
-  (** [check o] returns [true] if [o] is a Python long. *)
+  (** [check o] returns [true] if [o] is a Python integer/long. *)
 
   val of_int64: int64 -> Object.t
   (** [of_int i] returns the Python long with the value [i].
@@ -362,6 +373,9 @@ end
 
 (** Interface for Python values of type [Dict]. *)
 module Dict: sig
+  val check: Object.t -> bool
+  (** [check o] returns [true] if [o] is a Python dictionary. *)
+
   val clear: Object.t -> unit
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/dict.html#c.PyDict_Clear} PyDict_Clear} *)
@@ -386,19 +400,19 @@ module Dict: sig
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/dict.html#c.PyDict_GetItem} PyDict_GetItem} *)
 
-  val find: Object.t -> Object.t -> Object.t
+  val find_item: Object.t -> Object.t -> Object.t
   (** [find p key] returns the object from Python dictionary [p] which has a key
-      [key]. Equivalent to {!get_item} but [find] raises [Not_found] if the key
-      [key] is not present. *)
+      [key]. Equivalent to {!get_item} but [find_item] raises [Not_found] if the
+      key [key] is not present. *)
 
   val get_item_string: Object.t -> string -> Object.t option
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/dict.html#c.PyDict_GetItemString} PyDict_GetItemString} *)
 
-  val find_string: Object.t -> string -> Object.t
-  (** [find_string p key] returns the object from Python dictionary [p] which
-      has a key [key]. Equivalent to {!get_item_string} but [find_string] raises
-      [Not_found] if the key [key] is not present. *)
+  val find_item_string: Object.t -> string -> Object.t
+  (** [find_item_string p key] returns the object from Python dictionary [p]
+      which has a key [key]. Equivalent to {!get_item_string} but [find_string]
+      raises [Not_found] if the key [key] is not present. *)
 
   val keys: Object.t -> Object.t
   (** Wrapper for
@@ -632,6 +646,9 @@ end
 
 (** Interface for Python values of type [Iter]. *)
 module Iter: sig
+  val check: Object.t -> bool
+  (** [check o] returns [true] if [o] is an iterator. *)
+
   val next: Object.t -> Object.t option
   (** [next i] returns the next value from the iteration [i].
       If there are no remaining values, returns [None].
@@ -799,6 +816,9 @@ end
 
 (** Interface for Python values of type [Module]. *)
 module Module: sig
+  val check: Object.t -> bool
+  (** [check o] returns [true] if [o] is a Python module. *)
+
   val create: string -> Object.t
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/module.html#c.PyModule_New} PyModule_New} *)
@@ -814,6 +834,18 @@ module Module: sig
   val get_name: Object.t -> string
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/module.html#c.PyModule_GetName} PyModule_GetName} *)
+
+  val get: Object.t -> string -> Object.t option
+  (** Equivalent to {!Object.get_attr_string}. *)
+
+  val find: Object.t -> string -> Object.t
+  (** Equivalent to {!Object.find_attr_string}. *)
+
+  val set: Object.t -> string -> Object.t -> unit
+  (** Equivalent to {!Object.set_attr_string}. *)
+
+  val remove: Object.t -> string -> unit
+  (** Equivalent to {!Object.del_attr_string}. *)
 
   val main: unit -> Object.t
   (** Returns the [__main__] module.
@@ -956,7 +988,8 @@ module Number: sig
       {{:https://docs.python.org/3/c-api/number.html#c.PyNumber_Xor} PyNumber_Xor} *)
 
   val check: Object.t -> bool
-  (** [check v] returns [true] if [v] is a Python float or a Python integer. *)
+  (** [check v] returns [true] if [v] is a Python float or a Python
+      integer/long. *)
 
   val to_float: Object.t -> float
   (** [to_float v] returns the floating-point value equal to the Python integer
@@ -1219,6 +1252,9 @@ end
 
 (** Interface for Python values of type [Tuple]. *)
 module Tuple: sig
+  val check: Object.t -> bool
+  (** [check o] returns [true] if [o] is a Python tuple. *)
+
   val create: int -> Object.t
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/tuple.html#c.PyTuple_New} PyTuple_New} *)

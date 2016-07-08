@@ -430,77 +430,6 @@ module Import = struct
     check_not_null (Pywrappers.pyimport_reloadmodule obj)
 end
 
-module Iter = struct
-  let next i = option (Pywrappers.pyiter_next i)
-
-  let rec iter f i =
-    match next i with
-      None -> ()
-    | Some item ->
-        f item;
-        iter f i
-
-  let rec fold_left f v i =
-    match next i with
-      None -> v
-    | Some item -> fold_left f (f v item) i
-
-  let rec fold_right f i v =
-    match next i with
-      None -> v
-    | Some item -> f item (fold_right f i v)
-
-  let to_list i = List.rev (fold_left (fun list item -> item :: list) [] i)
-
-  let to_list_map f i =
-    List.rev (fold_left (fun list item -> f item :: list) [] i)
-
-  let rec for_all p i =
-    match next i with
-      None -> true
-    | Some item -> p item && for_all p i
-
-  let rec exists p i =
-    match next i with
-      None -> false
-    | Some item -> p item || exists p i
-end
-
-let find_exception option =
-  match option with
-    None -> raise Not_found
-  | Some result -> result
-
-module Mapping = struct
-  let check v = Pywrappers.pymapping_check v <> 0
-
-  let get_item_string mapping key =
-    option (Pywrappers.pymapping_getitemstring mapping key)
-
-  let find_string mapping key = find_exception (get_item_string mapping key)
-
-  let has_key mapping key = Pywrappers.pymapping_haskey mapping key <> 0
-
-  let has_key_string mapping key =
-    Pywrappers.pymapping_haskeystring mapping key <> 0
-
-  let length mapping = check_int (Pywrappers.pymapping_length mapping)
-
-  let set_item_string mapping key value =
-    assert_int_success (Pywrappers.pymapping_setitemstring mapping key value)
-
-  let size mapping = check_int (Pywrappers.pymapping_size mapping)
-end
-
-module Method = struct
-  let create func self cl =
-    check_not_null (Pywrappers.pymethod_new func self cl)
-
-  let get_function m = check_not_null (Pywrappers.pymethod_function m)
-
-  let self m = option (Pywrappers.pymethod_self m)
-end
-
 let object_repr obj = check_not_null (Pywrappers.pyobject_repr obj)
 
 let as_UTF8_string s =
@@ -569,6 +498,79 @@ module Type = struct
     failwith
       (Printf.sprintf "Type mismatch: %s expected. Got: %s (%s)"
          t (name (get o)) (string_of_repr o))
+end
+
+module Iter = struct
+  let check o = Type.get o = Type.Iter
+
+  let next i = option (Pywrappers.pyiter_next i)
+
+  let rec iter f i =
+    match next i with
+      None -> ()
+    | Some item ->
+        f item;
+        iter f i
+
+  let rec fold_left f v i =
+    match next i with
+      None -> v
+    | Some item -> fold_left f (f v item) i
+
+  let rec fold_right f i v =
+    match next i with
+      None -> v
+    | Some item -> f item (fold_right f i v)
+
+  let to_list i = List.rev (fold_left (fun list item -> item :: list) [] i)
+
+  let to_list_map f i =
+    List.rev (fold_left (fun list item -> f item :: list) [] i)
+
+  let rec for_all p i =
+    match next i with
+      None -> true
+    | Some item -> p item && for_all p i
+
+  let rec exists p i =
+    match next i with
+      None -> false
+    | Some item -> p item || exists p i
+end
+
+let find_exception option =
+  match option with
+    None -> raise Not_found
+  | Some result -> result
+
+module Mapping = struct
+  let check v = Pywrappers.pymapping_check v <> 0
+
+  let get_item_string mapping key =
+    option (Pywrappers.pymapping_getitemstring mapping key)
+
+  let find_string mapping key = find_exception (get_item_string mapping key)
+
+  let has_key mapping key = Pywrappers.pymapping_haskey mapping key <> 0
+
+  let has_key_string mapping key =
+    Pywrappers.pymapping_haskeystring mapping key <> 0
+
+  let length mapping = check_int (Pywrappers.pymapping_length mapping)
+
+  let set_item_string mapping key value =
+    assert_int_success (Pywrappers.pymapping_setitemstring mapping key value)
+
+  let size mapping = check_int (Pywrappers.pymapping_size mapping)
+end
+
+module Method = struct
+  let create func self cl =
+    check_not_null (Pywrappers.pymethod_new func self cl)
+
+  let get_function m = check_not_null (Pywrappers.pymethod_function m)
+
+  let self m = option (Pywrappers.pymethod_self m)
 end
 
 module Bool = struct
@@ -940,6 +942,12 @@ exception Err of Err.t * string
 module Object = struct
   type t = Pytypes.pyobject
 
+  let del_attr obj item =
+    assert_int_success (Pywrappers.pyobject_delattr obj item)
+
+  let del_attr_string obj item =
+    assert_int_success (Pywrappers.pyobject_delattrstring obj item)
+
   let del_item obj item =
     assert_int_success (Pywrappers.pyobject_delitem obj item)
 
@@ -1103,6 +1111,8 @@ end
 module Tuple = struct
   include Sequence
 
+  let check o = Type.get o = Type.Tuple
+
   let create size =
     check_not_null (Pywrappers.pytuple_new size)
 
@@ -1197,6 +1207,8 @@ module Callable = struct
 end
 
 module Dict = struct
+  let check o = Type.get o = Type.Dict
+
   let clear = Pywrappers.pydict_clear
 
   let copy v = check_not_null (Pywrappers.pydict_copy v)
@@ -1213,12 +1225,12 @@ module Dict = struct
   let get_item dict key =
     option (Pywrappers.pydict_getitem dict key)
 
-  let find dict key = find_exception (get_item dict key)
+  let find_item dict key = find_exception (get_item dict key)
 
   let get_item_string dict name =
     option (Pywrappers.pydict_getitemstring dict name)
 
-  let find_string dict key = find_exception (get_item_string dict key)
+  let find_item_string dict key = find_exception (get_item_string dict key)
 
   let keys dict = check_not_null (Pywrappers.pydict_keys dict)
 
@@ -1277,6 +1289,8 @@ module Dict = struct
 end
 
 module Module = struct
+  let check o = Type.get o = Type.Module
+
   let create name =
     check_not_null (Pywrappers.pymodule_new name)
 
@@ -1289,16 +1303,13 @@ module Module = struct
   let get_name m =
     check_some (Pywrappers.pymodule_getname m)
 
-  let get m key = Object.get_attr_string (get_dict m) key
+  let get = Object.get_attr_string
 
-  let find m key = Dict.find_string (get_dict m) key
+  let find = Object.find_attr_string
 
-(*
-  let set m key value = Dict.set_item_string (get_dict m) key value
-*)
-  let set m key value = Object.set_attr_string m key value
+  let set = Object.set_attr_string
 
-  let remove m key = Dict.del_item_string (get_dict m) key
+  let remove = Object.del_attr_string
 
   let main () = Import.add_module "__main__"
 
@@ -1446,7 +1457,6 @@ module List = struct
 end
 
 let set_argv argv =
-  Object.set_attr_string (Module.sys ()) "argv"
-    (List.of_array_map String.of_string argv)
+  Module.set (Module.sys ()) "argv" (List.of_array_map String.of_string argv)
 
 let last_value () = Module.find (Module.builtins ()) "_"
