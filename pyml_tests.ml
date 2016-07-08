@@ -62,7 +62,7 @@ let () =
       let c =
         Py.Class.init (Py.String.of_string "myClass")
           ~methods:[("callback", callback)] in
-      Py.Object.set_attr_string m "myClass" c;
+      Py.Module.set m "myClass" c;
       assert (Py.Run.simple_string "
 from test import myClass
 myClass().callback('OK')
@@ -86,6 +86,21 @@ let () =
 
 let () =
   add_test
+    ~title:"module get/set/remove"
+    (fun () ->
+      let m = Py.Module.create "test" in
+      Py.Module.set m "test" Py.none;
+      assert (Py.Module.get m "test" = Py.none);
+      Py.Module.remove m "test";
+      begin
+        try
+          ignore (Py.Module.get m "test");
+          failwith "Should have been removed"
+        with Py.E _ -> ()
+      end)
+
+let () =
+  add_test
     ~title:"capsule"
     (fun () ->
       let (wrap, unwrap) = Py.Capsule.make "string" in
@@ -96,9 +111,8 @@ let () =
       let pyunwrap args =
         let s = unwrap args.(0) in
         Py.String.of_string s in
-      Py.Object.set_attr_string m "wrap" (Py.Callable.of_function_array pywrap);
-      Py.Object.set_attr_string m "unwrap"
-        (Py.Callable.of_function_array pyunwrap);
+      Py.Module.set m "wrap" (Py.Callable.of_function_array pywrap);
+      Py.Module.set m "unwrap" (Py.Callable.of_function_array pyunwrap);
       assert (Py.Run.simple_string "
 from test import wrap, unwrap
 x = wrap('OK')
@@ -127,7 +141,7 @@ let () =
       let f _ =
         raise (Py.Err (Py.Err.Exception, "Great")) in
       let mywrap = Py.Callable.of_function f in
-      Py.Object.set_attr_string m "mywrap" mywrap;
+      Py.Module.set m "mywrap" mywrap;
       assert (Py.Run.simple_string "
 from test import mywrap
 try:
@@ -145,7 +159,7 @@ let () =
       let m = Py.Import.add_module "test" in
       let f _ = raise Exit in
       let mywrap = Py.Callable.of_function f in
-      Py.Object.set_attr_string m "mywrap" mywrap;
+      Py.Module.set m "mywrap" mywrap;
       try
         assert (Py.Run.simple_string "
 from test import mywrap

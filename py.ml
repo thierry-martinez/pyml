@@ -942,12 +942,6 @@ exception Err of Err.t * string
 module Object = struct
   type t = Pytypes.pyobject
 
-  let del_attr obj item =
-    assert_int_success (Pywrappers.pyobject_delattr obj item)
-
-  let del_attr_string obj item =
-    assert_int_success (Pywrappers.pyobject_delattrstring obj item)
-
   let del_item obj item =
     assert_int_success (Pywrappers.pyobject_delitem obj item)
 
@@ -955,23 +949,19 @@ module Object = struct
     assert_int_success (Pywrappers.pyobject_delitemstring obj item)
 
   let get_attr obj attr =
-    option (Pywrappers.pyobject_getattr obj attr)
-
-  let find_attr obj attr = find_exception (get_attr obj attr)
+    check_not_null (Pywrappers.pyobject_getattr obj attr)
 
   let get_attr_string obj attr =
-    option (Pywrappers.pyobject_getattrstring obj attr)
-
-  let find_attr_string obj attr = find_exception (get_attr_string obj attr)
+    check_not_null (Pywrappers.pyobject_getattrstring obj attr)
 
   let get_item obj key =
     option (Pywrappers.pyobject_getitem obj key)
 
-  let find_item obj attr = find_exception (get_item obj attr)
+  let find obj attr = find_exception (get_item obj attr)
 
   let get_item_string obj key = get_item obj (String.of_string key)
 
-  let find_item_string obj attr = find_exception (get_item_string obj attr)
+  let find_string obj attr = find_exception (get_item_string obj attr)
 
   let get_iter obj =
     check_not_null (Pywrappers.pyobject_getiter obj)
@@ -1009,6 +999,10 @@ module Object = struct
 
   let set_attr_string obj attr value =
     assert_int_success (Pywrappers.pyobject_setattrstring obj attr value)
+
+  let del_attr obj attr = set_attr obj attr null
+
+  let del_attr_string obj attr = set_attr_string obj attr null
 
   let set_item obj key value =
     assert_int_success (Pywrappers.pyobject_setitem obj key value)
@@ -1225,12 +1219,12 @@ module Dict = struct
   let get_item dict key =
     option (Pywrappers.pydict_getitem dict key)
 
-  let find_item dict key = find_exception (get_item dict key)
+  let find dict key = find_exception (get_item dict key)
 
   let get_item_string dict name =
     option (Pywrappers.pydict_getitemstring dict name)
 
-  let find_item_string dict key = find_exception (get_item_string dict key)
+  let find_string dict key = find_exception (get_item_string dict key)
 
   let keys dict = check_not_null (Pywrappers.pydict_keys dict)
 
@@ -1305,8 +1299,6 @@ module Module = struct
 
   let get = Object.get_attr_string
 
-  let find = Object.find_attr_string
-
   let set = Object.set_attr_string
 
   let remove = Object.del_attr_string
@@ -1315,7 +1307,7 @@ module Module = struct
 
   let sys () = Import.import_module "sys"
 
-  let builtins () = find (main ()) "__builtins__"
+  let builtins () = get (main ()) "__builtins__"
 end
 
 module Utils = struct
@@ -1459,4 +1451,4 @@ end
 let set_argv argv =
   Module.set (Module.sys ()) "argv" (List.of_array_map String.of_string argv)
 
-let last_value () = Module.find (Module.builtins ()) "_"
+let last_value () = Module.get (Module.builtins ()) "_"

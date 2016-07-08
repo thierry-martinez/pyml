@@ -55,27 +55,19 @@ module Object: sig
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/object.html#c.PyObject_DelItemString} PyObject_DelItemString} *)
 
-  val get_attr: t -> t -> t option
+  val get_attr: t -> t -> t
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/object.html#c.PyObject_GetAttr} PyObject_GetAttr} *)
 
-  val find_attr: t -> t -> t
-  (** Equivalent to {!get_attr} but raises a [Not_found] exception in case of
-      failure.*)
-
-  val get_attr_string: t -> string -> t option
+  val get_attr_string: t -> string -> t
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/object.html#c.PyObject_GetAttrString} PyObject_GetAttrString} *)
-
-  val find_attr_string: t -> string -> t
-  (** Equivalent to {!get_attr_string} but raises a [Not_found] exception in
-      case of failure.*)
 
   val get_item: t -> t -> t option
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/object.html#c.PyObject_GetItem} PyObject_GetItem} *)
 
-  val find_item: t -> t -> t
+  val find: t -> t -> t
   (** Equivalent to {!get_item} but raises a [Not_found] exception in
       case of failure. *)
 
@@ -83,7 +75,7 @@ module Object: sig
   (** [get_item_string o key] returns the element corresponding to the object
       [key] or [None] on failure. *)
 
-  val find_item_string: t -> string -> t
+  val find_string: t -> string -> t
   (** Equivalent to {!get_item_string} but raises a [Not_found] exception in
       case of failure. *)
 
@@ -400,17 +392,17 @@ module Dict: sig
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/dict.html#c.PyDict_GetItem} PyDict_GetItem} *)
 
-  val find_item: Object.t -> Object.t -> Object.t
+  val find: Object.t -> Object.t -> Object.t
   (** [find p key] returns the object from Python dictionary [p] which has a key
-      [key]. Equivalent to {!get_item} but [find_item] raises [Not_found] if the
+      [key]. Equivalent to {!get_item} but [find] raises [Not_found] if the
       key [key] is not present. *)
 
   val get_item_string: Object.t -> string -> Object.t option
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/dict.html#c.PyDict_GetItemString} PyDict_GetItemString} *)
 
-  val find_item_string: Object.t -> string -> Object.t
-  (** [find_item_string p key] returns the object from Python dictionary [p]
+  val find_string: Object.t -> string -> Object.t
+  (** [find_string p key] returns the object from Python dictionary [p]
       which has a key [key]. Equivalent to {!get_item_string} but [find_string]
       raises [Not_found] if the key [key] is not present. *)
 
@@ -835,11 +827,8 @@ module Module: sig
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/module.html#c.PyModule_GetName} PyModule_GetName} *)
 
-  val get: Object.t -> string -> Object.t option
+  val get: Object.t -> string -> Object.t
   (** Equivalent to {!Object.get_attr_string}. *)
-
-  val find: Object.t -> string -> Object.t
-  (** Equivalent to {!Object.find_attr_string}. *)
 
   val set: Object.t -> string -> Object.t -> unit
   (** Equivalent to {!Object.set_attr_string}. *)
