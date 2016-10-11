@@ -177,8 +177,8 @@ let find_library_path version_major version_minor =
         | Some library_filename -> library_filename in
       (library_paths, [library_filename])
 
-let initialize_version_value () =
-  let version_line = run_command "python --version" true in
+let initialize_version_value python =
+  let version_line = run_command (Printf.sprintf "%s --version" python) true in
   let version = extract_version version_line in
   let (version_major, version_minor) = extract_version_major_minor version in
   version_value := version;
@@ -220,10 +220,10 @@ let initialize_library () =
     | Some s -> set_python_home s
   end
 
-let initialize () =
+let initialize ?(interpreter = "python") () =
   if !initialized then
     failwith "Py.initialize: already initialized";
-  initialize_version_value ();
+  initialize_version_value interpreter;
   initialize_library ();
   initialized := true
 
@@ -1371,6 +1371,7 @@ module Utils = struct
     with e ->
       close_in_noerr channel;
       raise e
+
   let write_and_close channel f arg =
     try
       let result = f arg in

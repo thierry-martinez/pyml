@@ -123,7 +123,7 @@ let py_false () = Py.Bool.f
 
 let py_finalize = Py.finalize
 
-let py_initialize = Py.initialize
+let py_initialize () = Py.initialize ()
 
 let py_is_true = Py.Object.is_true
 
