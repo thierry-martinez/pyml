@@ -449,6 +449,8 @@ let as_UTF8_string s =
   check_not_null (f s)
 
 module Type = struct
+  let none = None
+
   type t =
       Unknown
     | Bool
@@ -497,12 +499,12 @@ module Type = struct
     match get s with
       Bytes -> Some (pystring_asstringandsize s)
     | Unicode -> Some (pystring_asstringandsize (as_UTF8_string s))
-    | _ -> None
+    | _ -> none
 
   let string_of_repr item =
     match to_string (object_repr item) with
-      None -> failwith "Py.Object.string_of_repr"
-    | Some repr -> check_some repr
+      Some repr -> check_some repr
+    | _ (* None *) -> failwith "Py.Object.string_of_repr"
 
   let mismatch t o =
     failwith
