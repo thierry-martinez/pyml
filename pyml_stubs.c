@@ -458,10 +458,9 @@ pywrap_closure(value docstring, value closure)
 }
 
 CAMLprim value
-py_load_library(value version_major_ocaml, value filename_ocaml)
+py_load_library(value filename_ocaml)
 {
-    CAMLparam2(version_major_ocaml, filename_ocaml);
-    version_major = Int_val(version_major_ocaml);
+    CAMLparam1(filename_ocaml);
     if (Is_block(filename_ocaml)) {
         char *filename = String_val(Field(filename_ocaml, 0));
         library = dlopen(filename, RTLD_LAZY);
@@ -472,10 +471,13 @@ py_load_library(value version_major_ocaml, value filename_ocaml)
     else {
         library = RTLD_DEFAULT;
     }
-    Python_PyCFunction_NewEx = dlsym(library, "PyCFunction_NewEx");
-    if (!Python_PyCFunction_NewEx) {
+    Python_Py_GetVersion = dlsym(library, "Py_GetVersion");
+    if (!Python_Py_GetVersion) {
         failwith("No Python symbol");
     }
+    const char *version = Python_Py_GetVersion();
+    version_major = version[0] - '0';
+    Python_PyCFunction_NewEx = resolve("PyCFunction_NewEx");
     Python_PyCapsule_New = resolve("PyCapsule_New");
     Python_PyCapsule_GetPointer = resolve("PyCapsule_GetPointer");
     Python_PyObject_CallFunctionObjArgs =
