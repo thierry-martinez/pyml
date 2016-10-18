@@ -7,6 +7,7 @@ type compare = Pytypes.compare = LT | LE | EQ | NE | GT | GE
 type ucs = UCSNone | UCS2 | UCS4
 
 external load_library: string option -> unit = "py_load_library"
+external unsetenv: string -> unit = "py_unsetenv"
 external finalize_library: unit -> unit = "py_finalize_library"
 external pywrap_closure: string -> (pyobject -> pyobject) -> pyobject
     = "pywrap_closure"
@@ -134,6 +135,19 @@ let rec split string ?(from=0) separator =
       let word = String.sub string from (position - from) in
       word :: split string ~from:(succ position) separator
 
+let parent_dir filename =
+  let dirname = Filename.dirname filename in
+  Filename.concat dirname Filename.parent_dir_name
+
+let has_putenv = ref false
+
+let init_pythonhome pythonhome =
+  try
+    ignore (Sys.getenv "PYTHONHOME")
+  with Not_found ->
+    Unix.putenv "PYTHONHOME" pythonhome;
+    has_putenv := true
+
 let find_library_path version_major version_minor =
   let command =
     Printf.sprintf "pkg-config --libs python-%d.%d" version_major
@@ -144,10 +158,16 @@ let find_library_path version_major version_minor =
   with
     None ->
       let library_paths =
-        try
-          [Filename.concat (Filename.dirname (run_command "which python" false))
-             "../lib"]
-        with Failure _ -> [] in
+        match
+          try Some (Sys.getenv "PYTHONHOME")
+          with Not_found -> None
+        with
+          None -> []
+        | Some pythonhome ->
+            let prefix =
+              try String.sub pythonhome 0 (String.index pythonhome ':')
+              with Not_found -> pythonhome in
+            [Filename.concat prefix "lib"] in
       let library_filenames =
         [Printf.sprintf "python%d.%dm" version_major version_minor;
          Printf.sprintf "python%d.%d" version_major version_minor] in
@@ -177,9 +197,18 @@ let find_library_path version_major version_minor =
         | Some library_filename -> library_filename in
       (library_paths, [library_filename])
 
-let initialize_version_value python =
+let initialize_version_value interpreter =
+  begin
+    let python_full_path =
+      if String.contains interpreter '/' then interpreter
+      else
+        let which_python = Printf.sprintf "which \"%s\"" interpreter in
+        run_command which_python false in
+    let pythonhome = parent_dir python_full_path in
+    init_pythonhome pythonhome
+  end;
   let version_line =
-    let python_version_cmd = Printf.sprintf "%s --version" python in
+    let python_version_cmd = Printf.sprintf "\"%s\" --version" interpreter in
     try run_command python_version_cmd false
     with Failure _ -> run_command python_version_cmd true in
   let version = extract_version version_line in
@@ -209,7 +238,9 @@ let find_library () =
         [] -> failwith "Py.find_library: unable to find the Python library"
       | filename :: others ->
           begin
-            try load_library (Some filename)
+            try
+              init_pythonhome (parent_dir filename);
+              load_library (Some filename)
             with Failure _ -> try_load_library others
           end in
     try_load_library library_filenames
@@ -250,6 +281,11 @@ let initialize ?(interpreter = "python") ?version () =
 let finalize () =
   assert_initialized ();
   finalize_library ();
+  if !has_putenv then
+    begin
+      unsetenv "PYTHONHOME";
+      has_putenv := false
+    end;
   initialized := false
 
 let version () =

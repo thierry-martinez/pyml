@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <errno.h>
 
 /* The following definitions are extracted and simplified from
 #include <Python.h>
@@ -522,6 +523,17 @@ py_finalize_library(value unit)
     }
     library = NULL;
     version_major = 0;
+    CAMLreturn(Val_unit);
+}
+
+CAMLprim value
+py_unsetenv(value name_ocaml)
+{
+    CAMLparam1(name_ocaml);
+    char *name = String_val(name_ocaml);
+    if (unsetenv(name) == -1) {
+        failwith(strerror(errno));
+    }
     CAMLreturn(Val_unit);
 }
 
