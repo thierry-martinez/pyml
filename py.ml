@@ -1129,6 +1129,16 @@ module Object = struct
   let format_repr fmt v = Format.pp_print_string fmt (string_of_repr v)
 end
 
+let exception_printer exn =
+  match exn with
+    E (ty, value) when !initialized ->
+      Some (
+      Printf.sprintf "E (%s, %s)" (Object.to_string ty)
+        (Object.to_string value))
+  | _ -> None
+
+let () = Printexc.register_printer exception_printer
+
 module Sequence = struct
   let check obj = bool_of_int (Pywrappers.pysequence_check obj)
 

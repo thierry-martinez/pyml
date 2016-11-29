@@ -1495,6 +1495,10 @@ val last_value: unit -> Object.t
     toplevel.
     We have [Py.last_value = Py.Module.find (Py.Module.builtins ()) "_"]. *)
 
+val exception_printer: exn -> string option
+(** This printer pretty-prints [E (ty, value)] exceptions.
+    It is automatically registered to [Printexc.register_printer]. *)
+
 module Utils: sig
   (** This module declares utility functions that does not require Python to
       be initialized. *)
