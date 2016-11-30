@@ -1543,10 +1543,17 @@ module List = struct
 
   let size list = check_int (Pywrappers.pylist_size list)
 
+  let length = size
+
+  let set_item list index value =
+    assert_int_success (Pywrappers.pylist_setitem list index value)
+
+  let set = set_item
+
   let init size f =
     let result = create size in
     for index = 0 to size - 1 do
-      set_item result index (f index)
+      set result index (f index)
     done;
     result
 

@@ -714,7 +714,8 @@ module List: sig
   (** Equivalent to {!get_item}. *)
 
   val set_item: Object.t -> int -> Object.t -> unit
-  (** Equivalent to {!Sequence.set_item}. *)
+  (** Wrapper for
+      {{:https://docs.python.org/3/c-api/list.html#c.PyList_SetItem} PyList_SetItem} *)
 
   val set: Object.t -> int -> Object.t -> unit
   (** Equivalent to {!set_item}. *)
@@ -722,6 +723,9 @@ module List: sig
   val size: Object.t -> int
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/list.html#c.PyList_Size} PyList_Size} *)
+
+  val length: Object.t -> int
+  (** Equivalent to {!size}. *)
 
   val init: int -> (int -> Object.t) -> Object.t
   (** [init n f] returns the Python list [[f 0, f 1, ..., f (n - 1)]]. *)
