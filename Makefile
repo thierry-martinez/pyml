@@ -57,7 +57,7 @@ else
 	TESTSOPT=tests.native
 endif
 
-MODULES=pyml_compat pytypes pywrappers py pycaml
+MODULES=pyml_compat pyml_arch pytypes pywrappers py pycaml
 
 VERSION:=$(shell date "+%Y%m%d")
 
@@ -77,6 +77,18 @@ PYML_COMPAT:=$(shell \
 		echo pyml_compat403.ml; \
 	fi \
 )
+
+ARCH:=$(shell uname)
+
+ifeq ($(ARCH),Linux)
+	PYML_ARCH=pyml_arch_linux.ml
+else ifeq ($(ARCH),Darwin)
+	PYML_ARCH=pyml_arch_darwin.ml
+else ifeq ($(findstring CYGWIN,$(ARCH)),CYGWIN)
+	PYML_ARCH=pyml_arch_cygwin.ml
+else
+	$(error Unsupported OS $(ARCH)
+endif
 
 .PHONY: all
 all: all.bytecode $(ALLOPT)
@@ -147,7 +159,7 @@ clean:
 	rm -f pywrappers.mli pywrappers.ml pyml_dlsyms.inc pyml_wrappers.inc
 	rm -f pyml.h
 	rm -f pyml_stubs.o dllpyml_stubs.so libpyml_stubs.a
-	rm -f pyml_compat.ml
+	rm -f pyml_compat.ml pyml_arch.ml
 	rm -f generate pyml_tests pyml_tests.bytecode
 	rm -f .depend
 	rm -rf doc
@@ -197,6 +209,11 @@ pyml_compat.ml: $(PYML_COMPAT)
 	cp $< $@
 
 pyml_compat.cmx: pyml_compat.cmi
+
+pyml_arch.ml: $(PYML_ARCH)
+	cp $< $@
+
+pyml_arch.cmx: pyml_arch.cmi
 
 %.cmi: %.mli
 	$(OCAMLC) $(OCAMLCFLAGS) -c $< -o $@

@@ -142,11 +142,12 @@ let parent_dir filename =
 let has_putenv = ref false
 
 let init_pythonhome pythonhome =
-  try
-    ignore (Sys.getenv "PYTHONHOME")
-  with Not_found ->
-    Unix.putenv "PYTHONHOME" pythonhome;
-    has_putenv := true
+  if pythonhome <> "" then
+    try
+      ignore (Sys.getenv "PYTHONHOME")
+    with Not_found ->
+      Unix.putenv "PYTHONHOME" pythonhome;
+      has_putenv := true
 
 let find_library_path version_major version_minor =
   let command =
@@ -169,8 +170,9 @@ let find_library_path version_major version_minor =
               with Not_found -> pythonhome in
             [Filename.concat prefix "lib"] in
       let library_filenames =
-        [Printf.sprintf "python%d.%dm" version_major version_minor;
-         Printf.sprintf "python%d.%d" version_major version_minor] in
+        List.map
+          (fun format -> Printf.sprintf format version_major version_minor)
+          Pyml_arch.library_patterns in
       (library_paths, library_filenames)
   | Some words ->
       let word_list = split words ' ' in
@@ -186,7 +188,10 @@ let find_library_path version_major version_minor =
           | "-l" ->
               if library_filename <> None then
                 unable_to_parse ();
-              (library_paths, Some (suffix word 2))
+              let library_filename =
+                Printf.sprintf "lib%s%s" (suffix word 2)
+                  Pyml_arch.library_suffix in
+              (library_paths, Some library_filename)
           | _ -> (library_paths, library_filename)
         else (library_paths, library_filename) in
       let (library_paths, library_filename) =
@@ -223,11 +228,6 @@ let find_library () =
   with Failure _ ->
     let (library_paths, library_filenames) =
       find_library_path !version_major_value !version_minor_value in
-    let expand_filenames filename =
-      [Printf.sprintf "lib%s.so" filename;
-       Printf.sprintf "lib%s.dylib" filename] in
-    let library_filenames =
-      List.concat (List.map expand_filenames library_filenames) in
     let expand_filepaths filename =
       filename ::
       List.map (fun path -> Filename.concat path filename) library_paths in

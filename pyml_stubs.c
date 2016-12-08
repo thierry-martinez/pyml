@@ -7,12 +7,45 @@
 #include <caml/alloc.h>
 #include <sys/param.h>
 #include <string.h>
-#include <dlfcn.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
+
+#ifdef _WIN32
+#include <windows.h>
+
+typedef HINSTANCE library_t;
+
+static library_t
+load_library(const char *filename)
+{
+    return LoadLibrary(filename);
+}
+
+static void *
+find_symbol(library_t library, const char *name)
+{
+    return GetProcAddress(library, name);
+}
+#else
+#include <dlfcn.h>
+
+typedef void *library_t;
+
+static library_t
+load_library(const char *filename)
+{
+    return dlopen(filename, RTLD_LAZY);
+}
+
+static void *
+find_symbol(library_t library, const char *name)
+{
+    return dlsym(library, name);
+}
+#endif
 
 /* The following definitions are extracted and simplified from
 #include <Python.h>
@@ -229,7 +262,7 @@ enum code {
 static void *
 resolve(const char *symbol)
 {
-    void *result = dlsym(library, symbol);
+    void *result = find_symbol(library, symbol);
     if (!result) {
         fprintf(stderr, "Cannot resolve %s.\n", symbol);
         exit(EXIT_FAILURE);
@@ -464,7 +497,7 @@ py_load_library(value filename_ocaml)
     CAMLparam1(filename_ocaml);
     if (Is_block(filename_ocaml)) {
         char *filename = String_val(Field(filename_ocaml, 0));
-        library = dlopen(filename, RTLD_LAZY);
+        library = load_library(filename);
         if (!library) {
             failwith("Library not found");
         }
@@ -472,7 +505,7 @@ py_load_library(value filename_ocaml)
     else {
         library = RTLD_DEFAULT;
     }
-    Python_Py_GetVersion = dlsym(library, "Py_GetVersion");
+    Python_Py_GetVersion = find_symbol(library, "Py_GetVersion");
     if (!Python_Py_GetVersion) {
         failwith("No Python symbol");
     }
@@ -499,10 +532,10 @@ py_load_library(value filename_ocaml)
         Python_PyString_AsStringAndSize = resolve("PyString_AsStringAndSize");
     }
     Python_PyMem_Free = resolve("PyMem_Free");
-    if (dlsym(library, "PyUnicodeUCS2_AsEncodedString")) {
+    if (find_symbol(library, "PyUnicodeUCS2_AsEncodedString")) {
         ucs = UCS2;
     }
-    else if (dlsym(library, "PyUnicodeUCS4_AsEncodedString")) {
+    else if (find_symbol(library, "PyUnicodeUCS4_AsEncodedString")) {
         ucs = UCS4;
     }
     else {
