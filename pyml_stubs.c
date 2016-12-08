@@ -19,9 +19,24 @@
 typedef HINSTANCE library_t;
 
 static library_t
-load_library(const char *filename)
+open_library(const char *filename)
 {
     return LoadLibrary(filename);
+}
+
+void
+close_library(library_t library)
+{
+    if (!FreeLibrary(library)) {
+        fprintf(stderr, "close_library.\n");
+        exit(EXIT_FAILURE);
+    }
+}
+
+static library_t
+get_default_library(void)
+{
+    return GetModuleHandle(0);
 }
 
 static void *
@@ -29,15 +44,40 @@ find_symbol(library_t library, const char *name)
 {
     return GetProcAddress(library, name);
 }
+
+int
+unsetenv(const char *name)
+{
+    size_t len = strlen(name)
+    char string[len + 2];
+    snprintf(string, len + 2, "%s=", name);
+    _putenv(string);
+}
+
 #else
 #include <dlfcn.h>
 
 typedef void *library_t;
 
 static library_t
-load_library(const char *filename)
+open_library(const char *filename)
 {
     return dlopen(filename, RTLD_LAZY);
+}
+
+void
+close_library(library_t filename)
+{
+    if (dlclose(filename)) {
+        fprintf(stderr, "close_library: %s.\n", dlerror());
+        exit(EXIT_FAILURE);
+    }
+}
+
+static library_t
+get_default_library(void)
+{
+    return RTLD_DEFAULT;
 }
 
 static void *
@@ -497,13 +537,13 @@ py_load_library(value filename_ocaml)
     CAMLparam1(filename_ocaml);
     if (Is_block(filename_ocaml)) {
         char *filename = String_val(Field(filename_ocaml, 0));
-        library = load_library(filename);
+        library = open_library(filename);
         if (!library) {
             failwith("Library not found");
         }
     }
     else {
-        library = RTLD_DEFAULT;
+        library = get_default_library();
     }
     Python_Py_GetVersion = find_symbol(library, "Py_GetVersion");
     if (!Python_Py_GetVersion) {
@@ -552,7 +592,7 @@ py_finalize_library(value unit)
     CAMLparam1(unit);
     assert_initialized();
     if (library != RTLD_DEFAULT) {
-        dlclose(library);
+        close_library(library);
     }
     library = NULL;
     version_major = 0;
