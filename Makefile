@@ -25,7 +25,7 @@ else
 		fi \
 	)
 	ifeq ($(OCAMLC),)
-		ERROR=$(error There is no OCaml compiler available in path)
+		ERROR:=$(error There is no OCaml compiler available in path)
 	endif
 	ifneq ($(HAVE_OCAMLOPT),no)
 		OCAMLOPTEXE:=$(shell \
