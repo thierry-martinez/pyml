@@ -48,10 +48,10 @@ find_symbol(library_t library, const char *name)
 int
 unsetenv(const char *name)
 {
-    size_t len = strlen(name)
+    size_t len = strlen(name);
     char string[len + 2];
     snprintf(string, len + 2, "%s=", name);
-    _putenv(string);
+    return _putenv(string);
 }
 
 #else
@@ -186,9 +186,10 @@ static void *Python__PyObject_NextNotImplemented;
 
 /* Global variables for the library */
 
+/* version_major != 0 iff the library is initialized */
 static int version_major;
 
-static void *library;
+static library_t library;
 
 /* Functions that are special enough to deserved to be wrapped specifically */
 
@@ -267,7 +268,7 @@ static int pycompare(value v1, value v2)
     return result;
 }
 
-static long pyhash( value v )
+static intnat pyhash( value v )
 {
     if (getcustom(v))
         return Python_PyObject_Hash((PyObject *)getcustom(v));
@@ -275,7 +276,7 @@ static long pyhash( value v )
         return 0L;
 }
 
-static unsigned long
+static uintnat
 pydeserialize(void *dst)
 {
     return 0L;
@@ -480,7 +481,7 @@ caml_aux(PyObject *obj)
 
 static void
 assert_initialized() {
-    if (!library) {
+    if (!version_major) {
         failwith("Run 'Py.initialize ()' first");
     }
 }
@@ -591,10 +592,9 @@ py_finalize_library(value unit)
 {
     CAMLparam1(unit);
     assert_initialized();
-    if (library != RTLD_DEFAULT) {
+    if (library != get_default_library()) {
         close_library(library);
     }
-    library = NULL;
     version_major = 0;
     CAMLreturn(Val_unit);
 }
@@ -654,7 +654,7 @@ PyTuple_Empty_wrapper(value unit)
 }
 
 enum pytype_labels {
-    Unknown,
+    PyUnknown,
     Bool,
     Bytes,
     Callable,
@@ -737,7 +737,7 @@ pytype(value object_ocaml)
         result = Iter;
     }
     else {
-        result = Unknown;
+        result = PyUnknown;
     }
     CAMLreturn(Val_int(result));
 }
