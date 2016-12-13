@@ -96,8 +96,9 @@ all: all.bytecode $(ALLOPT)
 	@echo Run \`make doc\' to build the documentation.
 	@echo Run \`make tests\' to check the test suite.
 ifneq ($(HAVE_OCAMLFIND),no)
-	@echo Run \`make install\' to install the library via ocamlfind.;
+	@echo Run \`make install\' to install the library via ocamlfind.
 endif
+	@echo Run \`make pymltop\' to build the toplevel.
 
 .PHONY: help
 help:
@@ -105,11 +106,14 @@ help:
 	@echo make all.bytecode : build only the bytecode library
 	@echo make all.native : build only the native library
 	@echo make doc : build the documentation
+ifneq ($(HAVE_OCAMLFIND),no)
 	@echo make install : install the library via ocamlfind
+endif
 	@echo make clean : remove all the generated files
 	@echo make tests : compile and run the test suite
 	@echo make tests.bytecode : run only the bytecode version of the tests
 	@echo make tests.native : run only the native version of the tests
+	@echo make pymltop: build the toplevel
 	@echo make HAVE_OCAMLFIND=no : disable ocamlfind
 	@echo make HAVE_OCAMLOPT=no : disable ocamlopt
 	@echo "make OCAMLC|OCAMLOPT|OCAMLMKLIB|OCAMLDEP|OCAMLDOC=... :"
@@ -238,3 +242,6 @@ pyml.cmxs: $(MODULES:=.cmx) libpyml_stubs.a
 
 libpyml_stubs.a: pyml_stubs.o
 	$(OCAMLMKLIB) -o pyml_stubs $<
+
+pymltop: pyml.cma
+	ocamlmktop -o $@ unix.cma $<
