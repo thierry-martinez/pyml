@@ -1452,6 +1452,38 @@ module Utils = struct
     with e ->
       close_out_noerr channel;
       raise e
+
+  let with_temp_file contents f =
+    let (file, channel) = Filename.open_temp_file "pyml_tests" ".py" in
+    try_finally begin fun () ->
+      write_and_close channel (output_string channel) contents;
+      let channel = open_in file in
+      read_and_close channel (f file) channel
+    end ()
+      Sys.remove file
+
+  let with_pipe f =
+    let (read, write) = Unix.pipe () in
+    let in_channel = Unix.in_channel_of_descr read
+    and out_channel = Unix.out_channel_of_descr write in
+    try_finally (f in_channel) out_channel
+      (fun () ->
+        close_in_noerr in_channel;
+        close_out_noerr out_channel) ()
+
+  let with_stdin_from channel f arg =
+    let stdin_backup = Unix.dup Unix.stdin in
+    Unix.dup2 (Unix.descr_of_in_channel channel) Unix.stdin;
+    try_finally
+      f arg
+      (Unix.dup2 stdin_backup) Unix.stdin
+
+  let with_stdin_from_string s f arg =
+    with_pipe begin fun in_channel out_channel ->
+      output_string out_channel s;
+      close_out out_channel;
+      with_stdin_from in_channel f arg
+    end
 end
 
 module Run = struct
