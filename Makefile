@@ -147,8 +147,7 @@ ifeq ($(HAVE_OCAMLFIND),no)
 endif
 	$(OCAMLFIND) install pyml \
 		py.mli \
-		py.cmi pytypes.cmi pywrappers.cmi pycaml.cmi \
-		py.cmx pytypes.cmx pywrappers.cmx pycaml.cmx \
+		$(MODULES:=.cmi) $(MODULES:=.cmx) \
 		pyml.cma pyml.cmxa pyml.cmxs pyml.a \
 		libpyml_stubs.a dllpyml_stubs.so \
 		META
@@ -199,7 +198,7 @@ pywrappers.ml pyml_wrappers.inc: generate
 
 pyml_wrappers.inc: pywrappers.ml
 
-pywrappers.mli: pywrappers.ml pytypes.cmi
+pywrappers.mli: pywrappers.ml pytypes.cmi pyml_arch.cmi
 	$(OCAMLC) -i $< >$@
 
 pyml_tests.native: py.cmi pyml.cmxa pyml_tests.cmx
