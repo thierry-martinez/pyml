@@ -271,30 +271,31 @@ let py_compilestring (str, filename, start) =
       None (-1)
 
 let pyrun_anyfile (fd, filename) =
-  Pywrappers.pyrun_anyfileexflags fd filename 0 None
+  Pywrappers.pyrun_anyfileexflags (Pyml_arch.fd_of_int fd) filename 0 None
 
 let pyrun_anyfileex (fd, filename, closeit) =
-  Pywrappers.pyrun_anyfileexflags fd filename closeit None
+  Pywrappers.pyrun_anyfileexflags (Pyml_arch.fd_of_int fd) filename closeit None
 
 let pyrun_file (fd, filename, start, globals, locals) =
-  Pywrappers.pyrun_fileexflags fd filename (input_of_int start) globals locals 0
-    None
+  Pywrappers.pyrun_fileexflags (Pyml_arch.fd_of_int fd) filename
+    (input_of_int start) globals locals 0 None
 
 let pyrun_fileex (fd, filename, start, globals, locals, closeit) =
-  Pywrappers.pyrun_fileexflags fd filename (input_of_int start) globals locals
-    closeit None
+  Pywrappers.pyrun_fileexflags (Pyml_arch.fd_of_int fd) filename
+    (input_of_int start) globals locals closeit None
 
 let pyrun_interactiveone (fd, filename) =
-  Pywrappers.pyrun_interactiveoneflags fd filename None
+  Pywrappers.pyrun_interactiveoneflags (Pyml_arch.fd_of_int fd) filename None
 
 let pyrun_interactiveloop (fd, filename) =
-  Pywrappers.pyrun_interactiveloopflags fd filename None
+  Pywrappers.pyrun_interactiveloopflags (Pyml_arch.fd_of_int fd) filename None
 
 let pyrun_simplefile (fd, filename) =
-  Pywrappers.pyrun_simplefileexflags fd filename 0 None
+  Pywrappers.pyrun_simplefileexflags (Pyml_arch.fd_of_int fd) filename 0 None
 
 let pyrun_simplefileex (fd, filename, closeit) =
-  Pywrappers.pyrun_simplefileexflags fd filename closeit None
+  Pywrappers.pyrun_simplefileexflags (Pyml_arch.fd_of_int fd) filename closeit
+    None
 
 let pyrun_simplestring s = Pywrappers.pyrun_simplestringflags s None
 

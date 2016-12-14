@@ -54,6 +54,16 @@ unsetenv(const char *name)
     return _putenv(string);
 }
 
+extern int win_CRT_fd_of_filedescr(value handle);
+
+static FILE *
+file_of_file_descr(value file_descr, const char *mode)
+{
+    CAMLparam1(file_descr);
+    int fd = win_CRT_fd_of_filedescr(file_descr);
+    FILE *result = _fdopen(dup(fd), mode);
+    CAMLreturnT(FILE *, result);
+}
 #else
 #include <dlfcn.h>
 
@@ -84,6 +94,15 @@ static void *
 find_symbol(library_t library, const char *name)
 {
     return dlsym(library, name);
+}
+
+static FILE *
+file_of_file_descr(value file_descr, const char *mode)
+{
+    CAMLparam1(file_descr);
+    int fd = Int_val(file_descr);
+    FILE *result = fdopen(dup(fd), mode);
+    CAMLreturnT(FILE *, result);
 }
 #endif
 
@@ -862,9 +881,9 @@ pywrap_string_option(char *s)
 CAMLprim value
 pyrefcount(value pyobj)
 {
-  CAMLparam1(pyobj);
-  PyObject *obj = pyunwrap(pyobj);
-  CAMLreturn(Val_int(obj->ob_refcnt));
+    CAMLparam1(pyobj);
+    PyObject *obj = pyunwrap(pyobj);
+    CAMLreturn(Val_int(obj->ob_refcnt));
 }
 
 static void *xmalloc(size_t size)
