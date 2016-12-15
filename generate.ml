@@ -942,7 +942,7 @@ let string_of_type_ml ty =
   | PyCompilerFlags -> "int ref option"
   | String | WideString -> "string"
   | Int | Long | Size -> "int"
-  | FileIn | FileOut -> "Unix.file_descr"
+  | FileIn | FileOut -> "Unix.file_descr Pytypes.file"
   | Int64 -> "int64"
   | IntPtr -> "int ref"
   | Compare -> "Pytypes.compare"
@@ -1017,7 +1017,9 @@ let print_pycaml indent prefix channel wrapper =
     let arg = Printf.sprintf "arg%d" i in
     match ty with
       Compare -> Printf.sprintf "(Pytypes.compare_of_int %s)" arg
-    | FileIn | FileOut -> Printf.sprintf "(Pyml_arch.fd_of_int %s)" arg
+    | Input -> Printf.sprintf "(Pytypes.input_of_int %s)" arg
+    | FileIn | FileOut ->
+        Printf.sprintf "(Pytypes.Channel (Pyml_arch.fd_of_int %s))" arg
     | _ -> arg in
   let converted_arguments_list =
     match arguments with
@@ -1168,8 +1170,8 @@ let coercion_of_caml ty v =
   | Compare -> Printf.sprintf "Int_val(%s)" v
   | Unit | NeverReturn | UCS2Option | UCS4Option _ -> assert false
   | Input -> Printf.sprintf "256 + Int_val(%s)" v
-  | FileIn -> Printf.sprintf "file_of_file_descr(%s, \"r\")" v
-  | FileOut -> Printf.sprintf "file_of_file_descr(%s, \"w\")" v
+  | FileIn -> Printf.sprintf "open_file(%s, \"r\")" v
+  | FileOut -> Printf.sprintf "open_file(%s, \"w\")" v
   | Double -> Printf.sprintf "Double_val(%s)" v
   | StringOption ->
       Printf.sprintf "Is_block(%s) ? String_val(Field(%s, 0)) : NULL" v v
@@ -1289,7 +1291,8 @@ let print_stub prefix assert_initialized channel wrapper =
   let free_argument i ty =
     match ty with
       PyCompilerFlags | UCS2 | UCS4 -> Printf.sprintf "\n    free(arg%d);" i
-    | FileIn | FileOut -> Printf.sprintf "\n    fclose(arg%d);" i
+    | FileIn | FileOut ->
+        Printf.sprintf "\n    close_file(arg%d_ocaml, arg%d);" i i
     | _ -> "" in
   let free =
     match arguments with

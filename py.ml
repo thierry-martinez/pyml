@@ -2,6 +2,8 @@ type pyobject = Pytypes.pyobject
 
 type input = Pytypes.input = Single | File | Eval
 
+type 'a file = 'a Pytypes.file = Filename of string | Channel of 'a
+
 type compare = Pytypes.compare = LT | LE | EQ | NE | GT | GE
 
 type ucs = UCSNone | UCS2 | UCS4
@@ -1083,7 +1085,7 @@ module Object = struct
   let print obj out_channel =
     assert_int_success
       (Pywrappers.pyobject_print obj
-         (Unix.descr_of_out_channel out_channel) 1)
+         (Pytypes.file_map Unix.descr_of_out_channel out_channel) 1)
 
   let repr = object_repr
 
@@ -1488,23 +1490,23 @@ module Run = struct
   let any_file file filename =
     assert_int_success
       (Pywrappers.pyrun_anyfileexflags
-         (Unix.descr_of_in_channel file) filename 0 None)
+         (Pytypes.file_map Unix.descr_of_in_channel file) filename 0 None)
 
   let file file filename start globals locals =
-    let fd = Unix.descr_of_in_channel file in
+    let fd = Pytypes.file_map Unix.descr_of_in_channel file in
     check_not_null
       (Pywrappers.pyrun_fileexflags fd filename start globals locals 0 None)
 
   let interactive_one channel name =
-    let fd = Unix.descr_of_in_channel channel in
+    let fd = Channel (Unix.descr_of_in_channel channel) in
     assert_int_success (Pywrappers.pyrun_interactiveoneflags fd name None)
 
   let interactive_loop channel name =
-    let fd = Unix.descr_of_in_channel channel in
+    let fd = Channel (Unix.descr_of_in_channel channel) in
     assert_int_success (Pywrappers.pyrun_interactiveloopflags fd name None)
 
   let simple_file channel name =
-    let fd = Unix.descr_of_in_channel channel in
+    let fd = Pytypes.file_map Unix.descr_of_in_channel channel in
     assert_int_success (Pywrappers.pyrun_simplefileexflags fd name 0 None)
 
   let simple_string string =
@@ -1607,13 +1609,13 @@ module Marshal = struct
     Long.to_int (Module.get marshal_module "version")
 
   let read_object_from_file file =
-    let fd = Unix.descr_of_in_channel file in
+    let fd = Pytypes.file_map Unix.descr_of_in_channel file in
     check_not_null (Pywrappers.pymarshal_readobjectfromfile fd)
 
   let load = read_object_from_file
 
   let read_last_object_from_file file =
-    let fd = Unix.descr_of_in_channel file in
+    let fd = Pytypes.file_map Unix.descr_of_in_channel file in
     check_not_null (Pywrappers.pymarshal_readlastobjectfromfile fd)
 
   let read_object_from_string s len =
@@ -1622,7 +1624,7 @@ module Marshal = struct
   let loads s = read_object_from_string s (string_length s)
 
   let write_object_to_file v file version =
-    let fd = Unix.descr_of_out_channel file in
+    let fd = Pytypes.file_map Unix.descr_of_out_channel file in
     assert_int_success (Pywrappers.pymarshal_writeobjecttofile v fd version)
 
   let dump ?(version = version ()) v file =

@@ -1,7 +1,8 @@
 let tests = Queue.create ()
 
-let add_test ~title f =
-  Queue.add (title, f) tests
+let add_test ~title ?(enabled = true) f =
+  if enabled then
+    Queue.add (title, f) tests
 
 let failed = ref false
 
@@ -175,11 +176,26 @@ except Exception as err:
 
 let () =
   add_test
-    ~title:"run file"
+    ~title:"run file with filename"
     (fun () ->
       let result = Py.Utils.with_temp_file "print(\"Hello, world!\")"
         begin fun file channel ->
-         Py.Run.load channel "test.py"
+         Py.Run.load (Py.Filename file) "test.py"
+        end in
+      if result <> Py.none then
+        let result_str = Py.Object.to_string result in
+        let msg = Printf.sprintf "Result None expected but got %s" result_str in
+        failwith msg
+    )
+
+let () =
+  add_test
+    ~title:"run file with channel"
+    ~enabled:Sys.unix
+    (fun () ->
+      let result = Py.Utils.with_temp_file "print(\"Hello, world!\")"
+        begin fun file channel ->
+         Py.Run.load (Py.Channel channel) "test.py"
         end in
       if result <> Py.none then
         let result_str = Py.Object.to_string result in

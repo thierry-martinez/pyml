@@ -13,6 +13,8 @@
 #include <unistd.h>
 #include <errno.h>
 
+static FILE *(*Python__Py_fopen)(const char *pathname, const char *mode);
+
 #ifdef _WIN32
 #include <windows.h>
 
@@ -105,6 +107,30 @@ file_of_file_descr(value file_descr, const char *mode)
     CAMLreturnT(FILE *, result);
 }
 #endif
+
+static FILE *
+open_file(value file, const char *mode)
+{
+    CAMLparam1(file);
+    FILE *result;
+    if (Tag_val(file) == 0) {
+        result = Python__Py_fopen(String_val(Field(file, 0)), mode);
+    }
+    else {
+        result = file_of_file_descr(Field(file, 0), mode);
+    }
+    CAMLreturnT(FILE *, result);
+}
+
+static void
+close_file(value file, FILE *file_struct)
+{
+    CAMLparam1(file);
+    if (Tag_val(file) == 1) {
+        fclose(file_struct);
+    }
+    CAMLreturn0;
+}
 
 /* The following definitions are extracted and simplified from
 #include <Python.h>
@@ -592,6 +618,7 @@ py_load_library(value filename_ocaml)
         Python_PyString_AsStringAndSize = resolve("PyString_AsStringAndSize");
     }
     Python_PyMem_Free = resolve("PyMem_Free");
+    Python__Py_fopen = resolve("_Py_fopen");
     if (find_symbol(library, "PyUnicodeUCS2_AsEncodedString")) {
         ucs = UCS2;
     }
