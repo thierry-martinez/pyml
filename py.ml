@@ -115,6 +115,12 @@ let run_command command read_stderr =
         Printf.sprintf "Py.run_command: unable to read the result of '%s'"
           command in
       failwith msg in
+  let result =
+    let length = String.length result in
+    if String.sub result (length - 1) 1 = "\r" then
+      String.sub result 0 (length - 1)
+    else
+      result in
   if Unix.close_process_full (input, output, error) <> Unix.WEXITED 0 then
     begin
       let msg = Printf.sprintf "Py.run_command: unable to run '%s'" command in
