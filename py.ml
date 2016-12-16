@@ -276,9 +276,15 @@ let initialize ?(interpreter = "python") ?version () =
   let python_full_path =
     if String.contains interpreter '/' then Some interpreter
     else
-      let which =
-        if Sys.win32 then "where"
-        else "which" in
+      let which, interpreter =
+        if Sys.win32 then
+          let interpreter =
+            if Filename.check_suffix interpreter ".exe" then
+              interpreter
+            else
+              interpreter ^ ".exe" in
+          "where", interpreter
+        else "which", interpreter in
       let which_python = Printf.sprintf "%s \"%s\"" which interpreter in
       try Some (run_command which_python false)
       with Failure _ -> None in
