@@ -203,15 +203,6 @@ let find_library_path version_major version_minor =
       (library_paths, [library_filename])
 
 let initialize_version_value interpreter =
-  begin
-    let python_full_path =
-      if String.contains interpreter '/' then interpreter
-      else
-        let which_python = Printf.sprintf "which \"%s\"" interpreter in
-        run_command which_python false in
-    let pythonhome = parent_dir python_full_path in
-    init_pythonhome pythonhome
-  end;
   let version_line =
     let python_version_cmd = Printf.sprintf "\"%s\" --version" interpreter in
     try run_command python_version_cmd false
@@ -239,14 +230,31 @@ let find_library () =
       | filename :: others ->
           begin
             try
-              init_pythonhome (parent_dir filename);
-              load_library (Some filename)
+              load_library (Some filename);
+              init_pythonhome (parent_dir filename)
             with Failure _ -> try_load_library others
           end in
     try_load_library library_filenames
 
-let initialize_library () =
+let initialize_library python_full_path =
+  begin
+    match !python_home with
+      None -> ()
+    | Some s -> init_pythonhome s
+  end;
   find_library ();
+  begin
+    match python_full_path with
+      None -> ()
+    | Some python_full_path' ->
+        let pythonhome =
+          let dirname = Filename.dirname python_full_path' in
+          if Filename.basename dirname = "bin" then
+            Filename.concat dirname Filename.parent_dir_name
+          else
+            dirname in
+        init_pythonhome pythonhome;
+  end;
   set_program_name !program_name;
   begin
     match !python_home with
@@ -259,15 +267,27 @@ let get_version = Pywrappers.py_getversion
 let initialize ?(interpreter = "python") ?version () =
   if !initialized then
     failwith "Py.initialize: already initialized";
+  let python_full_path =
+    if String.contains interpreter '/' then Some interpreter
+    else
+      let which =
+        if Sys.win32 then "where"
+        else "which" in
+      let which_python = Printf.sprintf "%s \"%s\"" which interpreter in
+      try Some (run_command which_python false)
+      with Failure _ -> None in
   begin
     match version with
       Some (version_major, version_minor) ->
         version_major_value := version_major;
         version_minor_value := version_minor
     | _ ->
-        initialize_version_value interpreter;
+        match python_full_path with
+          None ->
+            failwith "No Python version given and no Python interpreter found"
+        | Some python_full_path' -> initialize_version_value python_full_path'
   end;
-  initialize_library ();
+  initialize_library python_full_path;
   let version = get_version () in
   let (version_major, version_minor) = extract_version_major_minor version in
   if version_major != !version_major_value ||
@@ -1490,12 +1510,12 @@ module Run = struct
   let any_file file filename =
     assert_int_success
       (Pywrappers.pyrun_anyfileexflags
-         (Pytypes.file_map Unix.descr_of_in_channel file) filename 0 None)
+         (Pytypes.file_map Unix.descr_of_in_channel file) filename 1 None)
 
   let file file filename start globals locals =
     let fd = Pytypes.file_map Unix.descr_of_in_channel file in
     check_not_null
-      (Pywrappers.pyrun_fileexflags fd filename start globals locals 0 None)
+      (Pywrappers.pyrun_fileexflags fd filename start globals locals 1 None)
 
   let interactive_one channel name =
     let fd = Channel (Unix.descr_of_in_channel channel) in
@@ -1507,7 +1527,7 @@ module Run = struct
 
   let simple_file channel name =
     let fd = Pytypes.file_map Unix.descr_of_in_channel channel in
-    assert_int_success (Pywrappers.pyrun_simplefileexflags fd name 0 None)
+    assert_int_success (Pywrappers.pyrun_simplefileexflags fd name 1 None)
 
   let simple_string string =
     Pywrappers.pyrun_simplestringflags string None = 0
