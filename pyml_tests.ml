@@ -306,6 +306,7 @@ let () =
 let () =
   add_test
     ~title:"interactive loop"
+    ~enabled:Sys.unix
     (fun () ->
       Py.Utils.with_stdin_from_string "42"
         Py.Run.interactive ();
