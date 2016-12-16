@@ -314,6 +314,7 @@ let () =
 let () =
   add_test
     ~title:"IPython"
+    ~enabled:Sys.unix
     (fun () ->
       Py.Utils.with_stdin_from_string "exit"
         Py.Run.ipython ())
