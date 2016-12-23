@@ -191,7 +191,7 @@ let () =
 let () =
   add_test
     ~title:"run file with channel"
-    ~enabled:Sys.unix
+    ~enabled:(Sys.os_type = "Unix")
     (fun () ->
       let result = Py.Utils.with_temp_file "print(\"Hello, world!\")"
         begin fun file channel ->
@@ -306,7 +306,7 @@ let () =
 let () =
   add_test
     ~title:"interactive loop"
-    ~enabled:Sys.unix
+    ~enabled:(Sys.os_type = "Unix")
     (fun () ->
       Py.Utils.with_stdin_from_string "42"
         Py.Run.interactive ();
@@ -315,7 +315,7 @@ let () =
 let () =
   add_test
     ~title:"IPython"
-    ~enabled:Sys.unix
+    ~enabled:(Sys.os_type = "Unix")
     (fun () ->
       Py.Utils.with_stdin_from_string "exit"
         Py.Run.ipython ())
