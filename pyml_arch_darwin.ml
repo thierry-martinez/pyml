@@ -3,4 +3,8 @@ let library_patterns: (int -> int -> string, unit, string) format list =
 
 let library_suffix = ".dylib"
 
+let ensure_executable_suffix executable = executable
+
+let which = "which"
+
 external fd_of_int: int -> Unix.file_descr = "%identity"
