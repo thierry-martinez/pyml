@@ -510,6 +510,7 @@ assert_initialized() {
 static void
 assert_python2() {
     if (version_major != 2) {
+        assert_initialized();
         failwith("Python 2 needed");
     }
 }
@@ -517,6 +518,7 @@ assert_python2() {
 static void
 assert_ucs2() {
     if (ucs != UCS2) {
+        assert_initialized();
         failwith("Python with UCS2 needed");
     }
 }
@@ -524,6 +526,7 @@ assert_ucs2() {
 static void
 assert_ucs4() {
     if (ucs != UCS4) {
+        assert_initialized();
         failwith("Python with UCS4 needed");
     }
 }
@@ -531,6 +534,7 @@ assert_ucs4() {
 static void
 assert_python3() {
     if (version_major != 3) {
+        assert_initialized();
         failwith("Python 3 needed");
     }
 }
@@ -620,6 +624,7 @@ py_finalize_library(value unit)
         close_library(library);
     }
     version_major = 0;
+    ucs = UCS_NONE;
     CAMLreturn(Val_unit);
 }
 
