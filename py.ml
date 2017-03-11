@@ -18,8 +18,10 @@ external pynone: unit -> pyobject = "PyNone_wrapper"
 external pytrue: unit -> pyobject = "PyTrue_wrapper"
 external pyfalse: unit -> pyobject = "PyFalse_wrapper"
 external pytuple_empty: unit -> pyobject = "PyTuple_Empty_wrapper"
-external pyobject_callfunctionobjargs: pyobject -> (pyobject array) -> pyobject
+external pyobject_callfunctionobjargs: pyobject -> pyobject array -> pyobject
     = "PyObject_CallFunctionObjArgs_wrapper"
+external pyobject_callmethodobjargs: pyobject -> pyobject -> pyobject array
+  -> pyobject = "PyObject_CallMethodObjArgs_wrapper"
 external pyerr_fetch_internal: unit -> pyobject * pyobject * pyobject
     = "PyErr_Fetch_wrapper"
 external pystring_asstringandsize: pyobject -> string option
@@ -540,6 +542,7 @@ module Type = struct
     | Dict
     | Float
     | List
+    | Int
     | Long
     | Module
     | None
@@ -565,6 +568,7 @@ module Type = struct
     | Dict -> "Dict"
     | Float -> "Float"
     | List -> "List"
+    | Int -> "Int"
     | Long -> "Long"
     | Module -> "Module"
     | None -> "None"
@@ -589,44 +593,6 @@ module Type = struct
     failwith
       (Printf.sprintf "Type mismatch: %s expected. Got: %s (%s)"
          t (name (get o)) (string_of_repr o))
-end
-
-module Iter = struct
-  let check o = Type.get o = Type.Iter
-
-  let next i = option (Pywrappers.pyiter_next i)
-
-  let rec iter f i =
-    match next i with
-      None -> ()
-    | Some item ->
-        f item;
-        iter f i
-
-  let rec fold_left f v i =
-    match next i with
-      None -> v
-    | Some item -> fold_left f (f v item) i
-
-  let rec fold_right f i v =
-    match next i with
-      None -> v
-    | Some item -> f item (fold_right f i v)
-
-  let to_list i = List.rev (fold_left (fun list item -> item :: list) [] i)
-
-  let to_list_map f i =
-    List.rev (fold_left (fun list item -> f item :: list) [] i)
-
-  let rec for_all p i =
-    match next i with
-      None -> true
-    | Some item -> p item && for_all p i
-
-  let rec exists p i =
-    match next i with
-      None -> false
-    | Some item -> p item || exists p i
 end
 
 let find_exception option =
@@ -701,6 +667,28 @@ module Long = struct
     let result = Pywrappers.pylong_aslong v in
     check_error ();
     result
+
+  let of_int v = of_int64 (Int64.of_int v)
+
+  let to_int v = Int64.to_int (to_int64 v)
+end
+
+module Int = struct
+  let check o = Type.get o = Type.Long
+
+  let of_int64 v =
+    if version_major () >= 3 then
+      Long.of_int64 v
+    else
+      check_not_null (Pywrappers.Python2.pyint_fromlong v)
+
+  let to_int64 v =
+    if version_major () >= 3 then
+      Long.to_int64 v
+    else
+      let result = Pywrappers.Python2.pyint_aslong v in
+      check_error ();
+      result
 
   let of_int v = of_int64 (Int64.of_int v)
 
@@ -992,6 +980,7 @@ module Err = struct
   | TypeError
   | ValueError
   | ZeroDivisionError
+  | StopIteration
 
   let clear () =
     Pywrappers.pyerr_clear ();
@@ -1072,7 +1061,8 @@ module Err = struct
       | SystemExit -> Pywrappers.pyexc_systemerror ()
       | TypeError -> Pywrappers.pyexc_typeerror ()
       | ValueError -> Pywrappers.pyexc_valueerror ()
-      | ZeroDivisionError -> Pywrappers.pyexc_zerodivisionerror () in
+      | ZeroDivisionError -> Pywrappers.pyexc_zerodivisionerror ()
+      | StopIteration -> Pywrappers.pyexc_stopiteration () in
     set_object exc (String.of_string msg)
 end
 
@@ -1165,6 +1155,15 @@ module Object = struct
   let format fmt v = Format.pp_print_string fmt (to_string v)
 
   let format_repr fmt v = Format.pp_print_string fmt (string_of_repr v)
+
+  let call_function_obj_args callable args =
+    pyobject_callfunctionobjargs callable args
+
+  let call_method_obj_args obj name args =
+    pyobject_callmethodobjargs obj name args
+
+  let call_method obj name args =
+    call_method_obj_args obj (String.of_string name) args
 end
 
 let exception_printer exn =
@@ -1176,6 +1175,58 @@ let exception_printer exn =
   | _ -> None
 
 let () = Printexc.register_printer exception_printer
+
+let class_init = ref (fun _ -> assert false)
+
+module Iter = struct
+  let check o = Type.get o = Type.Iter
+
+  let next i = option (Pywrappers.pyiter_next i)
+
+  let rec iter f i =
+    match next i with
+      None -> ()
+    | Some item ->
+        f item;
+        iter f i
+
+  let rec fold_left f v i =
+    match next i with
+      None -> v
+    | Some item -> fold_left f (f v item) i
+
+  let rec fold_right f i v =
+    match next i with
+      None -> v
+    | Some item -> f item (fold_right f i v)
+
+  let to_list i = List.rev (fold_left (fun list item -> item :: list) [] i)
+
+  let to_list_map f i =
+    List.rev (fold_left (fun list item -> f item :: list) [] i)
+
+  let rec for_all p i =
+    match next i with
+      None -> true
+    | Some item -> p item && for_all p i
+
+  let rec exists p i =
+    match next i with
+      None -> false
+    | Some item -> p item || exists p i
+
+  let create next =
+    let next_name =
+      if version_major () >= 3 then "__next__"
+      else "next" in
+    let next' tuple =
+      match next () with
+        None -> raise (Err (Err.StopIteration, ""))
+      | Some item -> item in
+    let methods = [next_name, next'] in
+    Object.call_function_obj_args
+      (!class_init methods (String.of_string "iterator")) [| |]
+end
 
 module Sequence = struct
   let check obj = bool_of_int (Pywrappers.pysequence_check obj)
@@ -1607,6 +1658,8 @@ module Class = struct
       c
 end
 
+let () = class_init := fun methods classname -> Class.init ~methods classname
+
 module List = struct
   include Sequence
 
@@ -1676,6 +1729,39 @@ module Marshal = struct
 
   let dumps ?(version = version ()) v =
     String.to_string (write_object_to_string v version)
+end
+
+module Array = struct
+  let of_indexed_structure getter setter length =
+    let len tuple = Int.of_int length in
+    let getitem tuple =
+      let (self, key) = Tuple.to_tuple2 tuple in
+      getter (Long.to_int key) in
+    let setitem tuple =
+      let (self, key, value) = Tuple.to_tuple3 tuple in
+      setter (Long.to_int key) value;
+      none in
+    let iter tuple =
+      let cursor = ref 0 in
+      let next () =
+        let index = !cursor in
+        if index < length then
+          begin
+            cursor := succ index;
+            Some (getter index)
+          end
+        else
+          None in
+      Iter.create next in
+    let methods =
+      ["__len__", len; "__getitem__", getitem; "__setitem__", setitem;
+       "__iter__", iter] in
+    Object.call_function_obj_args
+      (Class.init ~methods (String.of_string "array")) [| |]
+
+  let of_array getter setter a =
+    of_indexed_structure (fun i -> getter a.(i)) (fun i v -> a.(i) <- setter v)
+      (Array.length a)
 end
 
 let set_argv argv =

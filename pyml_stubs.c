@@ -159,6 +159,7 @@ typedef struct {
     int cf_flags;
 } PyCompilerFlags;
 
+#define Py_TPFLAGS_INT_SUBCLASS         (1L<<23)
 #define Py_TPFLAGS_LONG_SUBCLASS        (1UL << 24)
 #define Py_TPFLAGS_LIST_SUBCLASS        (1UL << 25)
 #define Py_TPFLAGS_TUPLE_SUBCLASS       (1UL << 26)
@@ -225,6 +226,8 @@ static void *(*Python_PyCapsule_GetPointer)(PyObject *, const char *);
 
 /* Hack for multi-arguments */
 static PyObject *(*Python_PyObject_CallFunctionObjArgs)(PyObject *, ...);
+static PyObject *(*Python_PyObject_CallMethodObjArgs)(
+  PyObject *, PyObject *, ...);
 
 /* Wrapped by PyErr_Fetch_wrapper */
 static void (*Python_PyErr_Fetch)(PyObject **, PyObject **, PyObject **);
@@ -582,6 +585,8 @@ py_load_library(value filename_ocaml)
     Python_PyCapsule_GetPointer = resolve("PyCapsule_GetPointer");
     Python_PyObject_CallFunctionObjArgs =
         resolve("PyObject_CallFunctionObjArgs");
+    Python_PyObject_CallMethodObjArgs =
+        resolve("PyObject_CallMethodObjArgs");
     Python_PyErr_Fetch = resolve("PyErr_Fetch");
     Python_PyErr_NormalizeException = resolve("PyErr_NormalizeException");
     Python__PyObject_NextNotImplemented =
@@ -692,6 +697,7 @@ enum pytype_labels {
     Dict,
     Float,
     List,
+    Int,
     Long,
     Module,
     NoneType,
@@ -740,6 +746,9 @@ pytype(value object_ocaml)
     else if (flags & Py_TPFLAGS_LIST_SUBCLASS) {
         result = List;
     }
+    else if (flags & Py_TPFLAGS_INT_SUBCLASS) {
+        result = Int;
+    }
     else if (flags & Py_TPFLAGS_LONG_SUBCLASS) {
         result = Long;
     }
@@ -782,7 +791,7 @@ PyObject_CallFunctionObjArgs_wrapper(
     mlsize_t argument_count = Wosize_val(arguments_ocaml);
     switch (argument_count) {
     case 0:
-        result = Python_PyObject_CallFunctionObjArgs(callable);
+        result = Python_PyObject_CallFunctionObjArgs(callable, NULL);
         break;
     case 1:
         result = Python_PyObject_CallFunctionObjArgs
@@ -827,6 +836,70 @@ PyObject_CallFunctionObjArgs_wrapper(
     default:
         fprintf(stderr,
                 "PyObject_CallFunctionObjArgs_wrapper not implemented for more "
+                "than 5 arguments\n");
+        exit(EXIT_FAILURE);
+    }
+
+    CAMLreturn(pywrap(result, true));
+}
+
+CAMLprim value
+PyObject_CallMethodObjArgs_wrapper(
+    value object_ocaml, value name_ocaml, value arguments_ocaml)
+{
+    CAMLparam3(object_ocaml, name_ocaml, arguments_ocaml);
+    assert_initialized();
+    PyObject *object = pyunwrap(object_ocaml);
+    PyObject *name = pyunwrap(name_ocaml);
+    PyObject *result;
+    mlsize_t argument_count = Wosize_val(arguments_ocaml);
+    switch (argument_count) {
+    case 0:
+        result = Python_PyObject_CallMethodObjArgs(object, name);
+        break;
+    case 1:
+        result = Python_PyObject_CallMethodObjArgs
+            (object, name,
+             pyunwrap(Field(arguments_ocaml, 0)),
+             NULL);
+        break;
+    case 2:
+        result = Python_PyObject_CallMethodObjArgs
+            (object, name,
+             pyunwrap(Field(arguments_ocaml, 0)),
+             pyunwrap(Field(arguments_ocaml, 1)),
+             NULL);
+        break;
+    case 3:
+        result = Python_PyObject_CallMethodObjArgs
+            (object, name,
+             pyunwrap(Field(arguments_ocaml, 0)),
+             pyunwrap(Field(arguments_ocaml, 1)),
+             pyunwrap(Field(arguments_ocaml, 2)),
+             NULL);
+        break;
+    case 4:
+        result = Python_PyObject_CallMethodObjArgs
+            (object, name,
+             pyunwrap(Field(arguments_ocaml, 0)),
+             pyunwrap(Field(arguments_ocaml, 1)),
+             pyunwrap(Field(arguments_ocaml, 2)),
+             pyunwrap(Field(arguments_ocaml, 3)),
+             NULL);
+        break;
+    case 5:
+        result = Python_PyObject_CallMethodObjArgs
+            (object, name,
+             pyunwrap(Field(arguments_ocaml, 0)),
+             pyunwrap(Field(arguments_ocaml, 1)),
+             pyunwrap(Field(arguments_ocaml, 2)),
+             pyunwrap(Field(arguments_ocaml, 3)),
+             pyunwrap(Field(arguments_ocaml, 4)),
+             NULL);
+        break;
+    default:
+        fprintf(stderr,
+                "PyObject_CallMethodObjArgs_wrapper not implemented for more "
                 "than 5 arguments\n");
         exit(EXIT_FAILURE);
     }

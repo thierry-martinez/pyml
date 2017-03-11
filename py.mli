@@ -193,6 +193,18 @@ module Object: sig
       [Format.pp_print_string fmt (Py.Object.string_of_repr v)].
       Can be used as printer for the top-level:
       [#install_printer Py.Object.format_repr]. *)
+
+  val call_function_obj_args: t -> t array -> t
+  (** Wrapper for
+      {{:https://docs.python.org/3/c-api/object.html#c.PyObject_CallFunctionObjArgs} PyObject_CallFunctionObjArgs} *)
+
+  val call_method_obj_args: t -> t -> t array -> t
+  (** Wrapper for
+      {{:https://docs.python.org/3/c-api/object.html#c.PyObject_CallMethodObjArgs} PyObject_CallMethodObjArgs} *)  
+
+  val call_method: t -> string -> t array -> t
+  (** [Py.Object.call_method o m args] is equivalent to
+      [Py.Object.call_method_obj_args o (Py.String.of_string m) args]. *)
 end
 
 exception E of Object.t * Object.t
@@ -363,7 +375,7 @@ end
 (** Interface for Python values of type [Long]. *)
 module Long: sig
   val check: Object.t -> bool
-  (** [check o] returns [true] if [o] is a Python integer/long. *)
+  (** [check o] returns [true] if [o] is a Python long. *)
 
   val of_int64: int64 -> Object.t
   (** [of_int i] returns the Python long with the value [i].
@@ -383,6 +395,34 @@ module Long: sig
 
   val to_int: Object.t -> int
   (** [to_int o] takes a Python long [o] as arguments
+      and returns the corresponding integer value.
+      A Python exception ([Py.E _]) is raised if [o] is not a long.
+      We have [to_int o = Int64.to_int (to_int 64 o)]. *)
+end
+
+(** Interface for Python values of type [Int] if Python 2, [Long] if Python 3. *)
+module Int: sig
+  val check: Object.t -> bool
+  (** [check o] returns [true] if [o] is a Python int. *)
+
+  val of_int64: int64 -> Object.t
+  (** [of_int i] returns the Python int with the value [i].
+      Wrapper for
+      {{: https://docs.python.org/2/c-api/int.html#c.PyInt_FromLong} PyInt_FromLong}. *)
+
+  val to_int64: Object.t -> int64
+  (** [to_int o] takes a Python int [o] as arguments
+      and returns the corresponding 64-bit integer value.
+      A Python exception ([Py.E _]) is raised if [o] is not a long.
+      Wrapper for
+      {{: https://docs.python.org/2/c-api/int.html#c.PyInt_AsLong} PyInt_AsLong}. *)
+
+  val of_int: int -> Object.t
+  (** [of_int i] returns the Python int with the value [i].
+      We have [of_int i = of_int64 (Int64.of_int i)]. *)
+
+  val to_int: Object.t -> int
+  (** [to_int o] takes a Python int [o] as arguments
       and returns the corresponding integer value.
       A Python exception ([Py.E _]) is raised if [o] is not a long.
       We have [to_int o = Int64.to_int (to_int 64 o)]. *)
@@ -514,6 +554,7 @@ module Err: sig
     | TypeError
     | ValueError
     | ZeroDivisionError
+    | StopIteration
 
   val clear: unit -> unit
   (** Wrapper for
@@ -715,6 +756,9 @@ module Iter: sig
   val exists: (Object.t -> bool) -> Object.t -> bool
   (** [exists p i] checks if [p] holds for at least one of the remaining values
       from the iteration [i]. *)
+
+  val create: (unit -> Object.t option) -> Object.t
+  (** [create next] returns an iterator that calls [next]. *)
 end
 
 (** Interface for Python values of type [List]. *)
@@ -1435,6 +1479,7 @@ module Type: sig
     | Dict
     | Float
     | List
+    | Int
     | Long
     | Module
     | None
@@ -1520,6 +1565,23 @@ module Marshal: sig
 
   val version: unit -> int
   (** Returns the current file format version number. *)
+end
+
+module Array: sig
+  val of_indexed_structure:
+      (int -> Object.t) -> (int -> Object.t -> unit) -> int -> Object.t
+  (** [Py.Array.of_indexed_structure getter setter length] returns a Python
+      array-like structure [a] of length [length], such that reading [a[i]]
+      returns [getter i] and [a[i] = v] calls [setter i v].
+      To make the array-like structure read-only,
+      raise an exception in [setter]. *)
+
+  val of_array: ('a -> Object.t) -> (Object.t -> 'a) -> 'a array -> Object.t
+  (** [Py.Array.of_indexed_structure getter setter array] returns a Python
+      array-like structure accessing the elements of [array] via [getter]
+      and [setter].
+      To make the array-like structure read-only,
+      raise an exception in [setter]. *)
 end
 
 val set_argv: string array -> unit
