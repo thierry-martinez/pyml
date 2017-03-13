@@ -239,8 +239,10 @@ let find_library () =
           begin
             try
               load_library (Some filename);
-              init_pythonhome (parent_dir filename)
-            with Failure _ -> try_load_library others
+              if not (Filename.is_implicit filename) then
+                init_pythonhome (parent_dir filename)
+            with Failure _ ->
+              try_load_library others
           end in
     try_load_library library_filenames
 
