@@ -1,4 +1,7 @@
 OCAMLFIND=ocamlfind
+INSTALL=install
+INSTALL_PROGRAM=$(INSTALL)
+bindir=$(PREFIX)/bin
 
 HAVE_OCAMLFIND:=$(shell \
 	if $(OCAMLFIND) query -help &>/dev/null; then \
@@ -14,6 +17,7 @@ ifneq ($(HAVE_OCAMLFIND),no)
 		OCAMLOPTEXE=$(OCAMLFIND) ocamlopt
 	endif
 	OCAMLMKLIB=$(OCAMLFIND) ocamlmklib
+	OCAMLMKTOP=$(OCAMLFIND) ocamlmktop
 	OCAMLDEP=$(OCAMLFIND) ocamldep
 	OCAMLDOC=$(OCAMLFIND) ocamldoc
 else
@@ -37,6 +41,7 @@ else
 		)
 	endif
 	OCAMLMKLIB=ocamlmklib
+	OCAMLMKTOP=ocamlmktop
 	OCAMLDEP=ocamldep
 	OCAMLDOC=ocamldoc
 endif
@@ -90,6 +95,12 @@ else
 	$(error Unsupported OS $(ARCH)
 endif
 
+INSTALL_FILES=\
+	py.mli $(MODULES:=.cmi) $(MODULES:=.cmx) \
+	pyml.cma pyml.cmxa pyml.cmxs pyml.a \
+	libpyml_stubs.a dllpyml_stubs.so \
+	META
+
 .PHONY: all
 all: all.bytecode $(ALLOPT)
 	@echo The py.ml library is compiled.
@@ -116,7 +127,8 @@ endif
 	@echo make pymltop: build the toplevel
 	@echo make HAVE_OCAMLFIND=no : disable ocamlfind
 	@echo make HAVE_OCAMLOPT=no : disable ocamlopt
-	@echo "make OCAMLC|OCAMLOPT|OCAMLMKLIB|OCAMLDEP|OCAMLDOC=... :"
+	@echo \
+"make OCAMLC|OCAMLOPT|OCAMLMKLIB|OCAMLMKTOP|OCAMLDEP|OCAMLDOC=... :"
 	@echo "  set paths to OCaml tools"
 	@echo make OCAMLCFLAGS=... : set flags to OCaml compiler for compiling
 	@echo make OCAMLLDFLAGS=... : set flags to OCaml compiler for linking
@@ -141,16 +153,17 @@ tests.native: pyml_tests.native
 	./pyml_tests.native
 
 .PHONY: install
-install:
+install: $(INSTALL_FILES)
 ifeq ($(HAVE_OCAMLFIND),no)
 	$(error ocamlfind is needed for 'make install')
 endif
-	$(OCAMLFIND) install pyml \
-		py.mli \
-		$(MODULES:=.cmi) $(MODULES:=.cmx) \
-		pyml.cma pyml.cmxa pyml.cmxs pyml.a \
-		libpyml_stubs.a dllpyml_stubs.so \
-		META
+	$(OCAMLFIND) install pyml $(INSTALL_FILES)
+	$(INSTALL_PROGRAM) pymltop $(bindir)/pymltop
+
+.PHONY: uninstall
+uninstall:
+	$(OCAMLFIND) remove pyml
+	- rm $(bindir)/pymltop
 
 .PHONY: clean
 clean:
@@ -243,4 +256,4 @@ libpyml_stubs.a: pyml_stubs.o
 	$(OCAMLMKLIB) -o pyml_stubs $<
 
 pymltop: pyml.cma
-	ocamlmktop -o $@ unix.cma $<
+	$(OCAMLMKTOP) -o $@ unix.cma $<

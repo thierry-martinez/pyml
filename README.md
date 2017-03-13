@@ -36,3 +36,11 @@ Bindings are split in three modules:
   conventions of the C bindings for Python. Submodules
   ``Pywrappers.Python2`` and ``Pywrappers.Python3`` contain version-specific
   bindings.
+
+
+Custom top-level for OPAM users
+-------------------------------
+
+``pymltop`` is installed by ``opam install pyml``.
+You should execute first the directive ``#require "pyml"`` to get the library in
+path.
