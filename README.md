@@ -38,9 +38,17 @@ Bindings are split in three modules:
   bindings.
 
 
-Custom top-level for OPAM users
--------------------------------
+Custom top-level
+----------------
 
-``pymltop`` is installed by ``opam install pyml``.
-You should execute first the directive ``#require "pyml"`` to get the library in
+A custom top-level with the C bindings can be compiled by make pymltop.
+
+*For OPAM users:* pymltop is installed by default by opam install pyml. You
+should execute first the directive ``#require "pyml"`` to get the library in
 path.
+
+A printer for Python values can be registered by
+``#install_printer Py.Object.format_repr``
+or
+``#install_printer Py.Object.format``
+(the former will print valid Python values, the latter will pretty-print values without quoting).
