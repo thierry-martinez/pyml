@@ -179,6 +179,7 @@ clean:
 	rm -f generate pyml_tests pyml_tests.bytecode
 	rm -f .depend
 	rm -rf doc
+	rm -f pymltop
 
 .PHONY: tarball
 tarball:
