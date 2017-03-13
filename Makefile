@@ -153,7 +153,7 @@ tests.native: pyml_tests.native
 	./pyml_tests.native
 
 .PHONY: install
-install: $(INSTALL_FILES)
+install: $(INSTALL_FILES) pymltop
 ifeq ($(HAVE_OCAMLFIND),no)
 	$(error ocamlfind is needed for 'make install')
 endif
