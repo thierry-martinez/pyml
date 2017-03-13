@@ -11,6 +11,14 @@ HAVE_OCAMLFIND:=$(shell \
 	fi \
 )
 
+HAVE_UTOP:=$(shell \
+	if $(OCAMLFIND) query utop &>/dev/null; then \
+		echo yes; \
+	else \
+		echo no; \
+	fi \
+)
+
 ifneq ($(HAVE_OCAMLFIND),no)
 	OCAMLC=$(OCAMLFIND) ocamlc
 	ifneq ($(HAVE_OCAMLOPT),no)
@@ -44,6 +52,12 @@ else
 	OCAMLMKTOP=ocamlmktop
 	OCAMLDEP=ocamldep
 	OCAMLDOC=ocamldoc
+endif
+
+ifeq ($(HAVE_UTOP),yes)
+	PYUTOP=pyutop
+else
+	PYUTOP=
 endif
 
 ifeq ($(OCAMLOPTEXE),)
@@ -110,6 +124,9 @@ ifneq ($(HAVE_OCAMLFIND),no)
 	@echo Run \`make install\' to install the library via ocamlfind.
 endif
 	@echo Run \`make pymltop\' to build the toplevel.
+ifneq ($(HAVE_UTOP),no)
+	@echo Run \`make pymlutop\' to build the utop toplevel.
+endif
 
 .PHONY: help
 help:
@@ -125,6 +142,9 @@ endif
 	@echo make tests.bytecode : run only the bytecode version of the tests
 	@echo make tests.native : run only the native version of the tests
 	@echo make pymltop: build the toplevel
+ifneq ($(HAVE_UTOP),no)
+	@echo make pymlutop: build the utop toplevel.
+endif
 	@echo make HAVE_OCAMLFIND=no : disable ocamlfind
 	@echo make HAVE_OCAMLOPT=no : disable ocamlopt
 	@echo \
@@ -153,12 +173,15 @@ tests.native: pyml_tests.native
 	./pyml_tests.native
 
 .PHONY: install
-install: $(INSTALL_FILES) pymltop
+install: $(INSTALL_FILES) pymltop $(PYMLUTOP)
 ifeq ($(HAVE_OCAMLFIND),no)
 	$(error ocamlfind is needed for 'make install')
 endif
 	$(OCAMLFIND) install pyml $(INSTALL_FILES)
 	$(INSTALL_PROGRAM) pymltop $(bindir)/pymltop
+ifneq ($(HAVE_UTOP),no)
+	$(INSTALL_PROGRAM) pymlutop $(bindir)/pymlutop
+endif
 
 .PHONY: uninstall
 uninstall:
@@ -179,7 +202,7 @@ clean:
 	rm -f generate pyml_tests pyml_tests.bytecode
 	rm -f .depend
 	rm -rf doc
-	rm -f pymltop
+	rm -f pymltop pymlutop pymlutop.cmo
 
 .PHONY: tarball
 tarball:
@@ -258,3 +281,15 @@ libpyml_stubs.a: pyml_stubs.o
 
 pymltop: pyml.cma
 	$(OCAMLMKTOP) -o $@ unix.cma $<
+
+pyutop.cmo: pyutop.ml
+ifeq ($(HAVE_OCAMLFIND),no)
+	$(error ocamlfind is needed for utop)
+endif
+	$(OCAMLC) $(OCAMLCFLAGS) -package utop -c $< -o $@
+
+pymlutop: pyml.cma pyutop.cmo
+ifeq ($(HAVE_OCAMLFIND),no)
+	$(error ocamlfind is needed for utop)
+endif
+	$(OCAMLMKTOP) -o $@ -thread -linkpkg -package utop $^

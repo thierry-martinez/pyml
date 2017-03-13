@@ -41,7 +41,7 @@ Bindings are split in three modules:
 Custom top-level
 ----------------
 
-A custom top-level with the C bindings can be compiled by make pymltop.
+A custom top-level with the C bindings can be compiled by ``make pymltop``.
 
 *For OPAM users:* pymltop is installed by default by ``opam install pyml``.
 You should execute first the directive ``#require "pyml"`` to get the library
@@ -52,3 +52,5 @@ A printer for Python values can be registered by
 or
 ``#install_printer Py.Object.format``
 (the former will print valid Python values, the latter will pretty-print values without quoting).
+
+If you have ``utop`` and ``ocamlfind``, you can ``make pymlutop``.
