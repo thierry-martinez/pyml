@@ -1755,9 +1755,12 @@ module Array = struct
         else
           None in
       Iter.create next in
+    let repr tuple =
+      let (self) = Tuple.to_tuple1 tuple in
+      Object.repr (Sequence.list self) in
     let methods =
       ["__len__", len; "__getitem__", getitem; "__setitem__", setitem;
-       "__iter__", iter] in
+       "__iter__", iter; "__repr__", repr] in
     Object.call_function_obj_args
       (Class.init ~methods (String.of_string "array")) [| |]
 
