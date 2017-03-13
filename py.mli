@@ -1603,16 +1603,14 @@ module Utils: sig
   val try_finally: ('a -> 'b) -> 'a -> ('c -> unit) -> 'c -> 'b
   (** [try_finally f arg finally finally_arg] calls [f arg], and returns the
       result of [f].
-      [finally finally_arg] is always closed after [f] has been called, even if
+      [finally finally_arg] is always called after [f] has been called, even if
       [f] raises an exception. *)
 
   val read_and_close: in_channel -> ('a -> 'b) -> 'a -> 'b
   (** [read_and_close channel f arg] calls [f arg], and returns the result of
       [f].
       [channel] is always closed after [f] has been called, even if [f] raises
-      an exception.
-      This is an utility function that does not require Python to be
-      initialized. *)
+      an exception. *)
 
   val write_and_close: out_channel -> ('a -> 'b) -> 'a -> 'b
   (** [write_and_close channel f arg] calls [f arg], and returns the result of
@@ -1637,9 +1635,9 @@ module Utils: sig
 
   val with_channel_from_string: string -> (in_channel -> 'a) -> 'a
   (** [with_channel_from_string s f] calls [f in_channel] where [in_channel]
-      is an input channel returning the contents of s. *)
+      is an input channel returning the contents of [s]. *)
 
   val with_stdin_from_string: string -> ('a -> 'b) -> 'a -> 'b
   (** [with_stdin_from_string s f arg] calls [f arg] with the standard input
-      redirected for reading from the contents of s. *)
+      redirected for reading from the contents of [s]. *)
 end
