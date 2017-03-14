@@ -1156,9 +1156,20 @@ module Object_ = struct
 
   external reference_count: pyobject -> int = "pyrefcount"
 
-  let format fmt v = Format.pp_print_string fmt (to_string v)
+  let wrap_exception_msg f v =
+    try
+      f v
+    with E (ty, value) ->
+      Printf.sprintf "[ERROR] %s: %s" (to_string ty) (to_string value)
 
-  let format_repr fmt v = Format.pp_print_string fmt (string_of_repr v)
+  let format fmt v =
+    Format.pp_print_string fmt (wrap_exception_msg to_string v)
+
+  let format_repr fmt v =
+    try
+      Format.pp_print_string fmt (string_of_repr v)
+    with E (_, _) ->
+      format fmt v
 
   let call_function_obj_args callable args =
     check_not_null (pyobject_callfunctionobjargs callable args)
@@ -1252,7 +1263,8 @@ module Sequence = struct
 
   let length s = check_int (Pywrappers.pysequence_length s)
 
-  let list sequence = check_not_null (Pywrappers.pysequence_list sequence)
+  let list sequence =
+    check_not_null (Pywrappers.pysequence_list sequence)
 
   let repeat s count = check_not_null (Pywrappers.pysequence_repeat s count)
 
@@ -1793,6 +1805,15 @@ module Array = struct
   let of_array getter setter a =
     of_indexed_structure (fun i -> getter a.(i)) (fun i v -> a.(i) <- setter v)
       (Array.length a)
+
+  let numpy_api () =
+    let numpy = Import.import_module "numpy.core.multiarray" in
+    Object.get_attr_string numpy "_ARRAY_API"
+
+  external pyarray_of_float_array: Object.t -> float array -> Object.t =
+    "pyarray_of_float_array_wrapper"
+
+  let numpy a = check_not_null (pyarray_of_float_array (numpy_api ()) a)
 end
 
 let set_argv argv =

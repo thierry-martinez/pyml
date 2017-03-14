@@ -219,10 +219,11 @@ static library_t library;
 static PyObject *(*Python_PyCFunction_NewEx)
 (PyMethodDef *, PyObject *, PyObject *);
 
-/* Wrapped by closure and capsuble */
+/* Wrapped by closure and capsule */
 static void *(*Python_PyCapsule_New)
-(void *, const char *, PyCapsule_Destructor);
+    (void *, const char *, PyCapsule_Destructor);
 static void *(*Python_PyCapsule_GetPointer)(PyObject *, const char *);
+static void *(*Python2_PyCObject_AsVoidPtr)(PyObject *);
 
 /* Hack for multi-arguments */
 static PyObject *(*Python_PyObject_CallFunctionObjArgs)(PyObject *, ...);
@@ -605,6 +606,9 @@ py_load_library(value filename_ocaml)
     Python_PyMem_Free = resolve("PyMem_Free");
     if (version_major >= 3) {
         Python__Py_fopen = resolve("_Py_fopen");
+    }
+    else {
+        Python2_PyCObject_AsVoidPtr = resolve("PyCObject_AsVoidPtr");
     }
     if (find_symbol(library, "PyUnicodeUCS2_AsEncodedString")) {
         ucs = UCS2;
@@ -1148,6 +1152,75 @@ close_file(value file, FILE *file_struct)
         fclose(file_struct);
     }
     CAMLreturn0;
+}
+
+/* Numpy */
+
+/* from ndarraytypes.h */
+
+enum NPY_TYPES {
+    NPY_BOOL=0,
+                    NPY_BYTE, NPY_UBYTE,
+                    NPY_SHORT, NPY_USHORT,
+                    NPY_INT, NPY_UINT,
+                    NPY_LONG, NPY_ULONG,
+                    NPY_LONGLONG, NPY_ULONGLONG,
+                    NPY_FLOAT, NPY_DOUBLE, NPY_LONGDOUBLE,
+                    NPY_CFLOAT, NPY_CDOUBLE, NPY_CLONGDOUBLE,
+                    NPY_OBJECT=17,
+                    NPY_STRING, NPY_UNICODE,
+                    NPY_VOID,
+                    /*
+                     * New 1.6 types appended, may be integrated
+                     * into the above in 2.0.
+                     */
+                    NPY_DATETIME, NPY_TIMEDELTA, NPY_HALF,
+
+                    NPY_NTYPES,
+                    NPY_NOTYPE,
+                    NPY_CHAR,      /* special flag */
+                    NPY_USERDEF=256,  /* leave room for characters */
+
+                    /* The number of types not including the new 1.6 types */
+                    NPY_NTYPES_ABI_COMPATIBLE=21
+};
+
+#define NPY_ARRAY_C_CONTIGUOUS    0x0001
+#define NPY_ARRAY_ALIGNED         0x0100
+#define NPY_ARRAY_WRITEABLE       0x0400
+
+#define NPY_ARRAY_BEHAVED      (NPY_ARRAY_ALIGNED | \
+                                NPY_ARRAY_WRITEABLE)
+#define NPY_ARRAY_CARRAY       (NPY_ARRAY_C_CONTIGUOUS | \
+                                NPY_ARRAY_BEHAVED)
+
+#define npy_intp int
+
+CAMLprim value
+pyarray_of_float_array_wrapper(value numpy_api_ocaml, value array_ocaml)
+{
+    CAMLparam2(numpy_api_ocaml, array_ocaml);
+    assert_initialized();
+    void **PyArray_API;
+    PyObject *(*PyArray_New)
+        (PyTypeObject *, int, npy_intp *, int, npy_intp *, void *, int, int,
+         PyObject *);
+    PyTypeObject (*PyArray_Type);
+    PyObject *c_api = pyunwrap(numpy_api_ocaml);
+    if (version_major >= 3) {
+        PyArray_API = (void **)Python_PyCapsule_GetPointer(c_api, NULL);
+    }
+    else {
+        PyArray_API = (void **)Python2_PyCObject_AsVoidPtr(c_api);
+    }
+    PyArray_Type = PyArray_API[2];
+    PyArray_New = PyArray_API[93];
+    npy_intp length = Wosize_val(array_ocaml);
+    void *data = (double *) array_ocaml;
+    PyObject *result = PyArray_New(
+        PyArray_Type, 1, &length, NPY_DOUBLE, NULL, data, 0, NPY_ARRAY_CARRAY,
+        NULL);
+    CAMLreturn(pywrap(result, true));
 }
 
 #include "pyml_wrappers.inc"

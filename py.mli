@@ -1612,6 +1612,10 @@ module Array: sig
       and [setter].
       To make the array-like structure read-only,
       raise an exception in [setter]. *)
+
+  val numpy_api: unit -> Object.t
+
+  val numpy: float array -> Object.t
 end
 
 val set_argv: string array -> unit
