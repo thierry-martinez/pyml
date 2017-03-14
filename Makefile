@@ -55,9 +55,9 @@ else
 endif
 
 ifeq ($(HAVE_UTOP),yes)
-	PYUTOP=pyutop
+	PYMLUTOP=pymlutop
 else
-	PYUTOP=
+	PYMLUTOP=
 endif
 
 ifeq ($(OCAMLOPTEXE),)
