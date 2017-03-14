@@ -205,6 +205,14 @@ module Object: sig
   val call_method: t -> string -> t array -> t
   (** [Py.Object.call_method o m args] is equivalent to
       [Py.Object.call_method_obj_args o (Py.String.of_string m) args]. *)
+
+  val call: t -> t -> t -> t
+  (** Wrapper for
+      {{:https://docs.python.org/3/c-api/object.html#c.PyObject_Call} PyObject_Call} *)
+
+  val call_with_kw: t -> t array -> (string * t) list -> t
+  (** [Py.Object.call_with_kw f args kw] is equivalent to
+      [Py.Object.call f (Tuple.of_array args) (List.of_bindings_string kw)]. *)
 end
 
 exception E of Object.t * Object.t
@@ -516,6 +524,28 @@ module Dict: sig
   val bindings: Object.t -> (Object.t * Object.t) list
   (** [bindings o] returns all the pairs [(key, value)] in the Python dictionary
       [o]. *)
+
+  val bindings_map: (Object.t -> 'a) -> (Object.t -> 'b) -> Object.t ->
+    ('a * 'b) list
+  (** [bindings_map fkey fvalue o] returns all the pairs
+      [(fkey key, fvalue value)] in the Python dictionary [o]. *)
+
+  val bindings_string: Object.t -> (string * Object.t) list
+  (** [bindings_string o] returns all the pairs [(key, value)] in the Python
+      dictionary [o]. *)
+
+  val of_bindings: (Object.t * Object.t) list -> Object.t
+  (** [of_bindings b] returns then Python dictionary mapping all the pairs
+      [(key, value)] in [b]. *)
+
+  val of_bindings_map: ('a -> Object.t) -> ('b -> Object.t) -> ('a * 'b) list
+    -> Object.t
+  (** [of_bindings_map fkey fvalue b] returns then Python dictionary mapping
+      all the pairs [(fkey key, fvalue value)] in [b]. *)
+
+  val of_bindings_string: (string * Object.t) list -> Object.t
+  (** [of_bindings_string b] returns then Python dictionary mapping all the
+      pairs [(key, value)] in [b]. *)
 
   val singleton: Object.t -> Object.t -> Object.t
   (** [singleton key value] returns the one-element Python dictionary that maps

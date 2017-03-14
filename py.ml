@@ -519,17 +519,19 @@ end
 
 let object_repr obj = check_not_null (Pywrappers.pyobject_repr obj)
 
-let as_UTF8_string s =
-  let f =
-    match ucs () with
-      UCS2 -> Pywrappers.UCS2.pyunicodeucs2_asutf8string
-    | UCS4 -> Pywrappers.UCS4.pyunicodeucs4_asutf8string
-    | UCSNone ->
-        if !version_major_value >= 3 then
-          Pywrappers.Python3.pyunicode_asutf8string
-        else
-          failwith "Py.as_UTF8_string: unavailable" in
-  check_not_null (f s)
+module String_ = struct
+  let as_UTF8_string s =
+    let f =
+      match ucs () with
+        UCS2 -> Pywrappers.UCS2.pyunicodeucs2_asutf8string
+      | UCS4 -> Pywrappers.UCS4.pyunicodeucs4_asutf8string
+      | UCSNone ->
+          if !version_major_value >= 3 then
+            Pywrappers.Python3.pyunicode_asutf8string
+          else
+            failwith "String.as_UTF8_string: unavailable" in
+    check_not_null (f s)
+end
 
 module Type = struct
   let none = None
@@ -583,7 +585,7 @@ module Type = struct
   let to_string s =
     match get s with
       Bytes -> Some (pystring_asstringandsize s)
-    | Unicode -> Some (pystring_asstringandsize (as_UTF8_string s))
+    | Unicode -> Some (pystring_asstringandsize (String_.as_UTF8_string s))
     | _ -> none
 
   let string_of_repr item =
@@ -803,6 +805,8 @@ type byteorder =
 let string_length = String.length
 
 module String = struct
+  include String_
+
   let check_bytes s =
     Type.get s = Type.Bytes
 
@@ -813,8 +817,6 @@ module String = struct
     match Type.get s with
       Type.Bytes | Type.Unicode -> true
     | _ -> false
-
-  let as_UTF8_string = as_UTF8_string
 
   let decode_UTF8 ?errors ?size s =
     let size' =
@@ -1070,7 +1072,7 @@ end
 
 exception Err of Err.t * string
 
-module Object = struct
+module Object_ = struct
   type t = Pytypes.pyobject
 
   let del_item obj item =
@@ -1159,28 +1161,29 @@ module Object = struct
   let format_repr fmt v = Format.pp_print_string fmt (string_of_repr v)
 
   let call_function_obj_args callable args =
-    pyobject_callfunctionobjargs callable args
+    check_not_null (pyobject_callfunctionobjargs callable args)
 
   let call_method_obj_args obj name args =
-    pyobject_callmethodobjargs obj name args
+    check_not_null (pyobject_callmethodobjargs obj name args)
 
   let call_method obj name args =
     call_method_obj_args obj (String.of_string name) args
+
+  let call callable args kw =
+    check_not_null (Pywrappers.pyobject_call callable args kw)
 end
 
 let exception_printer exn =
   match exn with
     E (ty, value) when !initialized ->
       Some (
-      Printf.sprintf "E (%s, %s)" (Object.to_string ty)
-        (Object.to_string value))
+      Printf.sprintf "E (%s, %s)" (Object_.to_string ty)
+        (Object_.to_string value))
   | _ -> None
 
 let () = Printexc.register_printer exception_printer
 
-let class_init = ref (fun _ -> assert false)
-
-module Iter = struct
+module Iter_ = struct
   let check o = Type.get o = Type.Iter
 
   let next i = option (Pywrappers.pyiter_next i)
@@ -1216,18 +1219,6 @@ module Iter = struct
     match next i with
       None -> false
     | Some item -> p item || exists p i
-
-  let create next =
-    let next_name =
-      if version_major () >= 3 then "__next__"
-      else "next" in
-    let next' tuple =
-      match next () with
-        None -> raise (Err (Err.StopIteration, ""))
-      | Some item -> item in
-    let methods = [next_name, next'] in
-    Object.call_function_obj_args
-      (!class_init methods (String.of_string "iterator")) [| |]
 end
 
 module Sequence = struct
@@ -1299,13 +1290,13 @@ module Sequence = struct
     fold_right (fun item list -> f item :: list) sequence []
 
   let fold_left f v sequence =
-    Iter.fold_left f v (Object.get_iter sequence)
+    Iter_.fold_left f v (Object_.get_iter sequence)
 
   let for_all p sequence =
-    Iter.for_all p (Object.get_iter sequence)
+    Iter_.for_all p (Object_.get_iter sequence)
 
   let exists p sequence =
-    Iter.exists p (Object.get_iter sequence)
+    Iter_.exists p (Object_.get_iter sequence)
 end
 
 module Tuple = struct
@@ -1451,41 +1442,62 @@ module Dict = struct
     check_not_null (Pywrappers.pydict_values dict)
 
   let iter f dict =
-    Iter.iter begin fun pair ->
+    Iter_.iter begin fun pair ->
       let (key, value) = Tuple.to_pair pair in
       f key value
-    end (Object.get_iter (items dict))
+    end (Object_.get_iter (items dict))
 
   let fold f dict v =
-    Iter.fold_left begin fun v pair ->
+    Iter_.fold_left begin fun v pair ->
       let (key, value) = Tuple.to_pair pair in
       f key value v
-    end v (Object.get_iter (items dict))
+    end v (Object_.get_iter (items dict))
 
   let for_all p dict =
-    Iter.for_all begin fun pair ->
+    Iter_.for_all begin fun pair ->
       let (key, value) = Tuple.to_pair pair in
       p key value
-    end (Object.get_iter (items dict))
+    end (Object_.get_iter (items dict))
 
   let exists p dict =
-    Iter.exists begin fun pair ->
+    Iter_.exists begin fun pair ->
       let (key, value) = Tuple.to_pair pair in
       p key value
-    end (Object.get_iter (items dict))
+    end (Object_.get_iter (items dict))
 
-  let bindings dict =
-    Iter.to_list_map Tuple.to_pair (Object.get_iter (items dict))
+  let bindings_map fkey fvalue dict =
+    Iter_.to_list_map begin fun pair ->
+      let (key, value) = Tuple.to_pair pair in
+      (fkey key, fvalue value)
+    end (Object_.get_iter (items dict))
 
-  let singleton key value =
+  let id x = x
+
+  let bindings = bindings_map id id
+
+  let bindings_string = bindings_map String.to_string id
+
+  let of_bindings_map fkey fvalue list =
     let result = create () in
-    set_item result key value;
+    List.iter begin fun (key, value) ->
+      set_item result (fkey key) (fvalue value);
+    end list;
     result
 
-  let singleton_string key value =
-    let result = create () in
-    set_item_string result key value;
-    result
+  let of_bindings = of_bindings_map id id
+
+  let of_bindings_string = of_bindings_map String.of_string id
+
+  let singleton key value = of_bindings [(key, value)]
+
+  let singleton_string key value = of_bindings_string [(key, value)]
+end
+
+module Object = struct
+  include Object_
+
+  let call_with_kw callable args kw =
+    call callable (Tuple.of_array args) (Dict.of_bindings_string kw)
 end
 
 module Module = struct
@@ -1660,7 +1672,21 @@ module Class = struct
       c
 end
 
-let () = class_init := fun methods classname -> Class.init ~methods classname
+module Iter = struct
+  include Iter_
+
+  let create next =
+    let next_name =
+      if version_major () >= 3 then "__next__"
+      else "next" in
+    let next' tuple =
+      match next () with
+        None -> raise (Err (Err.StopIteration, ""))
+      | Some item -> item in
+    let methods = [next_name, next'] in
+    Object.call_function_obj_args
+      (Class.init ~methods (String.of_string "iterator")) [| |]
+end
 
 module List = struct
   include Sequence
