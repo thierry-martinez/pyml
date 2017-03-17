@@ -307,8 +307,13 @@ let initialize ?(interpreter = "python") ?version () =
     end;
   initialized := true
 
+let on_finalize_list = ref []
+
+let on_finalize f = on_finalize_list := f :: !on_finalize_list
+
 let finalize () =
   assert_initialized ();
+  List.iter (fun f -> f ()) !on_finalize_list;
   finalize_library ();
   if !has_putenv then
     begin
@@ -443,6 +448,8 @@ module Capsule = struct
   let check v = is_valid v "ocaml-capsule"
 
   let table = Hashtbl.create 17
+
+  let () = on_finalize (fun () -> Hashtbl.clear table)
 
   external unsafe_wrap_value: 'a -> pyobject = "pywrap_value"
 
@@ -1665,6 +1672,10 @@ except ImportError:
 end
 
 module Class = struct
+  let type_ classname parents dict =
+    let ty = Pywrappers.pytype_type () in
+    Object.call_function_obj_args ty [| classname; parents; dict |]
+
   let init ?(parents = Tuple.empty) ?(fields = []) ?(methods = []) classname =
     let dict = Dict.create () in
     let add_field (name, value) = Dict.set_item_string dict name value in
@@ -1676,9 +1687,7 @@ module Class = struct
           check_not_null (Pywrappers.Python3.pyinstancemethod_new closure') in
         Dict.set_item_string dict name m in
       List.iter add_method methods;
-      let ty = Pywrappers.pytype_type () in
-      check_not_null
-        (pyobject_callfunctionobjargs ty [| classname; parents; dict |])
+      type_ classname parents dict
     else
       let c =
         check_not_null
@@ -1811,18 +1820,54 @@ module Array = struct
     of_indexed_structure (fun i -> getter a.(i)) (fun i v -> a.(i) <- setter v)
       (Array.length a)
 
-  let numpy_api () =
-    let numpy = Import.import_module "numpy.core.multiarray" in
-    Object.get_attr_string numpy "_ARRAY_API"
+  type numpy_info = {
+      numpy_api: Object.t;
+      array_pickle: float array -> Object.t;
+      array_unpickle: Object.t -> float array;
+      pyarray_subtype: Object.t;
+    }
 
-  external pyarray_of_float_array: Object.t -> float array -> Object.t =
-    "pyarray_of_float_array_wrapper"
+  let numpy_info = ref None
+
+  let () = on_finalize (fun () -> numpy_info := None)
+
+  external get_pyarray_type: Object.t -> Object.t = "get_pyarray_type"
+
+  external pyarray_of_float_array: Object.t -> Object.t -> float array
+    -> Object.t = "pyarray_of_float_array_wrapper"
+
+  let get_numpy_info () =
+    match !numpy_info with
+      Some info -> info
+    | None ->
+        let numpy_api =
+          let numpy = Import.import_module "numpy.core.multiarray" in
+          Object.get_attr_string numpy "_ARRAY_API" in
+        let array_pickle, array_unpickle = Capsule.make "float array" in
+        let pyarray_subtype =
+          let pyarray_type = get_pyarray_type numpy_api in
+          let classname = String.of_string "camlarray" in
+          let parents = Tuple.of_tuple1 (pyarray_type) in
+          let dict = Dict.create () in
+          Dict.set_item_string dict "camlarray" none;
+          Class.type_ classname parents dict in
+        let info =
+          { numpy_api; array_pickle; array_unpickle;
+            pyarray_subtype } in
+        numpy_info := Some info;
+        info
 
   let numpy a =
-    let result = check_not_null (pyarray_of_float_array (numpy_api ()) a) in
-    check_error ();
-    check_error ();
+    let info = get_numpy_info () in
+    let result =
+      check_not_null
+        (pyarray_of_float_array info.numpy_api info.pyarray_subtype a) in
+    Object.set_attr_string result "camlarray" (info.array_pickle a);
     result
+
+  let numpy_get_array a =
+    let info = get_numpy_info () in
+    info.array_unpickle (Object.get_attr_string a "camlarray")
 end
 
 let set_argv argv =

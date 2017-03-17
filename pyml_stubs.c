@@ -153,6 +153,34 @@ typedef struct _typeobject {
     Py_ssize_t tp_weaklistoffset;
     void *tp_iter;
     void *tp_iternext;
+    void *tp_methods;
+    void *tp_members;
+    void *tp_getset;
+    void *tp_base;
+    PyObject *tp_dict;
+    void *tp_descr_get;
+    void *tp_descr_set;
+    Py_ssize_t tp_dictoffset;
+    void *tp_init;
+    void *tp_alloc;
+    void *tp_new;
+    void *tp_free;
+    void *tp_is_gc;
+    PyObject *tp_bases;
+    PyObject *tp_mro;
+    PyObject *tp_cache;
+    PyObject *tp_subclasses;
+    PyObject *tp_weaklist;
+    void *tp_del;
+    unsigned int tp_version_tag;
+    void *tp_finalize;
+/* #ifdef COUNT_ALLOCS */
+    Py_ssize_t tp_allocs;
+    Py_ssize_t tp_frees;
+    Py_ssize_t tp_maxalloc;
+    struct _typeobject *tp_prev;
+    struct _typeobject *tp_next;
+/* #endif */
 } PyTypeObject;
 
 typedef struct {
@@ -267,7 +295,20 @@ static void pydecref( value v )
     }
 }
 
-static int pycompare(value v1, value v2)
+static int
+rich_compare_bool_nofail
+(PyObject *o1, PyObject *o2, int opid)
+{
+    int result = Python_PyObject_RichCompareBool(o1, o2, opid);
+    if (result == -1) {
+        Python_PyErr_Clear();
+        result = 0;
+    }
+    return result;
+}
+
+static int
+pycompare(value v1, value v2)
 {
     int result;
     PyObject *o1 = getcustom(v1);
@@ -281,11 +322,11 @@ static int pycompare(value v1, value v2)
         result = 0;
     else if (version_major < 3)
         Python2_PyObject_Cmp(o1, o2, &result);
-    else if (1 == Python_PyObject_RichCompareBool(o1, o2, Py_EQ))
+    else if (rich_compare_bool_nofail(o1, o2, Py_EQ))
         result = 0;
-    else if (1 == Python_PyObject_RichCompareBool(o1, o2, Py_LT))
+    else if (rich_compare_bool_nofail(o1, o2, Py_LT))
         result = -1;
-    else if (1 == Python_PyObject_RichCompareBool(o1, o2, Py_GT))
+    else if (rich_compare_bool_nofail(o1, o2, Py_GT))
         result = 1;
     else
         result = -1;
@@ -293,12 +334,19 @@ static int pycompare(value v1, value v2)
     return result;
 }
 
-static intnat pyhash( value v )
+static intnat
+pyhash( value v )
 {
-    if (getcustom(v))
-        return Python_PyObject_Hash((PyObject *)getcustom(v));
-    else
-        return 0L;
+    if (getcustom(v)) {
+        intnat result = Python_PyObject_Hash((PyObject *)getcustom(v));
+        if (result == -1) {
+            Python_PyErr_Clear();
+        }
+        return result;
+    }
+    else {
+        return 0;
+    }
 }
 
 static uintnat
@@ -1196,30 +1244,46 @@ enum NPY_TYPES {
 
 #define npy_intp int
 
-CAMLprim value
-pyarray_of_float_array_wrapper(value numpy_api_ocaml, value array_ocaml)
+static void **
+get_pyarray_api(PyObject *c_api)
 {
-    CAMLparam2(numpy_api_ocaml, array_ocaml);
+    if (version_major >= 3) {
+        return (void **)Python_PyCapsule_GetPointer(c_api, NULL);
+    }
+    else {
+        return (void **)Python2_PyCObject_AsVoidPtr(c_api);
+    }
+}
+
+CAMLprim value
+get_pyarray_type(value numpy_api_ocaml)
+{
+    CAMLparam1(numpy_api_ocaml);
+    PyObject *c_api = pyunwrap(numpy_api_ocaml);
+    void **PyArray_API = get_pyarray_api(c_api);
+    PyObject *result = PyArray_API[2];
+    CAMLreturn(pywrap(result, true));
+}
+
+CAMLprim value
+pyarray_of_float_array_wrapper(
+    value numpy_api_ocaml, value array_type_ocaml, value array_ocaml)
+{
+    CAMLparam3(numpy_api_ocaml, array_type_ocaml, array_ocaml);
     assert_initialized();
-    void **PyArray_API;
     PyObject *(*PyArray_New)
         (PyTypeObject *, int, npy_intp *, int, npy_intp *, void *, int, int,
          PyObject *);
-    PyTypeObject (*PyArray_Type);
     PyObject *c_api = pyunwrap(numpy_api_ocaml);
-    if (version_major >= 3) {
-        PyArray_API = (void **)Python_PyCapsule_GetPointer(c_api, NULL);
-    }
-    else {
-        PyArray_API = (void **)Python2_PyCObject_AsVoidPtr(c_api);
-    }
-    PyArray_Type = PyArray_API[2];
+    void **PyArray_API = get_pyarray_api(c_api);
     PyArray_New = PyArray_API[93];
     npy_intp length = Wosize_val(array_ocaml);
     void *data = (double *) array_ocaml;
+    PyTypeObject (*PyArray_SubType) =
+        (PyTypeObject *) pyunwrap(array_type_ocaml);
     PyObject *result = PyArray_New(
-        PyArray_Type, 1, &length, NPY_DOUBLE, NULL, data, 0, NPY_ARRAY_CARRAY,
-        NULL);
+        PyArray_SubType, 1, &length, NPY_DOUBLE, NULL, data, 0,
+        NPY_ARRAY_CARRAY, NULL);
     CAMLreturn(pywrap(result, true));
 }
 
