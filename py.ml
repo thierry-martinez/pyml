@@ -1156,20 +1156,27 @@ module Object_ = struct
 
   external reference_count: pyobject -> int = "pyrefcount"
 
-  let wrap_exception_msg f v =
-    try
-      f v
-    with E (ty, value) ->
-      Printf.sprintf "[ERROR] %s: %s" (to_string ty) (to_string value)
+  let repr_or_string repr v =
+    if repr then string_of_repr v
+    else to_string v
+
+  let robust_to_string repr v =
+    if !initialized then
+      try
+        try
+          repr_or_string repr v
+        with E (ty, value) ->
+          repr_or_string (Pervasives.not repr) v
+      with E (ty, value) ->
+        Printf.sprintf "[ERROR] %s: %s" (to_string ty) (to_string value)
+    else
+      "<python value: run 'Py.initialize ()' to print it>"
 
   let format fmt v =
-    Format.pp_print_string fmt (wrap_exception_msg to_string v)
+    Format.pp_print_string fmt (robust_to_string false v)
 
   let format_repr fmt v =
-    try
-      Format.pp_print_string fmt (string_of_repr v)
-    with E (_, _) ->
-      format fmt v
+    Format.pp_print_string fmt (robust_to_string true v)
 
   let call_function_obj_args callable args =
     check_not_null (pyobject_callfunctionobjargs callable args)
@@ -1773,32 +1780,30 @@ end
 
 module Array = struct
   let of_indexed_structure getter setter length =
-    let len tuple = Int.of_int length in
-    let getitem tuple =
-      let (self, key) = Tuple.to_tuple2 tuple in
-      getter (Long.to_int key) in
-    let setitem tuple =
-      let (self, key, value) = Tuple.to_tuple3 tuple in
-      setter (Long.to_int key) value;
-      none in
-    let iter tuple =
-      let cursor = ref 0 in
-      let next () =
-        let index = !cursor in
-        if index < length then
-          begin
-            cursor := succ index;
-            Some (getter index)
-          end
-        else
-          None in
-      Iter.create next in
-    let repr tuple =
-      let (self) = Tuple.to_tuple1 tuple in
-      Object.repr (Sequence.list self) in
     let methods =
-      ["__len__", len; "__getitem__", getitem; "__setitem__", setitem;
-       "__iter__", iter; "__repr__", repr] in
+      ["__len__", (fun _tuple -> Int.of_int length);
+       "__getitem__", (fun tuple ->
+         let (self, key) = Tuple.to_tuple2 tuple in
+         getter (Long.to_int key));
+       "__setitem__", (fun tuple ->
+         let (self, key, value) = Tuple.to_tuple3 tuple in
+         setter (Long.to_int key) value;
+         none);
+       "__iter__", (fun tuple ->
+         let cursor = ref 0 in
+         let next () =
+           let index = !cursor in
+           if index < length then
+             begin
+               cursor := succ index;
+               Some (getter index)
+             end
+           else
+             None in
+         Iter.create next);
+       "__repr__", (fun tuple ->
+         let (self) = Tuple.to_tuple1 tuple in
+         Object.repr (Sequence.list self))] in
     Object.call_function_obj_args
       (Class.init ~methods (String.of_string "array")) [| |]
 
@@ -1813,7 +1818,11 @@ module Array = struct
   external pyarray_of_float_array: Object.t -> float array -> Object.t =
     "pyarray_of_float_array_wrapper"
 
-  let numpy a = check_not_null (pyarray_of_float_array (numpy_api ()) a)
+  let numpy a =
+    let result = check_not_null (pyarray_of_float_array (numpy_api ()) a) in
+    check_error ();
+    check_error ();
+    result
 end
 
 let set_argv argv =

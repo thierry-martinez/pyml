@@ -47,6 +47,8 @@ type compare = Pytypes.compare = LT | LE | EQ | NE | GT | GE
     segmentation fault).*)
 type 'a file = 'a Pytypes.file = Filename of string | Channel of 'a
 
+val check_error: unit -> unit
+
 (** General functions to handle Python values *)
 module Object: sig
   type t = Pytypes.pyobject

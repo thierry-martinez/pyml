@@ -12,7 +12,9 @@ HAVE_OCAMLFIND:=$(shell \
 )
 
 HAVE_UTOP:=$(shell \
-	if $(OCAMLFIND) query utop &>/dev/null; then \
+	if [ "$(HAVE_OCAMLFIND)" = no ]; then \
+		echo no; \
+	elif $(OCAMLFIND) query utop &>/dev/null; then \
 		echo yes; \
 	else \
 		echo no; \
@@ -202,7 +204,8 @@ clean:
 	rm -f generate pyml_tests pyml_tests.bytecode
 	rm -f .depend
 	rm -rf doc
-	rm -f pymltop pymlutop pymlutop.cmo
+	rm -f pymltop pytop.cmo pymlutop pyutop.cmo
+	rm -f pymltop_libdir.ml pymltop_libdir.cmo
 
 .PHONY: tarball
 tarball:
@@ -279,8 +282,18 @@ pyml.cmxs: $(MODULES:=.cmx) libpyml_stubs.a
 libpyml_stubs.a: pyml_stubs.o
 	$(OCAMLMKLIB) -o pyml_stubs $<
 
-pymltop: pyml.cma
-	$(OCAMLMKTOP) -o $@ unix.cma $<
+pytop.cmo: pytop.ml pymltop_libdir.cmi
+	$(OCAMLC) -I +compiler-libs -c $<
+
+pymltop_libdir.ml:
+	if [ -z "$(PREFIX)" ]; then \
+	  echo "let libdir=\"$(PWD)\""; \
+	else \
+	  echo "let libdir=\"$(PREFIX)/lib/pyml/\""; \
+	fi >$@
+
+pymltop: pyml.cma pymltop_libdir.cmo pytop.cmo
+	$(OCAMLMKTOP) -o $@ unix.cma $^
 
 pyutop.cmo: pyutop.ml
 ifeq ($(HAVE_OCAMLFIND),no)
@@ -288,8 +301,8 @@ ifeq ($(HAVE_OCAMLFIND),no)
 endif
 	$(OCAMLC) $(OCAMLCFLAGS) -package utop -c $< -o $@
 
-pymlutop: pyml.cma pyutop.cmo
+pymlutop: pyml.cma pymltop_libdir.cmo pytop.cmo pyutop.cmo
 ifeq ($(HAVE_OCAMLFIND),no)
 	$(error ocamlfind is needed for utop)
 endif
-	$(OCAMLMKTOP) -o $@ -thread -linkpkg -package utop $^
+	$(OCAMLMKTOP) -o $@ -thread -linkpkg -package utop,compiler-libs $^
