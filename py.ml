@@ -1846,10 +1846,10 @@ module Array = struct
         let array_pickle, array_unpickle = Capsule.make "float array" in
         let pyarray_subtype =
           let pyarray_type = get_pyarray_type numpy_api in
-          let classname = String.of_string "camlarray" in
+          let classname = String.of_string "ocamlarray" in
           let parents = Tuple.of_tuple1 (pyarray_type) in
           let dict = Dict.create () in
-          Dict.set_item_string dict "camlarray" none;
+          Dict.set_item_string dict "ocamlarray" none;
           Class.type_ classname parents dict in
         let info =
           { numpy_api; array_pickle; array_unpickle;
@@ -1862,12 +1862,12 @@ module Array = struct
     let result =
       check_not_null
         (pyarray_of_float_array info.numpy_api info.pyarray_subtype a) in
-    Object.set_attr_string result "camlarray" (info.array_pickle a);
+    Object.set_attr_string result "ocamlarray" (info.array_pickle a);
     result
 
   let numpy_get_array a =
     let info = get_numpy_info () in
-    info.array_unpickle (Object.get_attr_string a "camlarray")
+    info.array_unpickle (Object.get_attr_string a "ocamlarray")
 end
 
 let set_argv argv =
