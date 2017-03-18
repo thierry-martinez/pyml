@@ -1660,7 +1660,7 @@ module Run = struct
 
   let ipython () =
     ignore
-      (eval ~start:File "
+      (simple_string "
 try:
   from IPython import embed
   embed()
