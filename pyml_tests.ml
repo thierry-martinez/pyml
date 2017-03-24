@@ -30,7 +30,6 @@ let rec launch_tests () =
       launch_test test;
       launch_tests ()
 
-(*
 let () =
   add_test
     ~title:"version"
@@ -359,7 +358,7 @@ assert copy == [42, 43]
 ");
       assert (array.(0) = 42);
       assert (array.(1) = 43))
-*)
+
 let () =
   add_test ~title:"numpy"
     (fun () ->
