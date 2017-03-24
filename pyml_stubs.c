@@ -281,6 +281,9 @@ static void (*Python_PyMem_Free)(void *);
 
 static enum UCS { UCS_NONE, UCS2, UCS4 } ucs;
 
+/* Single instance of () */
+static PyObject *tuple_empty;
+
 #include "pyml.h"
 
 static void *getcustom( value v )
@@ -428,7 +431,7 @@ pyunwrap(value v)
         case CODE_FALSE:
             return Python__Py_FalseStruct;
         case CODE_TUPLE_EMPTY:
-            return Python_PyTuple_New(0);
+            return tuple_empty;
         }
 
     return *((PyObject **)Data_custom_val(v));
@@ -669,6 +672,7 @@ py_load_library(value filename_ocaml)
     }
 #include "pyml_dlsyms.inc"
     Python_Py_Initialize();
+    tuple_empty = Python_PyTuple_New(0);
     CAMLreturn(Val_unit);
 }
 
@@ -677,6 +681,7 @@ py_finalize_library(value unit)
 {
     CAMLparam1(unit);
     assert_initialized();
+    Py_DECREF(tuple_empty);
     if (library != get_default_library()) {
         close_library(library);
     }

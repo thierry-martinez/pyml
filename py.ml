@@ -1649,18 +1649,18 @@ module Run = struct
       (Pywrappers.pyrun_stringflags s start globals locals None)
 
   let eval ?(start = Eval) ?(globals = Module.get_dict (Module.main ()))
-      ?(locals = Module.get_dict (Module.main ())) s =
+      ?(locals = globals) s =
     string s start globals locals
 
   let load ?(start = File) ?(globals = Module.get_dict (Module.main ()))
-      ?(locals = Module.get_dict (Module.main ())) chan filename =
+      ?(locals = globals) chan filename =
     file chan filename start globals locals
 
   let interactive () = interactive_loop stdin "<stdin>"
 
   let ipython () =
     ignore
-      (simple_string "
+      (eval ~start:File "
 try:
   from IPython import embed
   embed()
