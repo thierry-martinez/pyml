@@ -1031,7 +1031,7 @@ static void *xmalloc(size_t size)
     void *p = malloc(size);
     if (!p) {
         fprintf(stderr, "Virtual memory exhausted\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     return p;
 }
