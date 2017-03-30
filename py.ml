@@ -477,7 +477,7 @@ module Capsule = struct
   let type_of x = fst (unsafe_unwrap_value x)
 end
 
-module Eval = struct
+module Eval_ = struct
   let call_object_with_keywords func arg keyword =
     check_not_null (Pywrappers.pyeval_callobjectwithkeywords func arg keyword)
 
@@ -1079,7 +1079,7 @@ end
 
 exception Err of Err.t * string
 
-module Object_ = struct
+module Object = struct
   type t = Pytypes.pyobject
 
   let del_item obj item =
@@ -1202,8 +1202,8 @@ let exception_printer exn =
   match exn with
     E (ty, value) when !initialized ->
       Some (
-      Printf.sprintf "E (%s, %s)" (Object_.to_string ty)
-        (Object_.to_string value))
+      Printf.sprintf "E (%s, %s)" (Object.to_string ty)
+        (Object.to_string value))
   | _ -> None
 
 let () = Printexc.register_printer exception_printer
@@ -1316,13 +1316,13 @@ module Sequence = struct
     fold_right (fun item list -> f item :: list) sequence []
 
   let fold_left f v sequence =
-    Iter_.fold_left f v (Object_.get_iter sequence)
+    Iter_.fold_left f v (Object.get_iter sequence)
 
   let for_all p sequence =
-    Iter_.for_all p (Object_.get_iter sequence)
+    Iter_.for_all p (Object.get_iter sequence)
 
   let exists p sequence =
-    Iter_.exists p (Object_.get_iter sequence)
+    Iter_.exists p (Object.get_iter sequence)
 end
 
 module Tuple = struct
@@ -1416,7 +1416,7 @@ module Callable = struct
     if not (check c) then
       Type.mismatch "Callable" c;
     function args ->
-      Eval.call_object c args
+      Eval_.call_object c args
 
   let to_function_array c =
     let f = to_function c in
@@ -1471,31 +1471,31 @@ module Dict = struct
     Iter_.iter begin fun pair ->
       let (key, value) = Tuple.to_pair pair in
       f key value
-    end (Object_.get_iter (items dict))
+    end (Object.get_iter (items dict))
 
   let fold f dict v =
     Iter_.fold_left begin fun v pair ->
       let (key, value) = Tuple.to_pair pair in
       f key value v
-    end v (Object_.get_iter (items dict))
+    end v (Object.get_iter (items dict))
 
   let for_all p dict =
     Iter_.for_all begin fun pair ->
       let (key, value) = Tuple.to_pair pair in
       p key value
-    end (Object_.get_iter (items dict))
+    end (Object.get_iter (items dict))
 
   let exists p dict =
     Iter_.exists begin fun pair ->
       let (key, value) = Tuple.to_pair pair in
       p key value
-    end (Object_.get_iter (items dict))
+    end (Object.get_iter (items dict))
 
   let bindings_map fkey fvalue dict =
     Iter_.to_list_map begin fun pair ->
       let (key, value) = Tuple.to_pair pair in
       (fkey key, fvalue value)
-    end (Object_.get_iter (items dict))
+    end (Object.get_iter (items dict))
 
   let id x = x
 
@@ -1519,11 +1519,14 @@ module Dict = struct
   let singleton_string key value = of_bindings_string [(key, value)]
 end
 
-module Object = struct
-  include Object_
+module Eval = struct
+  include Eval_
 
-  let call_with_kw callable args kw =
-    call callable (Tuple.of_array args) (Dict.of_bindings_string kw)
+  let call_with_keywords func arg keywords =
+    call_object_with_keywords func (Tuple.of_array arg)
+      (Dict.of_bindings_string keywords)
+
+  let call func arg = call_object func (Tuple.of_array arg)
 end
 
 module Module = struct

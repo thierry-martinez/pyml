@@ -211,10 +211,6 @@ module Object: sig
   val call: t -> t -> t -> t
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/object.html#c.PyObject_Call} PyObject_Call} *)
-
-  val call_with_kw: t -> t array -> (string * t) list -> t
-  (** [Py.Object.call_with_kw f args kw] is equivalent to
-      [Py.Object.call f (Tuple.of_array args) (List.of_bindings_string kw)]. *)
 end
 
 exception E of Object.t * Object.t
@@ -665,6 +661,14 @@ module Eval: sig
 
   val call_object_with_keywords: Object.t -> Object.t -> Object.t -> Object.t
  (** See {{:https://docs.python.org/3.0/extending/extending.html} Extending Python with C or C++} *)
+
+  val call: Object.t -> Object.t array -> Object.t
+  (* [Py.Eval.call f args] is equivalent to
+     [Py.Eval.call_object f (Py.Tuple.of_array args]. *)
+
+  val call_with_keywords: Object.t -> Object.t array -> (string * Object.t) list -> Object.t
+  (* [Py.Eval.call_with_keywords f args kw] is equivalent to
+     [Py.Eval.call_object_with_keywords f (Py.Tuple.of_array args) (Py.Tuple.of_bindings_string kw)]. *)
 
   val get_builtins: unit -> Object.t
   (** Wrapper for
