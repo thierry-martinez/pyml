@@ -1117,7 +1117,7 @@ module Run: sig
       @param globals is the global symbol directory
       (default: [Py.Module.get_dict (Py.Module.main ())]).
       @param locals is the local symbol directory
-      (default: [Py.Module.get_dict (Py.Module.main ())]).
+      (default: [globals]).
    *)
 
   val load: ?start:input -> ?globals:Object.t -> ?locals:Object.t ->
