@@ -232,16 +232,22 @@ let find_library () =
       List.map (fun path -> Filename.concat path filename) library_paths in
     let library_filenames =
       List.concat (List.map expand_filepaths library_filenames) in
+    let errors = Buffer.create 17 in
     let rec try_load_library library_filenames =
       match library_filenames with
-        [] -> failwith "Py.find_library: unable to find the Python library"
+        [] ->
+          let msg =
+            Printf.sprintf "Py.find_library: unable to find the Python library%s"
+              (Buffer.contents errors) in
+          failwith msg
       | filename :: others ->
           begin
             try
               load_library (Some filename);
               if not (Filename.is_implicit filename) then
                 init_pythonhome (parent_dir filename)
-            with Failure _ ->
+            with Failure msg ->
+              Printf.bprintf errors " [%s returned %s]" filename msg;
               try_load_library others
           end in
     try_load_library library_filenames

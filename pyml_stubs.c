@@ -15,6 +15,15 @@
 
 static FILE *(*Python__Py_fopen)(const char *pathname, const char *mode);
 
+static void *xmalloc(size_t size)
+{
+    void *p = malloc(size);
+    if (!p) {
+        failwith("Virtual memory exhausted\n");
+    }
+    return p;
+}
+
 #ifdef _WIN32
 #include <windows.h>
 
@@ -381,8 +390,11 @@ resolve(const char *symbol)
 {
     void *result = find_symbol(library, symbol);
     if (!result) {
-        fprintf(stderr, "Cannot resolve %s.\n", symbol);
-        exit(EXIT_FAILURE);
+        char *fmt = "Cannot resolve %s.\n";
+        ssize_t size = snprintf(NULL, 0, fmt, symbol);
+        char *msg = xmalloc(size + 1);
+        snprintf(msg, size + 1, fmt, symbol);
+        failwith(msg);
     }
     return result;
 }
@@ -1024,16 +1036,6 @@ pyrefcount(value pyobj)
     CAMLparam1(pyobj);
     PyObject *obj = pyunwrap(pyobj);
     CAMLreturn(Val_int(obj->ob_refcnt));
-}
-
-static void *xmalloc(size_t size)
-{
-    void *p = malloc(size);
-    if (!p) {
-        fprintf(stderr, "Virtual memory exhausted\n");
-        exit(EXIT_FAILURE);
-    }
-    return p;
 }
 
 static value

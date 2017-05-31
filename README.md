@@ -47,3 +47,9 @@ If you have `utop` and `ocamlfind`, you can `make pymlutop`.
 
 *For OPAM users:* `pymltop` is installed by default by `opam install pyml`.
 `pymlutop` is installed whenever `utop` is available.
+
+Getting started
+---------------
+
+`Py.initialize ()` loads the Python library.
+
