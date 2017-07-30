@@ -1,3 +1,4 @@
+PREFIX:=/usr/local
 OCAMLFIND=ocamlfind
 INSTALL=install
 INSTALL_PROGRAM=$(INSTALL)
@@ -175,20 +176,19 @@ tests.native: pyml_tests.native
 	./pyml_tests.native
 
 .PHONY: install
-install: $(INSTALL_FILES) pymltop $(PYMLUTOP)
+install: $(INSTALL_FILES)
 ifeq ($(HAVE_OCAMLFIND),no)
 	$(error ocamlfind is needed for 'make install')
 endif
 	$(OCAMLFIND) install pyml $(INSTALL_FILES)
-	$(INSTALL_PROGRAM) pymltop $(bindir)/pymltop
-ifneq ($(HAVE_UTOP),no)
-	$(INSTALL_PROGRAM) pymlutop $(bindir)/pymlutop
-endif
+	[ ! -f pymltop ] || $(INSTALL_PROGRAM) pymltop $(bindir)/pymltop
+	[ ! -f pymlutop ] || $(INSTALL_PROGRAM) pymlutop $(bindir)/pymlutop
 
 .PHONY: uninstall
 uninstall:
 	$(OCAMLFIND) remove pyml
 	- rm $(bindir)/pymltop
+	- rm $(bindir)/pymlutop
 
 .PHONY: clean
 clean:
