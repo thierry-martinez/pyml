@@ -299,10 +299,13 @@ pyutop.cmo: pyutop.ml
 ifeq ($(HAVE_OCAMLFIND),no)
 	$(error ocamlfind is needed for utop)
 endif
-	$(OCAMLC) $(OCAMLCFLAGS) -package utop -c $< -o $@
+	$(OCAMLC) $(OCAMLCFLAGS) -thread -package utop -c $< -o $@
 
 pymlutop: pyml.cma pymltop_libdir.cmo pytop.cmo pyutop.cmo
 ifeq ($(HAVE_OCAMLFIND),no)
 	$(error ocamlfind is needed for utop)
 endif
-	$(OCAMLMKTOP) -o $@ -thread -linkpkg -package utop,compiler-libs $^
+#	ocamlmktop raises "Warning 31". See https://github.com/diml/utop/issues/212
+#	$(OCAMLMKTOP) -o $@ -thread -linkpkg -package utop -dontlink compiler-libs $^
+	ocamlfind ocamlc -thread -linkpkg -linkall -predicates create_toploop \
+		-package compiler-libs.toplevel,utop $^ -o $@
