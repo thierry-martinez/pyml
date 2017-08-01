@@ -217,12 +217,12 @@ doc: py.mli pycaml.mli pywrappers.ml
 	$(OCAMLDOC) -html -d $@ $^
 	touch $@
 
+.depend: $(MODULES:=.ml) $(MODULES:=.mli) pyml_tests.ml
+	$(OCAMLDEP) $^ >$@
+
 ifneq ($(MAKECMDGOALS),clean)
 -include .depend
 endif
-
-.depend: $(MODULES:=.ml) $(MODULES:=.mli) pyml_tests.ml
-	$(OCAMLDEP) $^ >$@
 
 generate: pyml_compat.$(CMOX) generate.$(CMOX)
 	$(OCAMLCOPT) $^ -o $@
