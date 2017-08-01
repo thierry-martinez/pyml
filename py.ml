@@ -100,12 +100,29 @@ let extract_version_major_minor version =
         version in
     failwith msg
 
+let trim_carriage_return line =
+  let length = String.length line in
+  if String.sub line (length - 1) 1 = "\r" then
+    String.sub line 0 (length - 1)
+  else
+    line
+
+let input_lines channel =
+  let accu = ref [] in
+  try
+    while true do
+      accu := trim_carriage_return (input_line channel) :: !accu;
+    done;
+    assert false
+  with End_of_file ->
+    List.rev !accu
+
 let run_command command read_stderr =
   let (input, output, error) =
     Unix.open_process_full command (Unix.environment ()) in
   let result =
     try
-      input_line (if read_stderr then error else input)
+      input_lines (if read_stderr then error else input)
     with _ ->
       begin
         try
@@ -117,12 +134,6 @@ let run_command command read_stderr =
         Printf.sprintf "Py.run_command: unable to read the result of '%s'"
           command in
       failwith msg in
-  let result =
-    let length = String.length result in
-    if String.sub result (length - 1) 1 = "\r" then
-      String.sub result 0 (length - 1)
-    else
-      result in
   if Unix.close_process_full (input, output, error) <> Unix.WEXITED 0 then
     begin
       let msg = Printf.sprintf "Py.run_command: unable to run '%s'" command in
@@ -171,13 +182,54 @@ let uninit_pythonhome () =
       has_putenv := false
     end
 
+let split_left_on_char char s =
+  try String.sub s 0 (String.index s char)
+  with Not_found -> s
+
+let split_right_on_char char s =
+  try
+    let index = String.index s char + 1 in
+    String.sub s index (String.length s - index)
+  with Not_found -> s
+
+let ldd executable =
+  let command = Printf.sprintf "ldd %s" executable in
+  match
+    try (Some (run_command command false))
+    with Failure _ -> None
+  with
+    None -> []
+  | Some lines ->
+     let extract_line line =
+       String.trim (split_left_on_char '(' (split_right_on_char '>' line)) in
+     List.map extract_line lines
+
+let has_prefix prefix s =
+  let prefix_length = String.length prefix in
+  String.length s >= prefix_length && String.sub s 0 prefix_length = prefix
+
+let libpython_from_interpreter python_full_path =
+  let lines = ldd python_full_path in
+  let is_libpython line =
+    let basename = Filename.basename line in
+    has_prefix "libpython" basename in
+  try Some (List.find is_libpython lines)
+  with Not_found -> None
+
+let option_bind f o =
+  match o with
+    None -> None
+  | Some v -> f v
 
 let find_library_path version_major version_minor python_full_path =
+  match option_bind libpython_from_interpreter python_full_path with
+    Some path -> ([""], [path])
+  | None ->
   let command =
     Printf.sprintf "pkg-config --libs python-%d.%d" version_major
       version_minor in
   match
-    try Some (run_command command false)
+    try Some (List.hd (run_command command false))
     with Failure _ -> None
   with
     None ->
@@ -231,8 +283,8 @@ let find_library_path version_major version_minor python_full_path =
 let initialize_version_value interpreter =
   let version_line =
     let python_version_cmd = Printf.sprintf "\"%s\" --version" interpreter in
-    try run_command python_version_cmd false
-    with Failure _ -> run_command python_version_cmd true in
+    try List.hd (run_command python_version_cmd false)
+    with Failure _ -> List.hd (run_command python_version_cmd true) in
   let version = extract_version version_line in
   let (version_major, version_minor) = extract_version_major_minor version in
   version_value := version;
@@ -328,7 +380,7 @@ let initialize ?(interpreter = "python") ?version ?(verbose = false) () =
       let interpreter_exe = Pyml_arch.ensure_executable_suffix interpreter in
       let which_python =
         Printf.sprintf "%s \"%s\"" Pyml_arch.which interpreter_exe in
-      try Some (run_command which_python false)
+      try Some (List.hd (run_command which_python false))
       with Failure _ -> None in
   begin
     match version with
