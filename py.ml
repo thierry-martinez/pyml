@@ -149,15 +149,30 @@ let parent_dir filename =
 
 let has_putenv = ref false
 
-let init_pythonhome pythonhome =
-  if pythonhome <> "" then
+let init_pythonhome verbose pythonhome =
+  pythonhome <> "" &&
     try
-      ignore (Sys.getenv "PYTHONHOME")
+      ignore (Sys.getenv "PYTHONHOME");
+      false
     with Not_found ->
+      if verbose then
+        begin
+          Printf.eprintf "Temporary set PYTHONHOME=\"%s\".\n" pythonhome;
+          flush stderr;
+        end;
       Unix.putenv "PYTHONHOME" pythonhome;
-      has_putenv := true
+      has_putenv := true;
+      true
 
-let find_library_path version_major version_minor =
+let uninit_pythonhome () =
+  if !has_putenv then
+    begin
+      unsetenv "PYTHONHOME";
+      has_putenv := false
+    end
+
+
+let find_library_path version_major version_minor python_full_path =
   let command =
     Printf.sprintf "pkg-config --libs python-%d.%d" version_major
       version_minor in
@@ -169,7 +184,10 @@ let find_library_path version_major version_minor =
       let library_paths =
         match
           try Some (Sys.getenv "PYTHONHOME")
-          with Not_found -> None
+          with Not_found ->
+            match python_full_path with
+              None -> None
+            | Some python_full_path -> Some (parent_dir python_full_path)
         with
           None -> []
         | Some pythonhome ->
@@ -229,12 +247,12 @@ let load_library filename =
 
 let get_library_filename () = !library_filename
 
-let find_library verbose =
+let find_library verbose python_full_path =
   try
     load_library None
   with Failure _ ->
     let (library_paths, library_filenames) =
-      find_library_path !version_major_value !version_minor_value in
+      find_library_path !version_major_value !version_minor_value python_full_path in
     let expand_filepaths filename =
       filename ::
       List.map (fun path -> Filename.concat path filename) library_paths in
@@ -250,15 +268,24 @@ let find_library verbose =
           failwith msg
       | filename :: others ->
           begin
+            let pythonhome_set =
+              not (Filename.is_implicit filename) &&
+                init_pythonhome verbose (parent_dir filename) in
             try
               if verbose then
-                Printf.eprintf "Trying to load \"%s\".\n" filename;
+                begin
+                  Printf.eprintf "Trying to load \"%s\".\n" filename;
+                  flush stderr;
+                end;
               load_library (Some filename);
-              if not (Filename.is_implicit filename) then
-                init_pythonhome (parent_dir filename)
             with Failure msg ->
+              if pythonhome_set then
+                uninit_pythonhome ();
               if verbose then
-                Printf.eprintf "Failed: \"%s\".\n" msg;
+                begin
+                  Printf.eprintf "Failed: \"%s\".\n" msg;
+                  flush stderr;
+                end;
               Printf.bprintf errors " [%s returned %s]" filename msg;
               try_load_library others
           end in
@@ -268,9 +295,9 @@ let initialize_library verbose python_full_path =
   begin
     match !python_home with
       None -> ()
-    | Some s -> init_pythonhome s
+    | Some s -> ignore (init_pythonhome verbose s)
   end;
-  find_library verbose;
+  find_library verbose python_full_path;
   begin
     match python_full_path with
       None -> ()
@@ -281,7 +308,7 @@ let initialize_library verbose python_full_path =
             Filename.concat dirname Filename.parent_dir_name
           else
             dirname in
-        init_pythonhome pythonhome;
+        ignore (init_pythonhome verbose pythonhome);
   end;
   set_program_name !program_name;
   begin
@@ -333,11 +360,7 @@ let finalize () =
   assert_initialized ();
   List.iter (fun f -> f ()) !on_finalize_list;
   finalize_library ();
-  if !has_putenv then
-    begin
-      unsetenv "PYTHONHOME";
-      has_putenv := false
-    end;
+  uninit_pythonhome ();
   initialized := false
 
 let version () =
@@ -507,39 +530,6 @@ module Eval_ = struct
   let get_globals () = check_not_null (Pywrappers.pyeval_getglobals ())
 
   let get_locals () = check_not_null (Pywrappers.pyeval_getlocals ())
-end
-
-module Import = struct
-  let cleanup = Pywrappers.pyimport_cleanup
-
-  let add_module name = check_not_null (Pywrappers.pyimport_addmodule name)
-
-  let exec_code_module name obj =
-    check_not_null (Pywrappers.pyimport_execcodemodule name obj)
-
-  let exec_code_module_ex name obj pathname =
-    check_not_null (Pywrappers.pyimport_execcodemoduleex name obj pathname)
-
-  let get_magic_number = Pywrappers.pyimport_getmagicnumber
-
-  let get_module_dict () =
-    check_not_null (Pywrappers.pyimport_getmoduledict ())
-
-  let import_frozen_module name =
-    bool_of_int (Pywrappers.pyimport_importfrozenmodule name)
-
-  let import_module name =
-    check_not_null (Pywrappers.pyimport_importmodule name)
-
-  let import_module_level name globals locals fromlist level =
-    check_not_null
-      (Pywrappers.pyimport_importmodulelevel name globals locals fromlist level)
-
-  let import_module_ex name globals locals fromlist =
-    import_module_level name globals locals fromlist (-1)
-
-  let reload_module obj =
-    check_not_null (Pywrappers.pyimport_reloadmodule obj)
 end
 
 let object_repr obj = check_not_null (Pywrappers.pyobject_repr obj)
@@ -1547,6 +1537,49 @@ module Eval = struct
   let call func arg = call_object func (Tuple.of_array arg)
 end
 
+module Import = struct
+  let cleanup = Pywrappers.pyimport_cleanup
+
+  let add_module name = check_not_null (Pywrappers.pyimport_addmodule name)
+
+  let exec_code_module name obj =
+    check_not_null (Pywrappers.pyimport_execcodemodule name obj)
+
+  let exec_code_module_ex name obj pathname =
+    check_not_null (Pywrappers.pyimport_execcodemoduleex name obj pathname)
+
+  let get_magic_number = Pywrappers.pyimport_getmagicnumber
+
+  let get_module_dict () =
+    check_not_null (Pywrappers.pyimport_getmoduledict ())
+
+  let import_frozen_module name =
+    bool_of_int (Pywrappers.pyimport_importfrozenmodule name)
+
+  let import_module name =
+    check_not_null (Pywrappers.pyimport_importmodule name)
+
+  let try_import_module name =
+    try
+      Some (check_not_null (Pywrappers.pyimport_importmodule name))
+    with E (e, msg)
+        when
+          let ty = Object.to_string e in
+          ty = "<class 'ModuleNotFoundError'>" ||
+            ty = "<type 'exceptions.ImportError'>" ->
+      None 
+
+  let import_module_level name globals locals fromlist level =
+    check_not_null
+      (Pywrappers.pyimport_importmodulelevel name globals locals fromlist level)
+
+  let import_module_ex name globals locals fromlist =
+    import_module_level name globals locals fromlist (-1)
+
+  let reload_module obj =
+    check_not_null (Pywrappers.pyimport_reloadmodule obj)
+end
+
 module Module = struct
   let check o = Type.get o = Type.Module
 
@@ -1635,61 +1668,8 @@ module Utils = struct
       f in_channel
     end
 
-  let with_stdin_from_string s =
-    with_channel_from_string s with_stdin_from
-end
-
-module Run = struct
-  let any_file file filename =
-    assert_int_success
-      (Pywrappers.pyrun_anyfileexflags
-         (Pytypes.file_map Unix.descr_of_in_channel file) filename 1 None)
-
-  let file file filename start globals locals =
-    let fd = Pytypes.file_map Unix.descr_of_in_channel file in
-    check_not_null
-      (Pywrappers.pyrun_fileexflags fd filename start globals locals 1 None)
-
-  let interactive_one channel name =
-    let fd = Channel (Unix.descr_of_in_channel channel) in
-    assert_int_success (Pywrappers.pyrun_interactiveoneflags fd name None)
-
-  let interactive_loop channel name =
-    let fd = Channel (Unix.descr_of_in_channel channel) in
-    assert_int_success (Pywrappers.pyrun_interactiveloopflags fd name None)
-
-  let simple_file channel name =
-    let fd = Pytypes.file_map Unix.descr_of_in_channel channel in
-    assert_int_success (Pywrappers.pyrun_simplefileexflags fd name 1 None)
-
-  let simple_string string =
-    Pywrappers.pyrun_simplestringflags string None = 0
-
-  let string s start globals locals =
-    check_not_null
-      (Pywrappers.pyrun_stringflags s start globals locals None)
-
-  let eval ?(start = Eval) ?(globals = Module.get_dict (Module.main ()))
-      ?(locals = globals) s =
-    string s start globals locals
-
-  let load ?(start = File) ?(globals = Module.get_dict (Module.main ()))
-      ?(locals = globals) chan filename =
-    file chan filename start globals locals
-
-  let interactive () = interactive_loop stdin "<stdin>"
-
-  let ipython () =
-    ignore
-      (eval ~start:File "
-try:
-  from IPython import embed
-  embed()
-except ImportError:
-  from IPython.Shell import IPShellEmbed
-  ipshell = IPShellEmbed(argv=[''])
-  ipshell()
-")
+  let with_stdin_from_string s f arg =
+    with_channel_from_string s (fun channel -> with_stdin_from channel f arg)
 end
 
 module Class = struct
@@ -1889,6 +1869,92 @@ module Array = struct
   let numpy_get_array a =
     let info = get_numpy_info () in
     info.array_unpickle (Object.get_attr_string a "ocamlarray")
+end
+
+module Run = struct
+  let any_file file filename =
+    assert_int_success
+      (Pywrappers.pyrun_anyfileexflags
+         (Pytypes.file_map Unix.descr_of_in_channel file) filename 1 None)
+
+  let file file filename start globals locals =
+    let fd = Pytypes.file_map Unix.descr_of_in_channel file in
+    check_not_null
+      (Pywrappers.pyrun_fileexflags fd filename start globals locals 1 None)
+
+  let interactive_one channel name =
+    let fd = Channel (Unix.descr_of_in_channel channel) in
+    assert_int_success (Pywrappers.pyrun_interactiveoneflags fd name None)
+
+  let interactive_loop channel name =
+    let fd = Channel (Unix.descr_of_in_channel channel) in
+    assert_int_success (Pywrappers.pyrun_interactiveloopflags fd name None)
+
+  let simple_file channel name =
+    let fd = Pytypes.file_map Unix.descr_of_in_channel channel in
+    assert_int_success (Pywrappers.pyrun_simplefileexflags fd name 1 None)
+
+  let simple_string string =
+    Pywrappers.pyrun_simplestringflags string None = 0
+
+  let string s start globals locals =
+    check_not_null
+      (Pywrappers.pyrun_stringflags s start globals locals None)
+
+  let eval ?(start = Eval) ?(globals = Module.get_dict (Module.main ()))
+      ?(locals = globals) s =
+    string s start globals locals
+
+  let load ?(start = File) ?(globals = Module.get_dict (Module.main ()))
+      ?(locals = globals) chan filename =
+    file chan filename start globals locals
+
+  let interactive () =
+    interactive_loop stdin "<stdin>"
+
+  let frame f arg =
+    let m = Import.add_module "_pyml" in
+    let result = ref None in
+    let callback =
+      (Callable.of_function (fun _ -> result := Some (f arg); pynone ())) in
+    Module.set m "callback" callback;
+    ignore (eval ~start:File "
+from _pyml import callback
+callback()
+");
+    match !result with
+      None -> failwith "frame"
+    | Some result -> result
+
+(*
+  let ipython () =
+    ignore
+      (eval ~start:File "
+try:
+  from IPython import embed
+  embed()
+except ImportError:
+  from IPython.Shell import IPShellEmbed
+  ipshell = IPShellEmbed(argv=[''])
+  ipshell()
+")
+ *)
+
+  let make_frame = frame
+
+  let ipython ?(frame=true) () =
+    let f () =
+      let f =
+        try
+          Module.get (Import.import_module "IPython") "embed"
+        with E _ ->
+          let shell = Import.import_module "IPython.Shell" in
+          let ipshellembed = Module.get shell "IPShellEmbed" in
+          let arg = [("argv", List.of_list [String.of_string ""])] in
+          Eval.call_with_keywords ipshellembed [| |] arg in
+        ignore (Eval.call_object f Tuple.empty) in
+    if frame then make_frame f ()
+    else f ()
 end
 
 let set_argv argv =

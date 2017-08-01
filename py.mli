@@ -745,6 +745,12 @@ module Import: sig
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/import.html#c.PyImport_ImportModule} PyImport_ImportModule} *)
 
+  val try_import_module: string -> Object.t option
+  (** [try_import_module m] imports the module [m] and returns the module object if the import succeeds:.
+      in this case, it is equivalent to [Some (import_module m)].
+      If the module is not found, i.e. if [import_module] raises a Python exception of class
+      [ModuleNotFoundError], then [try_import_module] returns [None]. *)
+
   val import_module_ex:
       string -> Object.t -> Object.t -> Object.t -> Object.t
   (** Wrapper for
@@ -1150,7 +1156,7 @@ module Run: sig
       We have [Py.Run.interactive () = Py.Run.interactive_loop stdin "<stdin>"].
    *)
 
-  val ipython: unit -> unit
+  val ipython: ?frame:bool -> unit -> unit
   (** Runs the IPython interactive loop. *)
 
   val any_file: in_channel file -> string -> unit
@@ -1191,6 +1197,8 @@ module Run: sig
   val string: string -> input -> Object.t -> Object.t -> Object.t
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/veryhigh.html#c.PyRun_String} PyRun_String} *)
+
+  val frame: ('a -> 'b) -> 'a -> 'b
 end
 
 (** Interface for Python values with a [Sequence] interface. *)

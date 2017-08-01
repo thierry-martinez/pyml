@@ -1,24 +1,33 @@
+type status =
+  | Passed
+  | Failed of string
+  | Disabled of string
+
 let tests = Queue.create ()
 
-let add_test ~title ?(enabled = true) f =
-  if enabled then
-    Queue.add (title, f) tests
+let add_test ~title f =
+  Queue.add (title, f) tests
 
 let failed = ref false
 
 let launch_test (title, f) =
   Printf.printf "Test '%s' ... %!" title;
   try
-    f ();
-    Printf.printf "passed\n%!"
+    match f () with
+      Passed -> Printf.printf "passed\n%!"
+    | Failed reason ->
+       Printf.printf "failed: %s\n%!" reason;
+       failed := true
+    | Disabled reason -> Printf.printf "disabled: %s\n%!" reason
   with
     Py.E (_, value) ->
-    Printf.printf "raised a Python exception: %s\n%!"
-        (Py.Object.to_string value);
+    Printf.printf
+      "raised a Python exception: %s\n%!"
+      (Py.Object.to_string value);
     failed := true
   | e ->
-    Printf.printf "raised an exception: %s\n%!" (Printexc.to_string e);
-    failed := true
+     Printf.printf "raised an exception: %s\n%!" (Printexc.to_string e);
+     failed := true
 
 let rec launch_tests () =
   match
@@ -30,25 +39,34 @@ let rec launch_tests () =
       launch_test test;
       launch_tests ()
 
+let enable_only_on_unix f arg =
+  if Sys.os_type = "Unix" then
+    f arg
+  else
+    Disabled "only on Unix"
+
 let () =
   add_test
     ~title:"version"
     (fun () ->
-      Printf.printf "Python version %s\n%!" (Py.version ())
+      Printf.printf "Python version %s\n%!" (Py.version ());
+      Passed
     )
 
 let () =
   add_test
     ~title:"library version"
     (fun () ->
-      Printf.printf "Python library version %s\n%!" (Py.get_version ())
+      Printf.printf "Python library version %s\n%!" (Py.get_version ());
+      Passed
     )
 
 let () =
   add_test
     ~title:"hello world"
     (fun () ->
-      assert (Py.Run.simple_string "print('Hello world!')")
+      assert (Py.Run.simple_string "print('Hello world!')");
+      Passed
     )
 
 let () =
@@ -68,14 +86,17 @@ let () =
 from test import myClass
 myClass().callback('OK')
 ");
-      assert (!value_obtained = Some "OK")
+      assert (!value_obtained = Some "OK");
+      Passed
     )
 
 let () =
   add_test
     ~title:"empty tuple"
     (fun () ->
-      assert (Py.Tuple.create 0 = Py.Tuple.empty))
+      assert (Py.Tuple.create 0 = Py.Tuple.empty);
+      Passed
+    )
 
 let () =
   add_test
@@ -83,7 +104,9 @@ let () =
     (fun () ->
       assert
         (Py.Tuple.to_singleton (Py.Tuple.singleton (Py.Long.of_int 0))
-           = Py.Long.of_int 0))
+           = Py.Long.of_int 0);
+      Passed
+    )
 
 let () =
   add_test
@@ -96,8 +119,8 @@ let () =
       begin
         try
           ignore (Py.Module.get m "test");
-          failwith "Should have been removed"
-        with Py.E _ -> ()
+          Failed "Should have been removed"
+        with Py.E _ -> Passed
       end)
 
 let () =
@@ -120,6 +143,7 @@ x = wrap('OK')
 print('Capsule type: {}'.format(x))
 assert unwrap(x) == 'OK'
 ");
+      Passed
     )
 
 let () =
@@ -130,9 +154,10 @@ let () =
         let _ = Py.Run.eval ~start:Py.File "
 raise Exception('Great')
 " in
-        failwith "uncaught exception"
+        Failed "uncaught exception"
       with Py.E (_, value) ->
-        assert (Py.Object.to_string value = "Great"))
+        assert (Py.Object.to_string value = "Great");
+        Passed)
 
 let () =
   add_test
@@ -151,6 +176,7 @@ try:
 except Exception as err:
     assert str(err) == \"Great\"
 ");
+      Passed
     )
 
 let () =
@@ -169,9 +195,9 @@ try:
 except Exception as err:
     raise Exception('Should not be caught by Python')
 ");
-        failwith "Uncaught exception"
+        Failed "Uncaught exception"
       with Exit ->
-        ()
+        Passed
     )
 
 let () =
@@ -182,25 +208,30 @@ let () =
         begin fun file channel ->
          Py.Run.load (Py.Filename file) "test.py"
         end in
-      if result <> Py.none then
+      if result = Py.none then
+        Passed
+      else
         let result_str = Py.Object.to_string result in
         let msg = Printf.sprintf "Result None expected but got %s" result_str in
-        failwith msg
+        Failed msg
     )
 
 let () =
   add_test
     ~title:"run file with channel"
-    ~enabled:(Sys.os_type = "Unix")
-    (fun () ->
-      let result = Py.Utils.with_temp_file "print(\"Hello, world!\")"
-        begin fun file channel ->
-         Py.Run.load (Py.Channel channel) "test.py"
-        end in
-      if result <> Py.none then
-        let result_str = Py.Object.to_string result in
-        let msg = Printf.sprintf "Result None expected but got %s" result_str in
-        failwith msg
+    (enable_only_on_unix
+       (fun () ->
+         let result = Py.Utils.with_temp_file "print(\"Hello, world!\")"
+           begin fun file channel ->
+           Py.Run.load (Py.Channel channel) "test.py"
+           end in
+         if result = Py.none then
+           Passed
+         else
+           let result_str = Py.Object.to_string result in
+           let msg = Printf.sprintf "Result None expected but got %s" result_str in
+           Failed msg
+       )
     )
 
 let () =
@@ -209,11 +240,13 @@ let () =
     (fun () ->
       try
         if not (Py.Bool.to_bool (Py.Run.eval "True")) then
-          failwith "true is false";
-        if Py.Bool.to_bool (Py.Run.eval "False") then
-          failwith "false is true";
+          Failed "true is false"
+        else if Py.Bool.to_bool (Py.Run.eval "False") then
+          Failed "false is true"
+        else
+          Passed;
       with Py.E (_, value) ->
-        failwith (Py.Object.to_string value))
+        Failed (Py.Object.to_string value))
 
 let () =
   add_test
@@ -228,7 +261,8 @@ let () =
           Failure _ -> ()
         | Exit -> failwith "Uncaught not initialized"
       end;
-      Py.initialize ()
+      Py.initialize ();
+      Passed
     )
 
 let () =
@@ -237,12 +271,14 @@ let () =
     (fun () ->
       try
         let _ = Py.String.to_string (Py.Long.of_int 0) in
-        failwith "uncaught exception"
+        Failed "uncaught exception"
       with
         Py.E (_, value) ->
-          Printf.printf "Caught exception: %s\n%!" (Py.Object.to_string value)
+          Printf.printf "Caught exception: %s\n%!" (Py.Object.to_string value);
+          Passed
       | Failure s ->
-          Printf.printf "Caught failure: %s\n%!" s)
+          Printf.printf "Caught failure: %s\n%!" s;
+          Passed)
 
 let () =
   add_test
@@ -250,9 +286,10 @@ let () =
     (fun () ->
       try
         let _ = Py.Float.to_float (Py.String.of_string "a") in
-        failwith "uncaught exception"
+        Failed "uncaught exception"
       with Py.E (_, value) ->
-        Printf.printf "Caught exception: %s\n%!" (Py.Object.to_string value))
+        Printf.printf "Caught exception: %s\n%!" (Py.Object.to_string value);
+        Passed)
 
 let () =
   add_test
@@ -260,9 +297,10 @@ let () =
     (fun () ->
       try
         let _ = Py.Long.to_int (Py.String.of_string "a") in
-        failwith "uncaught exception"
+        Failed "uncaught exception"
       with Py.E (_, value) ->
-        Printf.printf "Caught exception: %s\n%!" (Py.Object.to_string value))
+        Printf.printf "Caught exception: %s\n%!" (Py.Object.to_string value);
+        Passed)
 
 let () =
   add_test
@@ -270,7 +308,8 @@ let () =
     (fun () ->
       let iter = Py.Object.get_iter (Py.Run.eval "['a','b','c']") in
       let list = Py.Iter.to_list_map Py.String.to_string iter in
-      assert (list = ["a"; "b"; "c"]))
+      assert (list = ["a"; "b"; "c"]);
+      Passed)
 
 let () =
   add_test
@@ -290,7 +329,8 @@ let () =
         match v with
           None -> failwith "None!"
         | Some v' -> assert (i = int_of_string v')
-      end table)
+      end table;
+      Passed)
 
 let () =
   add_test
@@ -301,24 +341,30 @@ let () =
       let ocaml_string = Py.String.to_string python_string in
       let python_string' = Py.String.decode_UTF8 ocaml_string in
       let codepoints' = Py.String.to_unicode python_string' in
-      assert (codepoints = codepoints'))
+      assert (codepoints = codepoints');
+      Passed
+    )
 
 let () =
   add_test
     ~title:"interactive loop"
-    ~enabled:(Sys.os_type = "Unix")
-    (fun () ->
+    (enable_only_on_unix (fun () ->
       Py.Utils.with_stdin_from_string "42"
         Py.Run.interactive ();
-      assert (Py.Long.to_int (Py.last_value ()) = 42))
+      assert (Py.Long.to_int (Py.last_value ()) = 42);
+      Passed))
 
 let () =
   add_test
     ~title:"IPython"
-    ~enabled:(Sys.os_type = "Unix")
-    (fun () ->
-      Py.Utils.with_stdin_from_string "exit"
-        Py.Run.ipython ())
+    (enable_only_on_unix (Py.Run.frame (Py.Utils.with_stdin_from_string "exit" (fun () ->
+      if Py.Import.try_import_module "IPython" = None then
+        Disabled "IPython is not available"
+      else
+        begin
+          Py.Run.ipython ~frame:false ();
+          Passed
+        end))))
 
 let () =
   add_test
@@ -327,7 +373,8 @@ let () =
       let v = Py.Long.of_int 42 in
       let m = Py.Marshal.dumps v in
       let v' = Py.Marshal.loads m in
-      assert (Py.Long.to_int v' = 42))
+      assert (Py.Long.to_int v' = 42);
+      Passed)
 
 let () =
   add_test
@@ -335,7 +382,8 @@ let () =
     (fun () ->
       let v = Py.List.of_list [Py.Long.of_int 42] in
       assert (Py.List.length v = 1);
-      assert (Py.Long.to_int (Py.List.get v 0) = 42))
+      assert (Py.Long.to_int (Py.List.get v 0) = 42);
+      Passed)
 
 let () =
   add_test ~title:"array"
@@ -357,16 +405,21 @@ for x in array:
 assert copy == [42, 43]
 ");
       assert (array.(0) = 42);
-      assert (array.(1) = 43))
+      assert (array.(1) = 43);
+      Passed)
 
 let () =
   add_test ~title:"numpy"
     (fun () ->
-      let array = [| 1.; 2. |] in
-      let a = Py.Array.numpy array in
-      let m = Py.Import.add_module "test" in
-      Py.Module.set m "array" a;
-      assert (Py.Run.simple_string "
+      if Py.Import.try_import_module "numpy" = None then
+        Disabled "numpy is not available"
+      else
+        begin
+          let array = [| 1.; 2. |] in
+          let a = Py.Array.numpy array in
+          let m = Py.Import.add_module "test" in
+          Py.Module.set m "array" a;
+          assert (Py.Run.simple_string "
 from test import array
 assert len(array) == 2
 assert array[0] == 1.
@@ -374,8 +427,10 @@ assert array[1] == 2.
 array[0] = 42.
 array[1] = 43.
 ");
-      assert (array.(0) = 42.);
-      assert (array.(1) = 43.))
+          assert (array.(0) = 42.);
+          assert (array.(1) = 43.);
+          Passed
+        end)
 
 let show_environment_variable envvar =
   try

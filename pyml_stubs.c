@@ -1249,7 +1249,11 @@ enum NPY_TYPES {
 #define NPY_ARRAY_CARRAY       (NPY_ARRAY_C_CONTIGUOUS | \
                                 NPY_ARRAY_BEHAVED)
 
-#define npy_intp int
+/* From pyport.h */
+typedef intptr_t        Py_intptr_t;
+
+/* From npy_common.h */
+typedef Py_intptr_t npy_intp;
 
 static void **
 get_pyarray_api(PyObject *c_api)
@@ -1278,12 +1282,11 @@ pyarray_of_float_array_wrapper(
 {
     CAMLparam3(numpy_api_ocaml, array_type_ocaml, array_ocaml);
     assert_initialized();
-    PyObject *(*PyArray_New)
-        (PyTypeObject *, int, npy_intp *, int, npy_intp *, void *, int, int,
-         PyObject *);
     PyObject *c_api = pyunwrap(numpy_api_ocaml);
     void **PyArray_API = get_pyarray_api(c_api);
-    PyArray_New = PyArray_API[93];
+    PyObject *(*PyArray_New)
+        (PyTypeObject *, int, npy_intp *, int, npy_intp *, void *, int, int,
+         PyObject *) = PyArray_API[93];
     npy_intp length = Wosize_val(array_ocaml);
     void *data = (double *) array_ocaml;
     PyTypeObject (*PyArray_SubType) =
