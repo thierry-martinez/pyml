@@ -204,7 +204,7 @@ let () =
   add_test
     ~title:"run file with filename"
     (fun () ->
-      let result = Py.Utils.with_temp_file "print(\"Hello, world!\")"
+      let result = Pyutils.with_temp_file "print(\"Hello, world!\")"
         begin fun file channel ->
          Py.Run.load (Py.Filename file) "test.py"
         end in
@@ -221,7 +221,7 @@ let () =
     ~title:"run file with channel"
     (enable_only_on_unix
        (fun () ->
-         let result = Py.Utils.with_temp_file "print(\"Hello, world!\")"
+         let result = Pyutils.with_temp_file "print(\"Hello, world!\")"
            begin fun file channel ->
            Py.Run.load (Py.Channel channel) "test.py"
            end in
@@ -349,7 +349,7 @@ let () =
   add_test
     ~title:"interactive loop"
     (enable_only_on_unix (fun () ->
-      Py.Utils.with_stdin_from_string "42"
+      Pyutils.with_stdin_from_string "42"
         Py.Run.interactive ();
       assert (Py.Long.to_int (Py.last_value ()) = 42);
       Passed))
@@ -357,7 +357,7 @@ let () =
 let () =
   add_test
     ~title:"IPython"
-    (enable_only_on_unix (Py.Run.frame (Py.Utils.with_stdin_from_string "exit" (fun () ->
+    (enable_only_on_unix (Py.Run.frame (Pyutils.with_stdin_from_string "exit" (fun () ->
       if Py.Import.try_import_module "IPython" = None then
         Disabled "IPython is not available"
       else

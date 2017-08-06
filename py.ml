@@ -61,6 +61,8 @@ let set_program_name s =
 
 let python_home = ref None
 
+let pythonpaths = ref []
+
 let set_python_home s =
   python_home := (Some s);
   if !initialized then
@@ -69,8 +71,8 @@ let set_python_home s =
     else
       Pywrappers.Python3.py_setpythonhome s
 
-let substring_between string before after =
-  String.sub string (before + 1) (after - before - 1)
+let add_python_path path =
+  pythonpaths := path :: !pythonpaths
 
 let extract_version version_line =
   let before =
@@ -80,10 +82,7 @@ let extract_version version_line =
         Printf.sprintf "Py.extract_version: cannot parse the version line '%s'"
           version_line in
       failwith msg in
-  let after =
-    try String.index_from version_line (succ before) ' '
-    with Not_found -> String.length version_line in
-  substring_between version_line before after
+  Pyutils.split_left_on_char ~from:(succ before) ' ' version_line
 
 let extract_version_major_minor version =
   try
@@ -100,33 +99,18 @@ let extract_version_major_minor version =
         version in
     failwith msg
 
-let trim_carriage_return line =
-  let length = String.length line in
-  if String.sub line (length - 1) 1 = "\r" then
-    String.sub line 0 (length - 1)
-  else
-    line
-
-let input_lines channel =
-  let accu = ref [] in
-  try
-    while true do
-      accu := trim_carriage_return (input_line channel) :: !accu;
-    done;
-    assert false
-  with End_of_file ->
-    List.rev !accu
-
-let run_command command read_stderr =
-  let (input, output, error) =
+let run_command ?(input = "") command read_stderr =
+  let (input_channel, output, error) =
     Unix.open_process_full command (Unix.environment ()) in
   let result =
     try
-      input_lines (if read_stderr then error else input)
+      output_string output input;
+      close_out output;
+      Pyutils.input_lines (if read_stderr then error else input_channel)
     with _ ->
       begin
         try
-          ignore (Unix.close_process_full (input, output, error))
+          ignore (Unix.close_process_full (input_channel, output, error))
         with _ ->
           ()
       end;
@@ -134,31 +118,21 @@ let run_command command read_stderr =
         Printf.sprintf "Py.run_command: unable to read the result of '%s'"
           command in
       failwith msg in
-  if Unix.close_process_full (input, output, error) <> Unix.WEXITED 0 then
+  if Unix.close_process_full
+       (input_channel, output, error) <> Unix.WEXITED 0 then
     begin
       let msg = Printf.sprintf "Py.run_command: unable to run '%s'" command in
       failwith msg;
     end;
   result
 
-let suffix string from =
-  String.sub string from (String.length string - from)
-
-let rec split string ?(from=0) separator =
-  match
-    try Some (String.index_from string from separator)
-    with Not_found -> None
-  with
-    None -> [suffix string from]
-  | Some position ->
-      let word = String.sub string from (position - from) in
-      word :: split string ~from:(succ position) separator
-
 let parent_dir filename =
   let dirname = Filename.dirname filename in
   Filename.concat dirname Filename.parent_dir_name
 
 let has_putenv = ref false
+
+let has_set_pythonpath = ref None
 
 let init_pythonhome verbose pythonhome =
   pythonhome <> "" &&
@@ -182,15 +156,16 @@ let uninit_pythonhome () =
       has_putenv := false
     end
 
-let split_left_on_char char s =
-  try String.sub s 0 (String.index s char)
-  with Not_found -> s
-
-let split_right_on_char char s =
-  try
-    let index = String.index s char + 1 in
-    String.sub s index (String.length s - index)
-  with Not_found -> s
+let uninit_pythonpath () =
+  match !has_set_pythonpath with
+    None -> ()
+  | Some old_pythonpath ->
+      begin
+        has_set_pythonpath := None;
+        match old_pythonpath with
+          None -> unsetenv "PYTHONPATH"
+        | Some old_pythonpath' -> Unix.putenv "PYTHONPATH" old_pythonpath'
+      end
 
 let ldd executable =
   let command = Printf.sprintf "ldd %s" executable in
@@ -201,28 +176,135 @@ let ldd executable =
     None -> []
   | Some lines ->
      let extract_line line =
-       String.trim (split_left_on_char '(' (split_right_on_char '>' line)) in
+       Pyml_compat.trim
+         (Pyutils.split_left_on_char '('
+            (Pyutils.split_right_on_char '>' line)) in
      List.map extract_line lines
-
-let has_prefix prefix s =
-  let prefix_length = String.length prefix in
-  String.length s >= prefix_length && String.sub s 0 prefix_length = prefix
 
 let libpython_from_interpreter python_full_path =
   let lines = ldd python_full_path in
   let is_libpython line =
     let basename = Filename.basename line in
-    has_prefix "libpython" basename in
-  try Some (List.find is_libpython lines)
-  with Not_found -> None
+    Pyutils.has_prefix "libpython" basename in
+  Pyml_compat.list_find_opt is_libpython lines
 
-let option_bind f o =
-  match o with
-    None -> None
-  | Some v -> f v
+let parse_python_list list =
+  let length = String.length list in
+  let buffer = Buffer.create 17 in
+  let rec parse_item accu index =
+    if index < length then
+      match list.[index] with
+        '\'' ->
+        begin
+          let item = Buffer.contents buffer in
+          let accu = item :: accu in
+          if index + 1 < length then
+            match list.[index + 1] with
+              ']' ->
+              if index + 2 = length then
+                Some (List.rev accu)
+              else
+                None
+            | ',' ->
+               if list.[index + 2] = ' ' && list.[index + 3] = '\'' then
+                 begin
+                   Buffer.clear buffer;
+                   parse_item accu (index + 4)
+                 end
+               else
+                 None
+            | _ ->
+               None
+          else
+            None
+        end
+      | '\\' ->
+         if index + 1 < length then
+           begin
+             match list.[index + 1] with
+               '\n' -> parse_item accu (index + 2)
+             | '0' .. '9' ->
+                if index + 3 < length then
+                  begin
+                    let octal_number = String.sub list (index + 1) 3 in
+                    let c = char_of_int (Pyutils.int_of_octal octal_number) in
+                    Buffer.add_char buffer c;
+                    parse_item accu (index + 4)
+                  end
+                else
+                  None
+             | 'x' ->
+                if index + 2 < length then
+                  begin
+                    let hexa_number = String.sub list (index + 1) 2 in
+                    let c = char_of_int (Pyutils.int_of_hex hexa_number) in
+                    Buffer.add_char buffer c;
+                    parse_item accu (index + 3)
+                  end
+                else
+                  None
+             | c ->
+                begin
+                  match
+                    try
+                      let c' =
+                        match c with
+                          '\\' -> '\\'
+                        | '\'' -> '\''
+                        | '"' -> '"'
+                        | 'a' -> '\007'
+                        | 'b' -> '\b'
+                        | 'f' -> '\012'
+                        | 'n' -> '\n'
+                        | 'r' -> '\r'
+                        | 't' -> '\t'
+                        | 'v' -> '\011'
+                        | _ -> raise Not_found in
+                      Some c'
+                    with Not_found -> None
+                  with
+                    None -> None
+                  | Some c' ->
+                     Buffer.add_char buffer c';
+                    parse_item accu (index + 2)
+                end
+           end
+         else
+           None
+      | c ->
+         Buffer.add_char buffer c;
+         parse_item accu (index + 1)
+    else
+      None in
+  if length >= 2 && list.[0] == '[' then
+    match list.[1] with
+      '\'' ->
+        Buffer.clear buffer;
+        parse_item [] 2
+    | ']' when length = 2 -> Some []
+    | _ -> None
+  else
+    None
+
+let pythonpaths_from_interpreter python_full_path =
+  let command = "\
+import sys
+print(sys.path)
+" in
+  match
+    try run_command ~input:command python_full_path false
+    with Failure _ -> []
+  with
+    [path_line] ->
+      begin
+        match parse_python_list path_line with
+          None -> []
+        | Some paths -> paths
+      end
+  | _ -> []
 
 let find_library_path version_major version_minor python_full_path =
-  match option_bind libpython_from_interpreter python_full_path with
+  match Pyutils.option_bind python_full_path libpython_from_interpreter with
     Some path -> ([""], [path])
   | None ->
   let command =
@@ -243,9 +325,7 @@ let find_library_path version_major version_minor python_full_path =
         with
           None -> []
         | Some pythonhome ->
-            let prefix =
-              try String.sub pythonhome 0 (String.index pythonhome ':')
-              with Not_found -> pythonhome in
+            let prefix = Pyutils.split_left_on_char ':' pythonhome in
             [Filename.concat prefix "lib"] in
       let library_filenames =
         List.map
@@ -253,7 +333,7 @@ let find_library_path version_major version_minor python_full_path =
           Pyml_arch.library_patterns in
       (library_paths, library_filenames)
   | Some words ->
-      let word_list = split words ' ' in
+      let word_list = Pyml_compat.split_on_char ' ' words in
       let unable_to_parse () =
         let msg = Printf.sprintf
         "Py.find_library_path: unable to parse the output of pkg-config '%s'"
@@ -262,13 +342,15 @@ let find_library_path version_major version_minor python_full_path =
       let parse_word (library_paths, library_filename) word =
         if String.length word > 2 then
           match String.sub word 0 2 with
-            "-L" -> (suffix word 2 :: library_paths, library_filename)
+            "-L" ->
+              let word' = Pyutils.substring_between word 2 (String.length word) in
+              (word' :: library_paths, library_filename)
           | "-l" ->
+              let word' = Pyutils.substring_between word 2 (String.length word) in
               if library_filename <> None then
                 unable_to_parse ();
               let library_filename =
-                Printf.sprintf "lib%s%s" (suffix word 2)
-                  Pyml_arch.library_suffix in
+                Printf.sprintf "lib%s%s" word' Pyml_arch.library_suffix in
               (library_paths, Some library_filename)
           | _ -> (library_paths, library_filename)
         else (library_paths, library_filename) in
@@ -374,34 +456,69 @@ let get_version = Pywrappers.py_getversion
 let initialize ?(interpreter = "python") ?version ?(verbose = false) () =
   if !initialized then
     failwith "Py.initialize: already initialized";
-  let python_full_path =
-    if String.contains interpreter '/' then Some interpreter
-    else
-      let interpreter_exe = Pyml_arch.ensure_executable_suffix interpreter in
-      let which_python =
-        Printf.sprintf "%s \"%s\"" Pyml_arch.which interpreter_exe in
-      try Some (List.hd (run_command which_python false))
-      with Failure _ -> None in
   begin
-    match version with
-      Some (version_major, version_minor) ->
-        version_major_value := version_major;
-        version_minor_value := version_minor
-    | _ ->
+    try
+      let python_full_path =
+        if String.contains interpreter '/' then Some interpreter
+        else
+          let interpreter_exe =
+            Pyml_arch.ensure_executable_suffix interpreter in
+          let which_python =
+            Printf.sprintf "%s \"%s\"" Pyml_arch.which interpreter_exe in
+          try Some (List.hd (run_command which_python false))
+          with Failure _ -> None in
+      let interpreter_pythonpaths =
         match python_full_path with
-          None ->
-            failwith "No Python version given and no Python interpreter found"
-        | Some python_full_path' -> initialize_version_value python_full_path'
+          None -> []
+        | Some python_full_path' ->
+            pythonpaths_from_interpreter python_full_path' in
+      let new_pythonpaths =
+        List.rev_append !pythonpaths interpreter_pythonpaths in
+      if new_pythonpaths <> [] then
+        begin
+          let former_pythonpath = Pyml_compat.getenv_opt "PYTHONPATH" in
+          has_set_pythonpath := Some former_pythonpath;
+          let all_paths =
+            match former_pythonpath with
+              None -> new_pythonpaths
+            | Some former_pythonpath' ->
+                former_pythonpath' :: new_pythonpaths in
+          let pythonpath = String.concat Pyml_arch.path_separator all_paths in
+          if verbose then
+            begin
+              Printf.eprintf "Temporary set PYTHONPATH=\"%s\".\n" pythonpath;
+              flush stderr;
+            end;
+          Unix.putenv "PYTHONPATH" pythonpath
+      end;
+      begin
+        match version with
+          Some (version_major, version_minor) ->
+            version_major_value := version_major;
+            version_minor_value := version_minor
+        | _ ->
+            match python_full_path with
+              None ->
+                failwith
+                  "No Python version given and no Python interpreter found"
+            | Some python_full_path' ->
+                initialize_version_value python_full_path'
+      end;
+      initialize_library verbose python_full_path;
+      let version = get_version () in
+      let (version_major, version_minor) =
+        extract_version_major_minor version in
+      if version_major != !version_major_value ||
+        version_minor != !version_minor_value then
+        begin
+          finalize_library ();
+          failwith "Version mismatch"
+        end;
+    with e ->
+      uninit_pythonhome ();
+      uninit_pythonpath ();
+      raise e
   end;
-  initialize_library verbose python_full_path;
-  let version = get_version () in
-  let (version_major, version_minor) = extract_version_major_minor version in
-  if version_major != !version_major_value ||
-    version_minor != !version_minor_value then
-    begin
-      finalize_library ();
-      failwith "Version mismatch"
-    end;
   initialized := true
 
 let on_finalize_list = ref []
@@ -413,6 +530,7 @@ let finalize () =
   List.iter (fun f -> f ()) !on_finalize_list;
   finalize_library ();
   uninit_pythonhome ();
+  uninit_pythonpath ();
   initialized := false
 
 let version () =
@@ -666,18 +784,13 @@ module Type = struct
          t (name (get o)) (string_of_repr o))
 end
 
-let find_exception option =
-  match option with
-    None -> raise Not_found
-  | Some result -> result
-
 module Mapping = struct
   let check v = Pywrappers.pymapping_check v <> 0
 
   let get_item_string mapping key =
     option (Pywrappers.pymapping_getitemstring mapping key)
 
-  let find_string mapping key = find_exception (get_item_string mapping key)
+  let find_string mapping key = Pyutils.option_unwrap (get_item_string mapping key)
 
   let has_key mapping key = Pywrappers.pymapping_haskey mapping key <> 0
 
@@ -1157,11 +1270,11 @@ module Object = struct
   let get_item obj key =
     option (Pywrappers.pyobject_getitem obj key)
 
-  let find obj attr = find_exception (get_item obj attr)
+  let find obj attr = Pyutils.option_unwrap (get_item obj attr)
 
   let get_item_string obj key = get_item obj (String.of_string key)
 
-  let find_string obj attr = find_exception (get_item_string obj attr)
+  let find_string obj attr = Pyutils.option_unwrap (get_item_string obj attr)
 
   let get_iter obj =
     check_not_null (Pywrappers.pyobject_getiter obj)
@@ -1502,12 +1615,12 @@ module Dict = struct
   let get_item dict key =
     option (Pywrappers.pydict_getitem dict key)
 
-  let find dict key = find_exception (get_item dict key)
+  let find dict key = Pyutils.option_unwrap (get_item dict key)
 
   let get_item_string dict name =
     option (Pywrappers.pydict_getitemstring dict name)
 
-  let find_string dict key = find_exception (get_item_string dict key)
+  let find_string dict key = Pyutils.option_unwrap (get_item_string dict key)
 
   let keys dict = check_not_null (Pywrappers.pydict_keys dict)
 
@@ -1658,70 +1771,6 @@ module Module = struct
   let sys () = Import.import_module "sys"
 
   let builtins () = get (main ()) "__builtins__"
-end
-
-module Utils = struct
-  let try_finally f arg finally finally_arg =
-    try
-      let result = f arg in
-      finally finally_arg;
-      result
-    with e ->
-      finally finally_arg;
-      raise e
-
-  let read_and_close channel f arg =
-    try
-      let result = f arg in
-      close_in channel;
-      result
-    with e ->
-      close_in_noerr channel;
-      raise e
-
-  let write_and_close channel f arg =
-    try
-      let result = f arg in
-      close_out channel;
-      result
-    with e ->
-      close_out_noerr channel;
-      raise e
-
-  let with_temp_file contents f =
-    let (file, channel) = Filename.open_temp_file "pyml_tests" ".py" in
-    try_finally begin fun () ->
-      write_and_close channel (output_string channel) contents;
-      let channel = open_in file in
-      read_and_close channel (f file) channel
-    end ()
-      Sys.remove file
-
-  let with_pipe f =
-    let (read, write) = Unix.pipe () in
-    let in_channel = Unix.in_channel_of_descr read
-    and out_channel = Unix.out_channel_of_descr write in
-    try_finally (f in_channel) out_channel
-      (fun () ->
-        close_in_noerr in_channel;
-        close_out_noerr out_channel) ()
-
-  let with_stdin_from channel f arg =
-    let stdin_backup = Unix.dup Unix.stdin in
-    Unix.dup2 (Unix.descr_of_in_channel channel) Unix.stdin;
-    try_finally
-      f arg
-      (Unix.dup2 stdin_backup) Unix.stdin
-
-  let with_channel_from_string s f =
-    with_pipe begin fun in_channel out_channel ->
-      output_string out_channel s;
-      close_out out_channel;
-      f in_channel
-    end
-
-  let with_stdin_from_string s f arg =
-    with_channel_from_string s (fun channel -> with_stdin_from channel f arg)
 end
 
 module Class = struct

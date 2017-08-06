@@ -246,6 +246,11 @@ val set_python_home: string -> unit
     The function can be called before [initialize ()] and the value is preserved
     from one initialization to the other. *)
 
+val add_python_path: string -> unit
+(** Adds a path to Python search path.
+    The function can be called before [initialize ()] and the value is preserved
+    from one initialization to the other. *)
+
 val get_program_name: unit -> string
 (** Gets the program name (by default, [Sys.argv.(0)]).
     The function can be called before [initialize ()]. *)
@@ -1653,49 +1658,3 @@ val last_value: unit -> Object.t
 val exception_printer: exn -> string option
 (** This printer pretty-prints [E (ty, value)] exceptions.
     It is automatically registered to [Printexc.register_printer]. *)
-
-module Utils: sig
-  (** This module declares utility functions that does not require Python to
-      be initialized. *)
-
-  val try_finally: ('a -> 'b) -> 'a -> ('c -> unit) -> 'c -> 'b
-  (** [try_finally f arg finally finally_arg] calls [f arg], and returns the
-      result of [f].
-      [finally finally_arg] is always called after [f] has been called, even if
-      [f] raises an exception. *)
-
-  val read_and_close: in_channel -> ('a -> 'b) -> 'a -> 'b
-  (** [read_and_close channel f arg] calls [f arg], and returns the result of
-      [f].
-      [channel] is always closed after [f] has been called, even if [f] raises
-      an exception. *)
-
-  val write_and_close: out_channel -> ('a -> 'b) -> 'a -> 'b
-  (** [write_and_close channel f arg] calls [f arg], and returns the result of
-      [f].
-      [channel] is always closed after [f] has been called, even if [f] raises
-      an exception. *)
-
-  val with_temp_file: string -> (string -> in_channel -> 'a) -> 'a
-  (** [with_temp_file s f] creates a temporary file with [s] as contents and
-      calls [f filename in_channel] where [filename] is the name of the
-      temporary file and [in_channel] is an input channel opened to read the
-      file. The file is deleted after the execution of [f] (even if [f]
-      raised an exception. *)
-
-  val with_pipe: (in_channel -> out_channel -> 'a) -> 'a
-  (** [with_pipe f] creates a pipe and calls [f] with the two ends of the
-      pipe. *)
-
-  val with_stdin_from: in_channel -> ('a -> 'b) -> 'a -> 'b
-  (** [with_stdin_from chan f arg] calls [f arg] with the standard input
-      redirected for reading from [chan]. *)
-
-  val with_channel_from_string: string -> (in_channel -> 'a) -> 'a
-  (** [with_channel_from_string s f] calls [f in_channel] where [in_channel]
-      is an input channel returning the contents of [s]. *)
-
-  val with_stdin_from_string: string -> ('a -> 'b) -> 'a -> 'b
-  (** [with_stdin_from_string s f arg] calls [f arg] with the standard input
-      redirected for reading from the contents of [s]. *)
-end

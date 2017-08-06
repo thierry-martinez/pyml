@@ -79,7 +79,7 @@ else
 	TESTSOPT=tests.native
 endif
 
-MODULES=pyml_compat pyml_arch pytypes pywrappers py pycaml
+MODULES=pyml_arch pyutils pyml_compat pytypes pywrappers py pycaml
 
 VERSION:=$(shell date "+%Y%m%d")
 
@@ -95,8 +95,12 @@ PYML_COMPAT:=$(shell \
 		echo pyml_compat312.ml; \
 	elif [ "$(OCAMLVERSION)" "<" 4.03.0 ]; then \
 		echo pyml_compat400.ml; \
-	else \
+	elif [ "$(OCAMLVERSION)" "<" 4.04.0 ]; then \
 		echo pyml_compat403.ml; \
+	elif [ "$(OCAMLVERSION)" "<" 4.05.0 ]; then \
+		echo pyml_compat404.ml; \
+	else \
+		echo pyml_compat405.ml; \
 	fi \
 )
 
@@ -224,14 +228,16 @@ ifneq ($(MAKECMDGOALS),clean)
 -include .depend
 endif
 
-generate: pyml_compat.$(CMOX) generate.$(CMOX)
-	$(OCAMLCOPT) $^ -o $@
+pyutils.cmo pyutils.cmx: pyutils.cmi
+
+generate: pyutils.$(CMOX) pyml_compat.$(CMOX) generate.$(CMOX)
+	$(OCAMLCOPT) unix.$(CMAX) $^ -o $@
 
 generate.cmo: generate.ml pyml_compat.cmo
 
 generate.cmx: generate.ml pyml_compat.cmx
 
-pyml_compat.cmo pyml_compat.cmx: pyml_compat.cmi
+pyml_compat.cmo pyml_compat.cmx: pyutils.cmi pyml_compat.cmi
 
 pywrappers.ml pyml_wrappers.inc: generate
 	./generate
