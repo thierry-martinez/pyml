@@ -5,7 +5,7 @@ INSTALL_PROGRAM=$(INSTALL)
 bindir=$(PREFIX)/bin
 
 HAVE_OCAMLFIND:=$(shell \
-	if $(OCAMLFIND) query -help &>/dev/null; then \
+	if $(OCAMLFIND) query -help >/dev/null 2>&1; then \
 		echo yes; \
 	else \
 		echo no; \
@@ -15,7 +15,7 @@ HAVE_OCAMLFIND:=$(shell \
 HAVE_UTOP:=$(shell \
 	if [ "$(HAVE_OCAMLFIND)" = no ]; then \
 		echo no; \
-	elif $(OCAMLFIND) query utop &>/dev/null; then \
+	elif $(OCAMLFIND) query utop >/dev/null 2>&1; then \
 		echo yes; \
 	else \
 		echo no; \
@@ -33,9 +33,9 @@ ifneq ($(HAVE_OCAMLFIND),no)
 	OCAMLDOC=$(OCAMLFIND) ocamldoc
 else
 	OCAMLC:=$(shell \
-		if ocamlc.opt -version &>/dev/null; then \
+		if ocamlc.opt -version >/dev/null 2>&1; then \
 			echo ocamlc.opt; \
-		elif ocamlc -version &>/dev/null; then \
+		elif ocamlc -version >/dev/null 2>&1; then \
 			echo ocamlc; \
 		fi \
 	)
@@ -44,9 +44,9 @@ else
 	endif
 	ifneq ($(HAVE_OCAMLOPT),no)
 		OCAMLOPTEXE:=$(shell \
-			if ocamlopt.opt -version &>/dev/null; then \
+			if ocamlopt.opt -version >/dev/null 2>&1; then \
 				echo ocamlopt.opt; \
-			elif ocamlopt -version &>/dev/null; then \
+			elif ocamlopt -version >/dev/null 2>&1; then \
 				echo ocamlopt; \
 			fi \
 		)
