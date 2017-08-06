@@ -86,7 +86,7 @@ let extract_version version_line =
 
 let extract_version_major_minor version =
   try
-    if String.length version >= 3 && (String.sub version 1 1 = ".") then
+    if String.length version >= 3 && (version.[1] = '.') then
       let major = int_of_string (String.sub version 0 1) in
       let minor = int_of_string (String.sub version 2 1) in
       (major, minor)
@@ -180,6 +180,18 @@ let ldd executable =
          (Pyutils.split_left_on_char '('
             (Pyutils.split_right_on_char '>' line)) in
      List.map extract_line lines
+
+let deb_host_multiarch () =
+  try
+    Some
+      (List.hd (run_command "dpkg-architecture -q DEB_HOST_MULTIARCH" false))
+  with Failure _ -> None
+
+let libpython_dir_deb_multiarch major minor =
+  match deb_host_multiarch () with
+    None -> []
+  | Some multiarch ->
+      [Printf.sprintf "/usr/lib/python%d.%d/config-%s" major minor multiarch]
 
 let libpython_from_interpreter python_full_path =
   let lines = ldd python_full_path in
@@ -327,6 +339,9 @@ let find_library_path version_major version_minor python_full_path =
         | Some pythonhome ->
             let prefix = Pyutils.split_left_on_char ':' pythonhome in
             [Filename.concat prefix "lib"] in
+      let library_paths =
+        library_paths @
+        libpython_dir_deb_multiarch version_major version_minor in
       let library_filenames =
         List.map
           (fun format -> Printf.sprintf format version_major version_minor)
