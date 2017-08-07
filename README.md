@@ -213,7 +213,7 @@ documentation:
 	y = np.sin(x)
 	plt.plot(x, y)
 	plt.show()
-``
+```
 
 The code can be written directly in OCaml as such:
 
