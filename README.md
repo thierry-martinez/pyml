@@ -69,25 +69,25 @@ To make an OCaml value accessible from Python, we create a module (called
 ``ocaml`` in this example, but it can be any valid Python module name):
 
 ```ocaml
-	let m = Py.Import.add_module "ocaml" in
-	Py.Module.set m "example_value"
-	  (Py.List.of_list_map Py.Int.of_int [1;2;3]);
-	Py.Run.eval ~start:Py.File "
-	from ocaml import example_value
-	print(example_value)"
+let m = Py.Import.add_module "ocaml" in
+Py.Module.set m "example_value"
+  (Py.List.of_list_map Py.Int.of_int [1;2;3]);
+Py.Run.eval ~start:Py.File "
+from ocaml import example_value
+print(example_value)"
 ```
 
 OCaml functions can be passed in the same way.
 
 ``` ocaml
-	let m = Py.Import.add_module "ocaml" in
-	let hello args =
-	  Printf.printf "Hello, %s!\n" (Py.String.to_string args.(0));
-	  Py.none in
-	Py.Module.set m "hello" (Py.Callable.of_function hello);
-	Py.Run.eval ~start:Py.File "
-	from ocaml import hello
-	hello('World')"
+let m = Py.Import.add_module "ocaml" in
+let hello args =
+  Printf.printf "Hello, %s!\n" (Py.String.to_string args.(0));
+  Py.none in
+Py.Module.set m "hello" (Py.Callable.of_function hello);
+Py.Run.eval ~start:Py.File "
+from ocaml import hello
+hello('World')"
 ```
 
 ``Py.Module.set m "hello" (Py.Callable.of_function hello);``
@@ -97,12 +97,12 @@ can be written
 Python functions can be called from OCaml too.
 
 ```ocaml
-	let builtins = Py.Eval.get_builtins () in
-	let sorted_python = Py.Dict.find_string builtins "sorted" in
-	let sorted = Py.Callable.to_function sorted_python in
-	let result =
-	  sorted [| Py.List.of_list_map Py.Float.of_float [3.0; 2.0] |] in
-	assert (Py.List.to_list_map Py.Float.to_float result = [2.0; 3.0])
+let builtins = Py.Eval.get_builtins () in
+let sorted_python = Py.Dict.find_string builtins "sorted" in
+let sorted = Py.Callable.to_function sorted_python in
+let result =
+  sorted [| Py.List.of_list_map Py.Float.of_float [3.0; 2.0] |] in
+assert (Py.List.to_list_map Py.Float.to_float result = [2.0; 3.0])
 ```
 
 ``Py.Run.interactive ()`` runs the Python top-loop.
@@ -153,12 +153,12 @@ Python numbers. It can be open locally to take benefit from operator
 overloading. E.g.:
 
 ``` ocaml
-	let m = Py.Import.add_module "ocaml" in
-	let square args = Py.Number.(args.(0) ** of_int 2) in
-	Py.Module.set_function m "square" square;
-	ignore (Py.Run.eval ~start:Py.File "
-	from ocaml import square
-	print(square(3))")
+let m = Py.Import.add_module "ocaml" in
+let square args = Py.Number.(args.(0) ** of_int 2) in
+Py.Module.set_function m "square" square;
+ignore (Py.Run.eval ~start:Py.File "
+from ocaml import square
+print(square(3))")
 ```
 
 ``Py.Tuple.of_array`` and ``Py.Tuple.to_array`` can be used to construct
@@ -203,15 +203,15 @@ with
 values can be retrieved efficiently with ``Py.Dict.find_string``).
 
 ```ocaml
-	let m = Py.Import.add_module "ocaml" in
-	Py.Module.set_function_with_keywords m "length"
-	  (fun args kw ->
-	    let x = Py.Dict.find_string kw "x" in
-	    let y = Py.Dict.find_string kw "y" in
-	    Py.Number.((x ** of_int 2 + y ** of_int 2) ** of_float 0.5));
-	ignore (Py.Run.eval ~start:Py.File "
-	from ocaml import length
-	print(length(x=3, y=4))")
+let m = Py.Import.add_module "ocaml" in
+Py.Module.set_function_with_keywords m "length"
+  (fun args kw ->
+    let x = Py.Dict.find_string kw "x" in
+    let y = Py.Dict.find_string kw "y" in
+    Py.Number.((x ** of_int 2 + y ** of_int 2) ** of_float 0.5));
+ignore (Py.Run.eval ~start:Py.File "
+from ocaml import length
+print(length(x=3, y=4))")
 ```
 
 
@@ -234,25 +234,25 @@ If we consider the following Python code taken from ``matplotlib``
 documentation:
 
 ```python
-	import numpy as np
-	import matplotlib.pyplot as plt
-	
-	x = np.arange(0, 5, 0.1);
-	y = np.sin(x)
-	plt.plot(x, y)
-	plt.show()
+import numpy as np
+import matplotlib.pyplot as plt
+
+x = np.arange(0, 5, 0.1);
+y = np.sin(x)
+plt.plot(x, y)
+plt.show()
 ```
 
 The code can be written directly in OCaml as such:
 
 ```ocaml
-	let np = Py.Import.import_module "numpy" in
-	let plt = Py.Import.import_module "matplotlib.pyplot" in
-	let x = Py.Module.get_function np "arange"
-	  (Array.map Py.Float.of_float [| 0.; 5.; 0.1 |]) in
-	let y = Py.Module.get_function np "sin" [| x |] in
-	ignore (Py.Module.get_function plt "plot" [| x; y |]);
-	assert (Py.Module.get_function plt "show" [| |] = Py.none)
+let np = Py.Import.import_module "numpy" in
+let plt = Py.Import.import_module "matplotlib.pyplot" in
+let x = Py.Module.get_function np "arange"
+  (Array.map Py.Float.of_float [| 0.; 5.; 0.1 |]) in
+let y = Py.Module.get_function np "sin" [| x |] in
+ignore (Py.Module.get_function plt "plot" [| x; y |]);
+assert (Py.Module.get_function plt "show" [| |] = Py.none)
 ```
 
 NumPy
@@ -264,11 +264,11 @@ Python code can then directly read and write from and to the OCaml arrays
 and changes are readable from OCaml.
 
 ```ocaml
-	let array = [| 1.; 2. ; 3. |] in
-	let m = Py.Import.add_module "ocaml" in
-	Py.Module.set m "array" (Py.Array.numpy array);
-	ignore (Py.Run.eval ~start:Py.File "
-	from ocaml import array
-	array *= 2");
-	assert (array = [| 2.; 4.; 6. |])
+let array = [| 1.; 2. ; 3. |] in
+let m = Py.Import.add_module "ocaml" in
+Py.Module.set m "array" (Py.Array.numpy array);
+ignore (Py.Run.eval ~start:Py.File "
+from ocaml import array
+array *= 2");
+assert (array = [| 2.; 4.; 6. |])
 ```
