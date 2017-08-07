@@ -344,10 +344,12 @@ module Callable: sig
       instead of a tuple for passing arguments. *)
 
   val of_function_with_keywords: ?docstring:string ->
-    (Object.t array -> (string * Object.t) list -> Object.t) -> Object.t
+    (Object.t array -> Object.t -> Object.t) -> Object.t
   (** Equivalent to {!of_function_as_tuple_and_dict} but with an array of
-      Python objects instead of a tuple and an associative list instead of a
-      dictionary for passing arguments. *)
+      Python objects instead of a tuple for passing arguments.
+      The dictionary of keywords is passed as such as it is more efficient
+      to access arguments with ``Py.Dict.find_string``, rather than using
+      ``List.assoc`` with an associative list. *)
 
   val to_function_as_tuple_and_dict: Object.t -> Object.t -> Object.t ->
     Object.t
@@ -1022,7 +1024,7 @@ module Module: sig
       [Py.Module.set m name (Py.Callable.of_function f)]. *)
 
   val set_function_with_keywords: Object.t -> string ->
-    (Object.t array -> (string * Object.t) list -> Object.t) -> unit
+    (Object.t array -> Object.t -> Object.t) -> unit
   (** [Py.Module.set_function_with_keywords m name f] is equivalent to
       [Py.Module.set m name (Py.Callable.of_function_with_keywords f)]. *)
 

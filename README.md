@@ -185,7 +185,9 @@ Python closures can be called from OCaml with
 pass keywords as an associative list.
 Symmetrically, OCaml functions can be turned into Python closures
 with
-``Py.Callable.of_function`` and ``Py.Callable.of_function_with_keywords``.
+``Py.Callable.of_function`` and ``Py.Callable.of_function_with_keywords``
+(the latter function passes keywords as a dictionary to the OCaml callback:
+values can be retrieved efficiently with ``Py.Dict.find_string``).
 
 Modules
 -------

@@ -1728,7 +1728,7 @@ module Callable = struct
 
   let of_function_with_keywords ?docstring f =
     of_function_as_tuple_and_dict ?docstring
-      (fun args dict -> f (Tuple.to_array args) (Dict.to_bindings_string dict))
+      (fun args dict -> f (Tuple.to_array args) dict)
 
   let to_function_as_tuple c =
     if not (check c) then
