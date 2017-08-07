@@ -8,10 +8,14 @@ type compare = Pytypes.compare = LT | LE | EQ | NE | GT | GE
 
 type ucs = UCSNone | UCS2 | UCS4
 
+type closure =
+    WithoutKeywords of (pyobject -> pyobject)
+  | WithKeywords of (pyobject -> pyobject -> pyobject)
+
 external load_library: string option -> unit = "py_load_library"
 external unsetenv: string -> unit = "py_unsetenv"
 external finalize_library: unit -> unit = "py_finalize_library"
-external pywrap_closure: string -> (pyobject -> pyobject) -> pyobject
+external pywrap_closure: string -> closure -> pyobject
     = "pywrap_closure"
 external pynull: unit -> pyobject = "PyNull_wrapper"
 external pynone: unit -> pyobject = "PyNone_wrapper"
@@ -32,6 +36,9 @@ external pyobject_asreadbuffer: pyobject -> string option
     = "PyObject_AsReadBuffer_wrapper"
 external pyobject_aswritebuffer: pyobject -> string option
     = "PyObject_AsWriteBuffer_wrapper"
+external pylong_fromstring: string -> int -> pyobject * int
+    = "PyLong_FromString_wrapper"
+
 
 external ucs: unit -> ucs = "py_get_UCS"
 
@@ -703,7 +710,7 @@ module Capsule = struct
   let type_of x = fst (unsafe_unwrap_value x)
 end
 
-module Eval_ = struct
+module Eval = struct
   let call_object_with_keywords func arg keyword =
     check_not_null (Pywrappers.pyeval_callobjectwithkeywords func arg keyword)
 
@@ -854,143 +861,6 @@ module Float = struct
     if result = -1.0 then
       check_error ();
     result
-end
-
-module Long = struct
-  let check o = Type.get o = Type.Long
-
-  let of_int64 v =
-    check_not_null (Pywrappers.pylong_fromlong v)
-
-  let to_int64 v =
-    let result = Pywrappers.pylong_aslong v in
-    check_error ();
-    result
-
-  let of_int v = of_int64 (Int64.of_int v)
-
-  let to_int v = Int64.to_int (to_int64 v)
-end
-
-module Int = struct
-  let check o = Type.get o = Type.Long
-
-  let of_int64 v =
-    if version_major () >= 3 then
-      Long.of_int64 v
-    else
-      check_not_null (Pywrappers.Python2.pyint_fromlong v)
-
-  let to_int64 v =
-    if version_major () >= 3 then
-      Long.to_int64 v
-    else
-      let result = Pywrappers.Python2.pyint_aslong v in
-      check_error ();
-      result
-
-  let of_int v = of_int64 (Int64.of_int v)
-
-  let to_int v = Int64.to_int (to_int64 v)
-end
-
-module Number = struct
-  let absolute v = check_not_null (Pywrappers.pynumber_absolute v)
-
-  let add v0 v1 = check_not_null (Pywrappers.pynumber_add v0 v1)
-
-  let number_and v0 v1 = check_not_null (Pywrappers.pynumber_and v0 v1)
-
-  let check v = Pywrappers.pynumber_check v <> 0
-
-  let divmod v0 v1 = check_not_null (Pywrappers.pynumber_divmod v0 v1)
-
-  let float v = check_not_null (Pywrappers.pynumber_float v)
-
-  let floor_divide v0 v1 =
-    check_not_null (Pywrappers.pynumber_floordivide v0 v1)
-
-  let in_place_add v0 v1 = check_not_null (Pywrappers.pynumber_inplaceadd v0 v1)
-
-  let in_place_and v0 v1 = check_not_null (Pywrappers.pynumber_inplaceand v0 v1)
-
-  let in_place_floor_divide v0 v1 =
-    check_not_null (Pywrappers.pynumber_inplacefloordivide v0 v1)
-
-  let in_place_lshift v0 v1 =
-    check_not_null (Pywrappers.pynumber_inplacelshift v0 v1)
-
-  let in_place_multiply v0 v1 =
-    check_not_null (Pywrappers.pynumber_inplacemultiply v0 v1)
-
-  let in_place_or v0 v1 =
-    check_not_null (Pywrappers.pynumber_inplaceor v0 v1)
-
-  let in_place_power v0 v1 v2 =
-    check_not_null (Pywrappers.pynumber_inplacepower v0 v1 v2)
-
-  let in_place_remainder v0 v1 =
-    check_not_null (Pywrappers.pynumber_inplaceremainder v0 v1)
-
-  let in_place_rshift v0 v1 =
-    check_not_null (Pywrappers.pynumber_inplacershift v0 v1)
-
-  let in_place_subtract v0 v1 =
-    check_not_null (Pywrappers.pynumber_inplacesubtract v0 v1)
-
-  let in_place_true_divide v0 v1 =
-    check_not_null (Pywrappers.pynumber_inplacetruedivide v0 v1)
-
-  let in_place_xor v0 v1 =
-    check_not_null (Pywrappers.pynumber_inplacexor v0 v1)
-
-  let invert v =
-    check_not_null (Pywrappers.pynumber_invert v)
-
-  let lshift v0 v1 =
-    check_not_null (Pywrappers.pynumber_lshift v0 v1)
-
-  let multiply v0 v1 =
-    check_not_null (Pywrappers.pynumber_multiply v0 v1)
-
-  let negative v =
-    check_not_null (Pywrappers.pynumber_negative v)
-
-  let number_or v0 v1 =
-    check_not_null (Pywrappers.pynumber_or v0 v1)
-
-  let positive v =
-    check_not_null (Pywrappers.pynumber_positive v)
-
-  let power v0 v1 v2 =
-    check_not_null (Pywrappers.pynumber_power v0 v1 v2)
-
-  let remainder v0 v1 =
-    check_not_null (Pywrappers.pynumber_remainder v0 v1)
-
-  let rshift v0 v1 =
-    check_not_null (Pywrappers.pynumber_rshift v0 v1)
-
-  let subtract v0 v1 =
-    check_not_null (Pywrappers.pynumber_subtract v0 v1)
-
-  let true_divide v0 v1 =
-    check_not_null (Pywrappers.pynumber_truedivide v0 v1)
-
-  let number_xor v0 v1 =
-    check_not_null (Pywrappers.pynumber_xor v0 v1)
-
-  let check v =
-    match Type.get v with
-      Type.Float
-    | Type.Long -> true
-    | _ -> false
-
-  let to_float v =
-    match Type.get v with
-      Type.Float -> Float.to_float v
-    | Type.Long -> Int64.to_float (Long.to_int64 v)
-    | _ -> Type.mismatch "Long or Float" v
 end
 
 type byteorder =
@@ -1396,6 +1266,160 @@ let exception_printer exn =
 
 let () = Printexc.register_printer exception_printer
 
+module Long = struct
+  let check o = Type.get o = Type.Long
+
+  let of_int64 v =
+    check_not_null (Pywrappers.pylong_fromlong v)
+
+  let to_int64 v =
+    let result = Pywrappers.pylong_aslong v in
+    check_error ();
+    result
+
+  let of_int v = of_int64 (Int64.of_int v)
+
+  let to_int v = Int64.to_int (to_int64 v)
+
+  let from_string str base =
+    let result = pylong_fromstring str base in
+    ignore (check_not_null (fst result));
+    result
+
+  let of_string ?(base = 0) s =
+    let value, len = from_string s base in
+    if len <> string_length s then
+      failwith "Py.Long.of_string";
+    value
+
+  let to_string = Object.to_string
+end
+
+module Int = struct
+  let check o = Type.get o = Type.Long
+
+  let of_int64 v =
+    if version_major () >= 3 then
+      Long.of_int64 v
+    else
+      check_not_null (Pywrappers.Python2.pyint_fromlong v)
+
+  let to_int64 v =
+    if version_major () >= 3 then
+      Long.to_int64 v
+    else
+      let result = Pywrappers.Python2.pyint_aslong v in
+      check_error ();
+      result
+
+  let of_int v = of_int64 (Int64.of_int v)
+
+  let to_int v = Int64.to_int (to_int64 v)
+
+  let of_string = Long.of_string
+
+  let to_string = Long.to_string
+end
+
+module Number = struct
+  let absolute v = check_not_null (Pywrappers.pynumber_absolute v)
+
+  let add v0 v1 = check_not_null (Pywrappers.pynumber_add v0 v1)
+
+  let number_and v0 v1 = check_not_null (Pywrappers.pynumber_and v0 v1)
+
+  let check v = Pywrappers.pynumber_check v <> 0
+
+  let divmod v0 v1 = check_not_null (Pywrappers.pynumber_divmod v0 v1)
+
+  let float v = check_not_null (Pywrappers.pynumber_float v)
+
+  let floor_divide v0 v1 =
+    check_not_null (Pywrappers.pynumber_floordivide v0 v1)
+
+  let in_place_add v0 v1 = check_not_null (Pywrappers.pynumber_inplaceadd v0 v1)
+
+  let in_place_and v0 v1 = check_not_null (Pywrappers.pynumber_inplaceand v0 v1)
+
+  let in_place_floor_divide v0 v1 =
+    check_not_null (Pywrappers.pynumber_inplacefloordivide v0 v1)
+
+  let in_place_lshift v0 v1 =
+    check_not_null (Pywrappers.pynumber_inplacelshift v0 v1)
+
+  let in_place_multiply v0 v1 =
+    check_not_null (Pywrappers.pynumber_inplacemultiply v0 v1)
+
+  let in_place_or v0 v1 =
+    check_not_null (Pywrappers.pynumber_inplaceor v0 v1)
+
+  let in_place_power v0 v1 v2 =
+    check_not_null (Pywrappers.pynumber_inplacepower v0 v1 v2)
+
+  let in_place_remainder v0 v1 =
+    check_not_null (Pywrappers.pynumber_inplaceremainder v0 v1)
+
+  let in_place_rshift v0 v1 =
+    check_not_null (Pywrappers.pynumber_inplacershift v0 v1)
+
+  let in_place_subtract v0 v1 =
+    check_not_null (Pywrappers.pynumber_inplacesubtract v0 v1)
+
+  let in_place_true_divide v0 v1 =
+    check_not_null (Pywrappers.pynumber_inplacetruedivide v0 v1)
+
+  let in_place_xor v0 v1 =
+    check_not_null (Pywrappers.pynumber_inplacexor v0 v1)
+
+  let invert v =
+    check_not_null (Pywrappers.pynumber_invert v)
+
+  let lshift v0 v1 =
+    check_not_null (Pywrappers.pynumber_lshift v0 v1)
+
+  let multiply v0 v1 =
+    check_not_null (Pywrappers.pynumber_multiply v0 v1)
+
+  let negative v =
+    check_not_null (Pywrappers.pynumber_negative v)
+
+  let number_or v0 v1 =
+    check_not_null (Pywrappers.pynumber_or v0 v1)
+
+  let positive v =
+    check_not_null (Pywrappers.pynumber_positive v)
+
+  let power v0 v1 v2 =
+    check_not_null (Pywrappers.pynumber_power v0 v1 v2)
+
+  let remainder v0 v1 =
+    check_not_null (Pywrappers.pynumber_remainder v0 v1)
+
+  let rshift v0 v1 =
+    check_not_null (Pywrappers.pynumber_rshift v0 v1)
+
+  let subtract v0 v1 =
+    check_not_null (Pywrappers.pynumber_subtract v0 v1)
+
+  let true_divide v0 v1 =
+    check_not_null (Pywrappers.pynumber_truedivide v0 v1)
+
+  let number_xor v0 v1 =
+    check_not_null (Pywrappers.pynumber_xor v0 v1)
+
+  let check v =
+    match Type.get v with
+      Type.Float
+    | Type.Long -> true
+    | _ -> false
+
+  let to_float v =
+    match Type.get v with
+      Type.Float -> Float.to_float v
+    | Type.Long -> Int64.to_float (Long.to_int64 v)
+    | _ -> Type.mismatch "Long or Float" v
+end
+
 module Iter_ = struct
   let check o = Type.get o = Type.Iter
 
@@ -1583,34 +1607,6 @@ module Tuple = struct
   let to_pair = to_tuple2
 end
 
-module Callable = struct
-  let check v = Pywrappers.pycallable_check v <> 0
-
-  let of_function ?(docstring = "Anonymous closure") f =
-    let f' parameter =
-      try f parameter with
-        E (errtype, errvalue) ->
-         Err.set_object errtype errvalue;
-         null
-      | Err (errtype, msg) ->
-         Err.set_error errtype msg;
-         null in
-    pywrap_closure docstring f'
-
-  let of_function_array ?docstring f =
-    of_function ?docstring (fun args -> f (Tuple.to_array args))
-
-  let to_function c =
-    if not (check c) then
-      Type.mismatch "Callable" c;
-    function args ->
-      Eval_.call_object c args
-
-  let to_function_array c =
-    let f = to_function c in
-    (fun args -> f (Tuple.of_array args))
-end
-
 module Dict = struct
   let check o = Type.get o = Type.Dict
 
@@ -1679,7 +1675,7 @@ module Dict = struct
       p key value
     end (Object.get_iter (items dict))
 
-  let bindings_map fkey fvalue dict =
+  let to_bindings_map fkey fvalue dict =
     Iter_.to_list_map begin fun pair ->
       let (key, value) = Tuple.to_pair pair in
       (fkey key, fvalue value)
@@ -1687,9 +1683,9 @@ module Dict = struct
 
   let id x = x
 
-  let bindings = bindings_map id id
+  let to_bindings = to_bindings_map id id
 
-  let bindings_string = bindings_map String.to_string id
+  let to_bindings_string = to_bindings_map String.to_string id
 
   let of_bindings_map fkey fvalue list =
     let result = create () in
@@ -1707,14 +1703,53 @@ module Dict = struct
   let singleton_string key value = of_bindings_string [(key, value)]
 end
 
-module Eval = struct
-  include Eval_
+module Callable = struct
+  let check v = Pywrappers.pycallable_check v <> 0
 
-  let call_with_keywords func arg keywords =
-    call_object_with_keywords func (Tuple.of_array arg)
-      (Dict.of_bindings_string keywords)
+  let handle_errors f arg =
+    try f arg with
+      E (errtype, errvalue) ->
+        Err.set_object errtype errvalue;
+        null
+    | Err (errtype, msg) ->
+        Err.set_error errtype msg;
+        null
 
-  let call func arg = call_object func (Tuple.of_array arg)
+  let of_function_as_tuple ?(docstring = "Anonymous closure") f =
+    check_not_null (pywrap_closure docstring
+      (WithoutKeywords (handle_errors f)))
+
+  let of_function_as_tuple_and_dict ?(docstring = "Anonymous closure") f =
+    check_not_null (pywrap_closure docstring
+      (WithKeywords (fun args -> handle_errors (f args))))
+
+  let of_function ?docstring f =
+    of_function_as_tuple ?docstring (fun args -> f (Tuple.to_array args))
+
+  let of_function_with_keywords ?docstring f =
+    of_function_as_tuple_and_dict ?docstring
+      (fun args dict -> f (Tuple.to_array args) (Dict.to_bindings_string dict))
+
+  let to_function_as_tuple c =
+    if not (check c) then
+      Type.mismatch "Callable" c;
+    function args ->
+      Eval.call_object c args
+
+  let to_function_as_tuple_and_dict c =
+    if not (check c) then
+      Type.mismatch "Callable" c;
+    fun args keywords ->
+      Eval.call_object_with_keywords c args keywords
+
+  let to_function c =
+    let f = to_function_as_tuple c in
+    fun args -> f (Tuple.of_array args)
+
+  let to_function_with_keywords c =
+    let f = to_function_as_tuple_and_dict c in
+    fun args keywords ->
+      f (Tuple.of_array args) (Dict.of_bindings_string keywords)
 end
 
 module Import = struct
@@ -1779,6 +1814,16 @@ module Module = struct
 
   let set = Object.set_attr_string
 
+  let get_function m name = Callable.to_function (get m name)
+
+  let get_function_with_keywords m name =
+    Callable.to_function_with_keywords (get m name)
+
+  let set_function m name f = set m name (Callable.of_function f)
+
+  let set_function_with_keywords m name f =
+    set m name (Callable.of_function_with_keywords f)
+
   let remove = Object.del_attr_string
 
   let main () = Import.add_module "__main__"
@@ -1799,9 +1844,8 @@ module Class = struct
     List.iter add_field fields;
     if version_major () >= 3 then
       let add_method (name, closure) =
-        let closure' = check_not_null (Callable.of_function closure) in
         let m =
-          check_not_null (Pywrappers.Python3.pyinstancemethod_new closure') in
+          check_not_null (Pywrappers.Python3.pyinstancemethod_new closure) in
         Dict.set_item_string dict name m in
       List.iter add_method methods;
       type_ classname parents dict
@@ -1810,8 +1854,7 @@ module Class = struct
         check_not_null
           (Pywrappers.Python2.pyclass_new parents dict classname) in
       let add_method (name, closure) =
-        let closure' = check_not_null (Callable.of_function closure) in
-        let m = check_not_null (Pywrappers.pymethod_new closure' null c) in
+        let m = check_not_null (Pywrappers.pymethod_new closure null c) in
         Dict.set_item_string dict name m in
       List.iter add_method methods;
       c
@@ -1824,11 +1867,11 @@ module Iter = struct
     let next_name =
       if version_major () >= 3 then "__next__"
       else "next" in
-    let next' tuple =
+    let next' _args =
       match next () with
         None -> raise (Err (Err.StopIteration, ""))
       | Some item -> item in
-    let methods = [next_name, next'] in
+    let methods = [next_name, Callable.of_function next'] in
     Object.call_function_obj_args
       (Class.init ~methods (String.of_string "iterator")) [| |]
 end
@@ -1907,15 +1950,16 @@ end
 module Array = struct
   let of_indexed_structure getter setter length =
     let methods =
-      ["__len__", (fun _tuple -> Int.of_int length);
-       "__getitem__", (fun tuple ->
+      ["__len__",
+       Callable.of_function_as_tuple (fun _tuple -> Int.of_int length);
+       "__getitem__", Callable.of_function_as_tuple (fun tuple ->
          let (self, key) = Tuple.to_tuple2 tuple in
          getter (Long.to_int key));
-       "__setitem__", (fun tuple ->
+       "__setitem__", Callable.of_function_as_tuple (fun tuple ->
          let (self, key, value) = Tuple.to_tuple3 tuple in
          setter (Long.to_int key) value;
          none);
-       "__iter__", (fun tuple ->
+       "__iter__", Callable.of_function_as_tuple (fun tuple ->
          let cursor = ref 0 in
          let next () =
            let index = !cursor in
@@ -1927,7 +1971,7 @@ module Array = struct
            else
              None in
          Iter.create next);
-       "__repr__", (fun tuple ->
+       "__repr__", Callable.of_function_as_tuple (fun tuple ->
          let (self) = Tuple.to_tuple1 tuple in
          Object.repr (Sequence.list self))] in
     Object.call_function_obj_args
@@ -2062,13 +2106,14 @@ except ImportError:
     let f () =
       let f =
         try
-          Module.get (Import.import_module "IPython") "embed"
+          Module.get_function (Import.import_module "IPython") "embed"
         with E _ ->
           let shell = Import.import_module "IPython.Shell" in
-          let ipshellembed = Module.get shell "IPShellEmbed" in
           let arg = [("argv", List.of_list [String.of_string ""])] in
-          Eval.call_with_keywords ipshellembed [| |] arg in
-        ignore (Eval.call_object f Tuple.empty) in
+          let f' =
+            Module.get_function_with_keywords shell "IPShellEmbed" [| |] arg in
+          Callable.to_function f' in
+        ignore (f [| |]) in
     if frame then make_frame f ()
     else f ()
 end

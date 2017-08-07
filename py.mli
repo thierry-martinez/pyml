@@ -321,9 +321,10 @@ module Callable: sig
       Wrapper for
       {{: https://docs.python.org/3/c-api/object.html#c.PyCallable_Check} PyCallable_Check}. *)
 
-  val of_function: ?docstring:string -> (Object.t -> Object.t) -> Object.t
-  (** [of_function f] returns a Python callable object that calls the function
-      [f].
+  val of_function_as_tuple: ?docstring:string -> (Object.t -> Object.t) ->
+    Object.t
+  (** [of_function_as_tuple f] returns a Python callable object that calls the
+      function [f].
       Arguments are passed as a tuple.
       If [f] raises a Python exception
       ([Py.E (errtype, errvalue)] or [Py.Err (errtype, msg)]),
@@ -332,18 +333,37 @@ module Callable: sig
       If [f] raises any other exception, this exception bypasses the Python
       interpreter. *)
 
-  val of_function_array: ?docstring:string -> (Object.t array -> Object.t)
-    -> Object.t
-  (** Equivalent to {!of_function} but with an array of Python objects
+  val of_function_as_tuple_and_dict: ?docstring:string ->
+    (Object.t -> Object.t -> Object.t) -> Object.t
+  (** [of_function_as_tuple_and_dict f] returns a Python callable object that
+      calls the function [f].
+      Arguments are passed as a tuple and a dictionary of keywords. *)
+
+  val of_function: ?docstring:string -> (Object.t array -> Object.t) -> Object.t
+  (** Equivalent to {!of_function_as_tuple} but with an array of Python objects
       instead of a tuple for passing arguments. *)
 
-  val to_function: Object.t -> Object.t -> Object.t
-  (** [to_function c] returns a function [f] such that [f args] calls the
-      Python callable [c] with the Python tuple [args] as arguments. *)
+  val of_function_with_keywords: ?docstring:string ->
+    (Object.t array -> (string * Object.t) list -> Object.t) -> Object.t
+  (** Equivalent to {!of_function_as_tuple_and_dict} but with an array of
+      Python objects instead of a tuple and an associative list instead of a
+      dictionary for passing arguments. *)
 
-  val to_function_array: Object.t -> Object.t array -> Object.t
-  (** Equivalent to {!to_function} but with an array of Python objects
-      instead of a tuple for passing arguments. *)
+  val to_function_as_tuple_and_dict: Object.t -> Object.t -> Object.t ->
+    Object.t
+  (** [to_function_as_tuple_and_dict c] returns a function [f] such that
+      [f args dict] calls the Python callable [c] with the Python tuple [args]
+      and the dictionary of keywords [dict] as arguments. *)
+
+  val to_function: Object.t -> Object.t array -> Object.t
+  (** Equivalent to {!to_function_as_tuple} but with an array of
+      Python objects instead of a tuple for passing arguments. *)
+
+  val to_function_with_keywords: Object.t -> Object.t array ->
+    (string * Object.t) list -> Object.t
+  (** Equivalent to {!to_function_as_tuple_and_dict} but with an array of
+      Python objects instead of a tuple and an associative list instead of a
+      dictionary for passing arguments. *)
 end
 
 (** Embedding of OCaml values in Python. *)
@@ -383,7 +403,7 @@ end
 (** Defining a new class type *)
 module Class: sig
   val init: ?parents:Object.t -> ?fields:((string * Object.t) list) ->
-      ?methods:((string * (Object.t -> Object.t)) list) ->
+      ?methods:((string * Object.t) list) ->
         Object.t -> Object.t
   (** [init ~parents ~fields ~methods classname] Returns a new class type.
       @param classname is a Python string.
@@ -419,6 +439,21 @@ module Long: sig
       and returns the corresponding integer value.
       A Python exception ([Py.E _]) is raised if [o] is not a long.
       We have [to_int o = Int64.to_int (to_int 64 o)]. *)
+
+  val from_string: string -> int -> Object.t * int
+  (** [from_string s base] parses [s] as a number written in [base] and
+      returns [(o, l)] where [o] is the Python long which has been read,
+      and [l] is the number of characters that has been parsed.
+      Wrapper for
+      {{: https://docs.python.org/3/c-api/long.html#c.PyLong_FromString} PyLong_FromString}. *)
+
+  val of_string: ?base:int -> string -> Object.t
+  (** [of_string ?base s] parses [s] and returns the Python long that has
+      been read. By default, [base] is [0]: the radix is determined based
+      on the leading characters of [s]. *)
+
+  val to_string: Object.t -> string
+  (** Synonym for [Py.Object.to_string]. *)
 end
 
 (** Interface for Python values of type [Int] if Python 2, [Long] if Python 3. *)
@@ -447,6 +482,12 @@ module Int: sig
       and returns the corresponding integer value.
       A Python exception ([Py.E _]) is raised if [o] is not a long.
       We have [to_int o = Int64.to_int (to_int 64 o)]. *)
+
+  val of_string: ?base:int -> string -> Object.t
+  (** Synonym for [Py.Long.of_string]. *)
+
+  val to_string: Object.t -> string
+  (** Synonym for [Py.Long.to_string]. *)
 end
 
 (** Interface for Python values of type [Dict]. *)
@@ -534,17 +575,17 @@ module Dict: sig
       among those of the Python dictionary [dict] that satisfies the predicate
       [p key value]. *)
 
-  val bindings: Object.t -> (Object.t * Object.t) list
-  (** [bindings o] returns all the pairs [(key, value)] in the Python dictionary
+  val to_bindings: Object.t -> (Object.t * Object.t) list
+  (** [to_bindings o] returns all the pairs [(key, value)] in the Python dictionary
       [o]. *)
 
-  val bindings_map: (Object.t -> 'a) -> (Object.t -> 'b) -> Object.t ->
+  val to_bindings_map: (Object.t -> 'a) -> (Object.t -> 'b) -> Object.t ->
     ('a * 'b) list
-  (** [bindings_map fkey fvalue o] returns all the pairs
+  (** [to_bindings_map fkey fvalue o] returns all the pairs
       [(fkey key, fvalue value)] in the Python dictionary [o]. *)
 
-  val bindings_string: Object.t -> (string * Object.t) list
-  (** [bindings_string o] returns all the pairs [(key, value)] in the Python
+  val to_bindings_string: Object.t -> (string * Object.t) list
+  (** [to_bindings_string o] returns all the pairs [(key, value)] in the Python
       dictionary [o]. *)
 
   val of_bindings: (Object.t * Object.t) list -> Object.t
@@ -676,14 +717,6 @@ module Eval: sig
 
   val call_object_with_keywords: Object.t -> Object.t -> Object.t -> Object.t
  (** See {{:https://docs.python.org/3.0/extending/extending.html} Extending Python with C or C++} *)
-
-  val call: Object.t -> Object.t array -> Object.t
-  (* [Py.Eval.call f args] is equivalent to
-     [Py.Eval.call_object f (Py.Tuple.of_array args]. *)
-
-  val call_with_keywords: Object.t -> Object.t array -> (string * Object.t) list -> Object.t
-  (* [Py.Eval.call_with_keywords f args kw] is equivalent to
-     [Py.Eval.call_object_with_keywords f (Py.Tuple.of_array args) (Py.Tuple.of_bindings_string kw)]. *)
 
   val get_builtins: unit -> Object.t
   (** Wrapper for
@@ -972,8 +1005,26 @@ module Module: sig
   val get: Object.t -> string -> Object.t
   (** Equivalent to {!Object.get_attr_string}. *)
 
+  val get_function: Object.t -> string -> Object.t array -> Object.t
+  (** [Py.Module.get_function m name] is equivalent to
+      [Py.Callable.to_function (Py.Module.get m name)]. *)
+
+  val get_function_with_keywords: Object.t -> string -> Object.t array ->
+    (string * Object.t) list -> Object.t
+  (** [Py.Module.get_function_with_keywords m name] is equivalent to
+      [Py.Callable.to_function_with_keywords (Py.Module.get m name)]. *)
+
   val set: Object.t -> string -> Object.t -> unit
   (** Equivalent to {!Object.set_attr_string}. *)
+
+  val set_function: Object.t -> string -> (Object.t array -> Object.t) -> unit
+  (** [Py.Module.set_function m name f] is equivalent to
+      [Py.Module.set m name (Py.Callable.of_function f)]. *)
+
+  val set_function_with_keywords: Object.t -> string ->
+    (Object.t array -> (string * Object.t) list -> Object.t) -> unit
+  (** [Py.Module.set_function_with_keywords m name f] is equivalent to
+      [Py.Module.set m name (Py.Callable.of_function_with_keywords f)]. *)
 
   val remove: Object.t -> string -> unit
   (** Equivalent to {!Object.del_attr_string}. *)

@@ -80,7 +80,7 @@ let () =
         Py.none in
       let c =
         Py.Class.init (Py.String.of_string "myClass")
-          ~methods:[("callback", callback)] in
+          ~methods:[("callback", Py.Callable.of_function_as_tuple callback)] in
       Py.Module.set m "myClass" c;
       assert (Py.Run.simple_string "
 from test import myClass
@@ -135,8 +135,8 @@ let () =
       let pyunwrap args =
         let s = unwrap args.(0) in
         Py.String.of_string s in
-      Py.Module.set m "wrap" (Py.Callable.of_function_array pywrap);
-      Py.Module.set m "unwrap" (Py.Callable.of_function_array pyunwrap);
+      Py.Module.set_function m "wrap" pywrap;
+      Py.Module.set_function m "unwrap" pyunwrap;
       assert (Py.Run.simple_string "
 from test import wrap, unwrap
 x = wrap('OK')
@@ -164,10 +164,9 @@ let () =
     ~title:"ocaml exception"
     (fun () ->
       let m = Py.Import.add_module "test" in
-      let f _ =
+      let mywrap _ =
         raise (Py.Err (Py.Err.Exception, "Great")) in
-      let mywrap = Py.Callable.of_function f in
-      Py.Module.set m "mywrap" mywrap;
+      Py.Module.set_function m "mywrap" mywrap;
       assert (Py.Run.simple_string "
 from test import mywrap
 try:
@@ -184,9 +183,8 @@ let () =
     ~title:"ocaml other exception"
     (fun () ->
       let m = Py.Import.add_module "test" in
-      let f _ = raise Exit in
-      let mywrap = Py.Callable.of_function f in
-      Py.Module.set m "mywrap" mywrap;
+      let mywrap _ = raise Exit in
+      Py.Module.set_function m "mywrap" mywrap;
       try
         assert (Py.Run.simple_string "
 from test import mywrap

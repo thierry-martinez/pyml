@@ -285,6 +285,9 @@ static int (*Python_PyObject_AsReadBuffer)
 static int (*Python_PyObject_AsWriteBuffer)
 (PyObject *, void **, Py_ssize_t *);
 
+/* Length argument */
+static PyObject *(*Python_PyLong_FromString)(char *, char **, int);
+
 /* Internal use only */
 static void (*Python_PyMem_Free)(void *);
 
@@ -520,6 +523,26 @@ pycall_callback(PyObject *obj, PyObject *args)
     CAMLreturnT(PyObject *, out);
 }
 
+static PyObject *
+pycall_callback_with_keywords(PyObject *obj, PyObject *args, PyObject *keywords)
+{
+    CAMLparam0();
+    CAMLlocal4(ml_out, ml_func, ml_args, ml_keywords);
+    PyObject *out;
+    void *p = Python_PyCapsule_GetPointer(obj, "ocaml-closure");
+    if (!p) {
+        Py_INCREF(Python__Py_NoneStruct);
+        return Python__Py_NoneStruct;
+    }
+    ml_func = *(value *) p;
+    ml_args = pywrap(args, false);
+    ml_keywords = pywrap(keywords, false);
+    ml_out = caml_callback2(ml_func, ml_args, ml_keywords);
+    out = pyunwrap(ml_out);
+    Py_XINCREF(out);
+    CAMLreturnT(PyObject *, out);
+}
+
 static void
 caml_destructor(PyObject *v, const char *capsule_name)
 {
@@ -615,10 +638,16 @@ pywrap_closure(value docstring, value closure)
     PyObject *obj;
     PyMethodDef *ml_def;
     ml.ml_name = "anonymous_closure";
-    ml.ml_meth = pycall_callback;
-    ml.ml_flags = 1;
+    if (Tag_val(closure) == 0) {
+        ml.ml_flags = 1;
+        ml.ml_meth = pycall_callback;
+    }
+    else {
+        ml.ml_flags = 3;
+        ml.ml_meth = (PyCFunction) pycall_callback_with_keywords;
+    }
     ml.ml_doc = String_val(docstring);
-    obj = camlwrap_closure(closure, &ml, sizeof(ml));
+    obj = camlwrap_closure(Field(closure, 0), &ml, sizeof(ml));
     ml_def = (PyMethodDef *) caml_aux(obj);
     PyObject *f = Python_PyCFunction_NewEx(ml_def, obj, NULL);
     CAMLreturn(pywrap(f, true));
@@ -666,6 +695,7 @@ py_load_library(value filename_ocaml)
         Python__Py_FalseStruct = resolve("_Py_ZeroStruct");
         Python_PyString_AsStringAndSize = resolve("PyString_AsStringAndSize");
     }
+    Python_PyLong_FromString = resolve("PyLong_FromString");
     Python_PyMem_Free = resolve("PyMem_Free");
     if (version_major >= 3) {
         Python__Py_fopen = resolve("_Py_fopen");
@@ -1295,6 +1325,23 @@ pyarray_of_float_array_wrapper(
         PyArray_SubType, 1, &length, NPY_DOUBLE, NULL, data, 0,
         NPY_ARRAY_CARRAY, NULL);
     CAMLreturn(pywrap(result, true));
+}
+
+CAMLprim value
+PyLong_FromString_wrapper(value str_ocaml, value base_ocaml)
+{
+    CAMLparam2(str_ocaml, base_ocaml);
+    CAMLlocal1(result);
+    assert_initialized();
+    char *str = String_val(str_ocaml);
+    char *pend;
+    int base = Int_val(base_ocaml);
+    PyObject *l = Python_PyLong_FromString(str, &pend, base);
+    ssize_t len = pend - str;
+    result = caml_alloc_tuple(2);
+    Store_field(result, 0, pywrap(l, true));
+    Store_field(result, 1, Val_int(len));
+    CAMLreturn(result);
 }
 
 #include "pyml_wrappers.inc"
