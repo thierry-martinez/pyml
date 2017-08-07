@@ -1353,8 +1353,8 @@ module Number = struct
   let in_place_or v0 v1 =
     check_not_null (Pywrappers.pynumber_inplaceor v0 v1)
 
-  let in_place_power v0 v1 v2 =
-    check_not_null (Pywrappers.pynumber_inplacepower v0 v1 v2)
+  let in_place_power ?(modulo = none) v0 v1 =
+    check_not_null (Pywrappers.pynumber_inplacepower v0 v1 modulo)
 
   let in_place_remainder v0 v1 =
     check_not_null (Pywrappers.pynumber_inplaceremainder v0 v1)
@@ -1389,8 +1389,8 @@ module Number = struct
   let positive v =
     check_not_null (Pywrappers.pynumber_positive v)
 
-  let power v0 v1 v2 =
-    check_not_null (Pywrappers.pynumber_power v0 v1 v2)
+  let power ?(modulo = none) v0 v1 =
+    check_not_null (Pywrappers.pynumber_power v0 v1 modulo)
 
   let remainder v0 v1 =
     check_not_null (Pywrappers.pynumber_remainder v0 v1)
@@ -1413,11 +1413,41 @@ module Number = struct
     | Type.Long -> true
     | _ -> false
 
+  let of_int i = Int.of_int i
+
+  let of_int64 i = Int.of_int64 i
+
+  let of_float f = Float.of_float f
+
   let to_float v =
     match Type.get v with
       Type.Float -> Float.to_float v
     | Type.Long -> Int64.to_float (Long.to_int64 v)
     | _ -> Type.mismatch "Long or Float" v
+
+  let ( + ) = add
+
+  let ( - ) = subtract
+
+  let ( * ) = multiply
+
+  let ( / ) = true_divide
+
+  let ( ** ) x y = power x y
+
+  let ( land ) = number_and
+
+  let ( lor ) = number_or
+
+  let ( lxor ) = number_xor
+
+  let ( lnot ) = invert
+
+  let ( lsl ) = lshift
+
+  let ( lsr ) = rshift
+
+  let ( ~- ) = negative
 end
 
 module Iter_ = struct

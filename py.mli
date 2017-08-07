@@ -1099,7 +1099,7 @@ module Number: sig
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/number.html#c.PyNumber_InPlaceOr} PyNumber_InPlaceOr} *)
 
-  val in_place_power: Object.t -> Object.t -> Object.t -> Object.t
+  val in_place_power: ?modulo:Object.t -> Object.t -> Object.t -> Object.t
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/number.html#c.PyNumber_InPlacePower} PyNumber_InPlacePower} *)
 
@@ -1147,7 +1147,7 @@ module Number: sig
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/number.html#c.PyNumber_Positive} PyNumber_Positive} *)
 
-  val power: Object.t -> Object.t -> Object.t -> Object.t
+  val power: ?modulo:Object.t -> Object.t -> Object.t -> Object.t
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/number.html#c.PyNumber_Power} PyNumber_Power} *)
 
@@ -1179,6 +1179,48 @@ module Number: sig
   (** [to_float v] returns the floating-point value equal to the Python integer
       or Python float [v]. Raises a failure ([Failure _]) if [v] is neither a
       float nor an integer. *)
+
+  val of_int: int -> Object.t
+  (** Synonym of {!Py.Int.of_int} *)
+
+  val of_int64: int64 -> Object.t
+  (** Synonym of {!Py.Float.of_int64} *)
+
+  val of_float: float -> Object.t
+  (** Synonym of {!Py.Float.of_float} *)
+
+  val ( + ): Object.t -> Object.t -> Object.t
+  (** Synomym of {!add} *)
+
+  val ( - ): Object.t -> Object.t -> Object.t
+  (** Synomym of {!subtract} *)
+
+  val ( * ): Object.t -> Object.t -> Object.t
+  (** Synomym of {!multiply} *)
+
+  val ( / ): Object.t -> Object.t -> Object.t
+  (** Synomym of {!true_divide} *)
+
+  val ( ** ): Object.t -> Object.t -> Object.t
+  (** Synomym of {!power} *)
+
+  val ( ~- ): Object.t -> Object.t
+  (** Synomym of {!negative} *)
+
+  val ( land ): Object.t -> Object.t -> Object.t
+  (** Synomym of {!number_and} *)
+
+  val ( lor ): Object.t -> Object.t -> Object.t
+  (** Synomym of {!number_or} *)
+
+  val ( lxor ): Object.t -> Object.t -> Object.t
+  (** Synomym of {!number_xor} *)
+
+  val ( lsl ): Object.t -> Object.t -> Object.t
+  (** Synomym of {!lshift} *)
+
+  val ( lsr ): Object.t -> Object.t -> Object.t
+  (** Synomym of {!rshift} *)
 end
 
 type input = Pytypes.input = Single | File | Eval

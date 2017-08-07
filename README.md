@@ -148,6 +148,19 @@ textual representation with ``Py.Int.of_string`` and ``Py.Int.to_string``.
 ``Py.Float.of_float`` and ``Py.Float.to_float`` convert back and forth
 OCaml to Python floating-point values.
 
+The module `Py.Number` define common arithmetic and bitwise operations on
+Python numbers. It can be open locally to take benefit from operator
+overloading. E.g.:
+
+``` ocaml
+	let m = Py.Import.add_module "ocaml" in
+	let square args = Py.Number.(args.(0) ** of_int 2) in
+	Py.Module.set_function m "square" square;
+	ignore (Py.Run.eval ~start:Py.File "
+	from ocaml import square
+	print(square(3))")
+```
+
 ``Py.Tuple.of_array`` and ``Py.Tuple.to_array`` can be used to construct
 and destruct Python tuples.
 ``Py.Tuple.of_list`` and ``Py.Tuple.to_list`` are available as well.
@@ -189,6 +202,19 @@ with
 (the latter function passes keywords as a dictionary to the OCaml callback:
 values can be retrieved efficiently with ``Py.Dict.find_string``).
 
+```ocaml
+	let m = Py.Import.add_module "ocaml" in
+	Py.Module.set_function_with_keywords m "length"
+	  (fun args kw ->
+	    let x = Py.Dict.find_string kw "x" in
+	    let y = Py.Dict.find_string kw "y" in
+	    Py.Number.((x ** of_int 2 + y ** of_int 2) ** of_float 0.5));
+	ignore (Py.Run.eval ~start:Py.File "
+	from ocaml import length
+	print(length(x=3, y=4))")
+```
+
+
 Modules
 -------
 
@@ -223,7 +249,7 @@ The code can be written directly in OCaml as such:
 	let np = Py.Import.import_module "numpy" in
 	let plt = Py.Import.import_module "matplotlib.pyplot" in
 	let x = Py.Module.get_function np "arange"
-		(Array.map Py.Float.of_float [| 0.; 5.; 0.1 |]) in
+	  (Array.map Py.Float.of_float [| 0.; 5.; 0.1 |]) in
 	let y = Py.Module.get_function np "sin" [| x |] in
 	ignore (Py.Module.get_function plt "plot" [| x; y |]);
 	assert (Py.Module.get_function plt "show" [| |] = Py.none)
