@@ -2,14 +2,14 @@
 
 (** Call [initialize ()] first. *)
 
-val initialize: ?interpreter:string -> ?version:(int * int) -> ?verbose:bool ->
-  unit -> unit
-(** [initialize ~interpreter ~version ~verbose ()] finds and loads the Python
-    library.
+val initialize: ?interpreter:string -> ?version:int -> ?minor:int ->
+  ?verbose:bool -> unit -> unit
+(** [initialize ~interpreter ~version ~minor ~verbose ()] finds and loads the
+    Python library.
     This function should be called before any other functions, except
     if explicitely mentioned.
-    [version] should be a pair specifying the major and the minor version
-    number.
+    [version] should specify the major version number of Python (2 or 3).
+    [minor] should specify the minor version number.
     If no version number is given, the version of Python is determined by the
     output of the shell command [python --version].
     If an [interpreter] executable name is given, this executable is

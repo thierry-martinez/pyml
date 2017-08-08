@@ -7,6 +7,11 @@ let option_find f x =
   try Some (f x)
   with Not_found -> None
 
+let option_or option f =
+  match option with
+    Some _ -> option
+  | None -> f ()
+
 let option_unwrap option =
   match option with
     None -> raise Not_found

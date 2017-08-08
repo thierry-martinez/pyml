@@ -102,7 +102,7 @@ let extract_version_major_minor version =
   with Exit | Failure _ ->
     let msg =
       Printf.sprintf
-        "Py.extract_version_major: unable to parse the version number '%s'"
+        "Py.extract_version_major_minor: unable to parse the version number '%s'"
         version in
     failwith msg
 
@@ -132,6 +132,10 @@ let run_command ?(input = "") command read_stderr =
       failwith msg;
     end;
   result
+
+let run_command_opt ?input command read_stderr =
+  try Some (run_command ?input command read_stderr)
+  with Failure _ -> None
 
 let parent_dir filename =
   let dirname = Filename.dirname filename in
@@ -176,10 +180,7 @@ let uninit_pythonpath () =
 
 let ldd executable =
   let command = Printf.sprintf "ldd %s" executable in
-  match
-    try (Some (run_command command false))
-    with Failure _ -> None
-  with
+  match run_command_opt command false with
     None -> []
   | Some lines ->
      let extract_line line =
@@ -188,23 +189,31 @@ let ldd executable =
             (Pyutils.split_right_on_char '>' line)) in
      List.map extract_line lines
 
-let deb_host_multiarch () =
-  try
-    Some
-      (List.hd (run_command "dpkg-architecture -q DEB_HOST_MULTIARCH" false))
-  with Failure _ -> None
-
-let libpython_dir_deb_multiarch major minor =
-  match deb_host_multiarch () with
+let ldconfig () =
+  match run_command_opt "ldconfig -p" false with
     None -> []
-  | Some multiarch ->
-      [Printf.sprintf "/usr/lib/python%d.%d/config-%s" major minor multiarch]
+  | Some lines ->
+     let extract_line line =
+       Pyml_compat.trim (Pyutils.split_right_on_char '>' line) in
+     List.map extract_line lines
 
 let libpython_from_interpreter python_full_path =
   let lines = ldd python_full_path in
   let is_libpython line =
     let basename = Filename.basename line in
     Pyutils.has_prefix "libpython" basename in
+  Pyml_compat.list_find_opt is_libpython lines
+
+let libpython_from_ldconfig major minor =
+  let lines = ldconfig () in
+  let prefix =
+    match major, minor with
+      None, _ -> "libpython"
+    | Some major', None -> Printf.sprintf "libpython%d" major'
+    | Some major', Some minor' -> Printf.sprintf "libpython%d.%d" major' minor' in
+  let is_libpython line =
+    let basename = Filename.basename line in
+    Pyutils.has_prefix prefix basename in
   Pyml_compat.list_find_opt is_libpython lines
 
 let parse_python_list list =
@@ -322,39 +331,18 @@ print(sys.path)
       end
   | _ -> []
 
-let find_library_path version_major version_minor python_full_path =
-  match Pyutils.option_bind python_full_path libpython_from_interpreter with
-    Some path -> ([""], [path])
-  | None ->
+let concat_library_filenames library_paths library_filenames =
+  let expand_filepaths filename =
+    filename ::
+    List.map (fun path -> Filename.concat path filename) library_paths in
+  List.concat (List.map expand_filepaths library_filenames)
+
+let libpython_from_pkg_config version_major version_minor =
   let command =
     Printf.sprintf "pkg-config --libs python-%d.%d" version_major
       version_minor in
-  match
-    try Some (List.hd (run_command command false))
-    with Failure _ -> None
-  with
-    None ->
-      let library_paths =
-        match
-          try Some (Sys.getenv "PYTHONHOME")
-          with Not_found ->
-            match python_full_path with
-              None -> None
-            | Some python_full_path -> Some (parent_dir python_full_path)
-        with
-          None -> []
-        | Some pythonhome ->
-            let prefix = Pyutils.split_left_on_char ':' pythonhome in
-            [Filename.concat prefix "lib"] in
-      let library_paths =
-        library_paths @
-        libpython_dir_deb_multiarch version_major version_minor in
-      let library_filenames =
-        List.map
-          (fun format -> Printf.sprintf format version_major version_minor)
-          Pyml_arch.library_patterns in
-      (library_paths, library_filenames)
-  | Some words ->
+  match run_command_opt command false with
+    Some (words :: _) ->
       let word_list = Pyml_compat.split_on_char ' ' words in
       let unable_to_parse () =
         let msg = Printf.sprintf
@@ -382,18 +370,52 @@ let find_library_path version_major version_minor python_full_path =
         match library_filename with
           None -> unable_to_parse ()
         | Some library_filename -> library_filename in
-      (library_paths, [library_filename])
+      Some (concat_library_filenames library_paths [library_filename])
+  | _ -> None
 
-let initialize_version_value interpreter =
+let libpython_from_pythonhome version_major version_minor python_full_path =
+  let library_paths =
+    match
+      try Some (Sys.getenv "PYTHONHOME")
+      with Not_found ->
+        match python_full_path with
+          None -> None
+        | Some python_full_path -> Some (parent_dir python_full_path)
+    with
+      None -> failwith "Unable to find libpython!"
+    | Some pythonhome ->
+        let prefix = Pyutils.split_left_on_char ':' pythonhome in
+        [Filename.concat prefix "lib"] in
+  let library_filenames =
+    List.map
+      (fun format -> Printf.sprintf format version_major version_minor)
+      Pyml_arch.library_patterns in
+  concat_library_filenames library_paths library_filenames
+
+let find_library_path version_major version_minor python_full_path =
+  match Pyutils.option_bind python_full_path libpython_from_interpreter with
+    Some path -> [path]
+  | None ->
+      match libpython_from_ldconfig version_major version_minor with
+        Some path -> [path]
+      | None ->
+          match version_major, version_minor with
+            Some version_major, Some version_minor ->
+              begin
+                match libpython_from_pkg_config version_major version_minor with
+                  Some paths -> paths
+                | None ->
+                    libpython_from_pythonhome version_major version_minor
+                      python_full_path
+              end
+          | _ -> failwith "Cannot infer Python version"
+
+let python_version_from_interpreter interpreter =
   let version_line =
     let python_version_cmd = Printf.sprintf "\"%s\" --version" interpreter in
     try List.hd (run_command python_version_cmd false)
     with Failure _ -> List.hd (run_command python_version_cmd true) in
-  let version = extract_version version_line in
-  let (version_major, version_minor) = extract_version_major_minor version in
-  version_value := version;
-  version_major_value := version_major;
-  version_minor_value := version_minor
+  extract_version version_line
 
 let library_filename = ref None
 
@@ -403,17 +425,12 @@ let load_library filename =
 
 let get_library_filename () = !library_filename
 
-let find_library verbose python_full_path =
+let find_library verbose version_major version_minor python_full_path =
   try
     load_library None
   with Failure _ ->
-    let (library_paths, library_filenames) =
-      find_library_path !version_major_value !version_minor_value python_full_path in
-    let expand_filepaths filename =
-      filename ::
-      List.map (fun path -> Filename.concat path filename) library_paths in
     let library_filenames =
-      List.concat (List.map expand_filepaths library_filenames) in
+      find_library_path version_major version_minor python_full_path in
     let errors = Buffer.create 17 in
     let rec try_load_library library_filenames =
       match library_filenames with
@@ -447,13 +464,13 @@ let find_library verbose python_full_path =
           end in
     try_load_library library_filenames
 
-let initialize_library verbose python_full_path =
+let initialize_library verbose version_major version_minor python_full_path =
   begin
     match !python_home with
       None -> ()
     | Some s -> ignore (init_pythonhome verbose s)
   end;
-  find_library verbose python_full_path;
+  find_library verbose version_major version_minor python_full_path;
   begin
     match python_full_path with
       None -> ()
@@ -475,20 +492,44 @@ let initialize_library verbose python_full_path =
 
 let get_version = Pywrappers.py_getversion
 
-let initialize ?(interpreter = "python") ?version ?(verbose = false) () =
+let which program =
+  let exe = Pyml_arch.ensure_executable_suffix program in
+  let command = Printf.sprintf "%s \"%s\"" Pyml_arch.which exe in
+  match run_command_opt command false with
+    Some (path :: _) -> Some path
+  | _ -> None
+
+let find_interpreter interpreter version minor =
+  match interpreter with
+      Some interpreter' ->
+        if String.contains interpreter' '/' then
+          Some interpreter'
+        else
+          which interpreter'
+  |  None ->
+      Pyutils.option_or
+        (Pyutils.option_bind version
+           (fun version' ->
+             Pyutils.option_or
+               (Pyutils.option_bind minor
+                  (fun minor' -> which (Printf.sprintf "python%d.%d" version' minor')))
+               (fun () -> which (Printf.sprintf "python%d" version'))))
+        (fun () -> which "python")
+
+let version_mismatch interpreter found expected =
+  Printf.sprintf
+    "Version mismatch: %s is version %s but version %s is expected"
+    interpreter found expected
+
+let build_version_string major minor =
+  Printf.sprintf "%d.%d" major minor
+  
+let initialize ?interpreter ?version ?minor ?(verbose = false) () =
   if !initialized then
     failwith "Py.initialize: already initialized";
   begin
     try
-      let python_full_path =
-        if String.contains interpreter '/' then Some interpreter
-        else
-          let interpreter_exe =
-            Pyml_arch.ensure_executable_suffix interpreter in
-          let which_python =
-            Printf.sprintf "%s \"%s\"" Pyml_arch.which interpreter_exe in
-          try Some (List.hd (run_command which_python false))
-          with Failure _ -> None in
+      let python_full_path = find_interpreter interpreter version minor in
       let interpreter_pythonpaths =
         match python_full_path with
           None -> []
@@ -513,29 +554,40 @@ let initialize ?(interpreter = "python") ?version ?(verbose = false) () =
             end;
           Unix.putenv "PYTHONPATH" pythonpath
       end;
-      begin
-        match version with
-          Some (version_major, version_minor) ->
-            version_major_value := version_major;
-            version_minor_value := version_minor
-        | _ ->
-            match python_full_path with
-              None ->
-                failwith
-                  "No Python version given and no Python interpreter found"
-            | Some python_full_path' ->
-                initialize_version_value python_full_path'
-      end;
-      initialize_library verbose python_full_path;
+      let (version_major, version_minor) =
+        match python_full_path with
+          Some python_full_path' ->
+            let version_string = python_version_from_interpreter python_full_path' in
+            let (version_major, version_minor) =
+              extract_version_major_minor version_string in
+            begin
+              match version with
+                None -> ()
+              | Some version_major' ->
+                  if version_major <> version_major' then
+                    failwith
+                      (version_mismatch
+                         python_full_path' (string_of_int version_major)
+                         (string_of_int version_major'));
+                  match minor with
+                    None -> ()
+                  | Some version_minor' ->
+                      if version_minor <> version_minor' then
+                        failwith
+                          (version_mismatch
+                             python_full_path'
+                             (build_version_string version_major version_minor)
+                             (build_version_string version_major' version_minor'));
+            end;
+            (Some version_major, Some version_minor)
+        | _ -> version, minor in
+      initialize_library verbose version_major version_minor python_full_path;
       let version = get_version () in
       let (version_major, version_minor) =
         extract_version_major_minor version in
-      if version_major != !version_major_value ||
-        version_minor != !version_minor_value then
-        begin
-          finalize_library ();
-          failwith "Version mismatch"
-        end;
+      version_value := version;
+      version_major_value := version_major;
+      version_minor_value := version_minor
     with e ->
       uninit_pythonhome ();
       uninit_pythonpath ();
