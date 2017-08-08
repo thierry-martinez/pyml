@@ -37,6 +37,8 @@ val option_bind: 'a option -> ('a -> 'b option) -> 'b option
     [None] if [x] is [None]. *)
 
 val option_or: 'a option -> (unit -> 'a option) -> 'a option
+(** [option_or x f] returns [x] if [x] is [Some x'], and [f ()] if [x]
+    is [None]. *)
 
 val option_find: ('a -> 'b) -> 'a -> 'b option
 (** [option_find f x] returns [Some (f x)], or [None] if [f x] raises
