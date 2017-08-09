@@ -38,7 +38,8 @@ external pyobject_aswritebuffer: pyobject -> string option
     = "PyObject_AsWriteBuffer_wrapper"
 external pylong_fromstring: string -> int -> pyobject * int
     = "PyLong_FromString_wrapper"
-
+external pycapsule_isvalid: Pytypes.pyobject -> string -> int
+      = "Python27_PyCapsule_IsValid_wrapper"
 
 external ucs: unit -> ucs = "py_get_UCS"
 
@@ -728,7 +729,7 @@ let option result =
     Some result
 
 module Capsule = struct
-  let is_valid v name  = Pywrappers.pycapsule_isvalid v name <> 0
+  let is_valid v name  = pycapsule_isvalid v name <> 0
 
   let check v = is_valid v "ocaml-capsule"
 

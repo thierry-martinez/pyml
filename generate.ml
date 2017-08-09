@@ -52,9 +52,6 @@ let wrappers =
    { symbol = "PyCallable_Check";
      arguments = Fun [PyObject false];
      result = Int; };
-   { symbol = "PyCapsule_IsValid";
-     arguments = Fun [PyObject false; String];
-     result = Int; };
    { symbol = "PyDict_Clear";
      arguments = Fun [PyObject false];
      result = Unit; };
@@ -1139,12 +1136,12 @@ let print_declaration prefix channel wrapper =
       ty_result ^ " " in
   match arguments with
     Value | Deref ->
-      Printf.fprintf channel "%s %s;\n" ty_result symbol_decapitalized
+      Printf.fprintf channel "static %s %s;\n" ty_result symbol_decapitalized
   | Fun arguments' ->
       let ty_arguments =
         if arguments' = [] then "void"
         else String.concat ", " (List.map string_of_type_c arguments') in
-      Printf.fprintf channel "%s(*%s)(%s);\n"
+      Printf.fprintf channel "static %s(*%s)(%s);\n"
         ty_result symbol_decapitalized ty_arguments
 
 let print_declarations prefix channel wrappers =

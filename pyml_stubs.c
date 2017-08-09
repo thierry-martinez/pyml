@@ -241,12 +241,13 @@ typedef struct PyMethodDef {
 
 typedef void (*PyCapsule_Destructor)(PyObject *);
 
-static void *Python__PyObject_NextNotImplemented;
+static void *Python27__PyObject_NextNotImplemented;
 
 /* Global variables for the library */
 
 /* version_major != 0 iff the library is initialized */
 static int version_major;
+static int version_minor;
 
 static library_t library;
 
@@ -257,9 +258,11 @@ static PyObject *(*Python_PyCFunction_NewEx)
 (PyMethodDef *, PyObject *, PyObject *);
 
 /* Wrapped by closure and capsule */
-static void *(*Python_PyCapsule_New)
+static void *(*Python27_PyCapsule_New)
     (void *, const char *, PyCapsule_Destructor);
-static void *(*Python_PyCapsule_GetPointer)(PyObject *, const char *);
+static void *(*Python27_PyCapsule_GetPointer)(PyObject *, const char *);
+static int (*Python27_PyCapsule_IsValid)(PyObject *, char *);
+static void *(*Python2_PyCObject_FromVoidPtr)(void *, void (*)(void *));
 static void *(*Python2_PyCObject_AsVoidPtr)(PyObject *);
 
 /* Hack for multi-arguments */
@@ -504,13 +507,36 @@ pyunwrap_intref(value v)
     CAMLreturnT(int, Int_val(Field(v, 0)));
 }
 
+static void *
+unwrap_capsule(PyObject *obj, const char *type)
+{
+    if (Python27_PyCapsule_GetPointer) {
+        return Python27_PyCapsule_GetPointer(obj, type);
+    }
+    else {
+        return Python2_PyCObject_AsVoidPtr(obj);
+    }
+}
+
+
+static PyObject *
+wrap_capsule(void *ptr, char *type, void (*destr)(PyObject *))
+{
+    if (Python27_PyCapsule_New) {
+        return Python27_PyCapsule_New(ptr, type, destr);
+    }
+    else {
+        return Python2_PyCObject_FromVoidPtr(ptr, (void(*)(void *))destr);
+    }
+}
+
 static PyObject *
 pycall_callback(PyObject *obj, PyObject *args)
 {
     CAMLparam0();
     CAMLlocal3(ml_out, ml_func, ml_args);
     PyObject *out;
-    void *p = Python_PyCapsule_GetPointer(obj, "ocaml-closure");
+    void *p = unwrap_capsule(obj, "ocaml-closure");
     if (!p) {
         Py_INCREF(Python__Py_NoneStruct);
         return Python__Py_NoneStruct;
@@ -529,7 +555,7 @@ pycall_callback_with_keywords(PyObject *obj, PyObject *args, PyObject *keywords)
     CAMLparam0();
     CAMLlocal4(ml_out, ml_func, ml_args, ml_keywords);
     PyObject *out;
-    void *p = Python_PyCapsule_GetPointer(obj, "ocaml-closure");
+    void *p = unwrap_capsule(obj, "ocaml-closure");
     if (!p) {
         Py_INCREF(Python__Py_NoneStruct);
         return Python__Py_NoneStruct;
@@ -546,7 +572,7 @@ pycall_callback_with_keywords(PyObject *obj, PyObject *args, PyObject *keywords)
 static void
 caml_destructor(PyObject *v, const char *capsule_name)
 {
-    value *valptr = (value *) Python_PyCapsule_GetPointer(v, capsule_name);
+    value *valptr = (value *) unwrap_capsule(v, capsule_name);
     caml_remove_global_root(valptr);
     free(valptr);
 }
@@ -564,7 +590,7 @@ camlwrap_closure(value val, void *aux_str, int size)
     *v = val;
     memcpy((void *)v + sizeof(value), aux_str, size);
     caml_register_global_root(v);
-    return Python_PyCapsule_New(v, "ocaml-closure", camldestr_closure);
+    return wrap_capsule(v, "ocaml-closure", camldestr_closure);
 }
 
 static void
@@ -580,13 +606,13 @@ camlwrap_capsule(value val, void *aux_str, int size)
     *v = val;
     memcpy((void *)v + sizeof(value), aux_str, size);
     caml_register_global_root(v);
-    return Python_PyCapsule_New(v, "ocaml-capsule", camldestr_capsule);
+    return wrap_capsule(v, "ocaml-capsule", camldestr_capsule);
 }
 
 static void *
 caml_aux(PyObject *obj)
 {
-    value *v = (value *) Python_PyCapsule_GetPointer(obj, "ocaml-closure");
+    value *v = (value *) unwrap_capsule(obj, "ocaml-closure");
     return (void *) v + sizeof(value);
 }
 
@@ -673,17 +699,21 @@ py_load_library(value filename_ocaml)
     }
     const char *version = Python_Py_GetVersion();
     version_major = version[0] - '0';
+    version_minor = version[2] - '0';
     Python_PyCFunction_NewEx = resolve("PyCFunction_NewEx");
-    Python_PyCapsule_New = resolve("PyCapsule_New");
-    Python_PyCapsule_GetPointer = resolve("PyCapsule_GetPointer");
+    if ((version_major == 2 && version_minor >= 7) || version_major >= 3) {
+        Python27_PyCapsule_New = resolve("PyCapsule_New");
+        Python27_PyCapsule_GetPointer = resolve("PyCapsule_GetPointer");
+        Python27_PyCapsule_IsValid = resolve("PyCapsule_IsValid");
+        Python27__PyObject_NextNotImplemented =
+            resolve("_PyObject_NextNotImplemented");
+    }
     Python_PyObject_CallFunctionObjArgs =
         resolve("PyObject_CallFunctionObjArgs");
     Python_PyObject_CallMethodObjArgs =
         resolve("PyObject_CallMethodObjArgs");
     Python_PyErr_Fetch = resolve("PyErr_Fetch");
     Python_PyErr_NormalizeException = resolve("PyErr_NormalizeException");
-    Python__PyObject_NextNotImplemented =
-        resolve("_PyObject_NextNotImplemented");
     Python_PyObject_AsCharBuffer = resolve("PyObject_AsCharBuffer");
     Python_PyObject_AsReadBuffer = resolve("PyObject_AsReadBuffer");
     Python_PyObject_AsWriteBuffer = resolve("PyObject_AsWriteBuffer");
@@ -701,6 +731,7 @@ py_load_library(value filename_ocaml)
         Python__Py_fopen = resolve("_Py_fopen");
     }
     else {
+        Python2_PyCObject_FromVoidPtr = resolve("PyCObject_FromVoidPtr");
         Python2_PyCObject_AsVoidPtr = resolve("PyCObject_AsVoidPtr");
     }
     if (find_symbol(library, "PyUnicodeUCS2_AsEncodedString")) {
@@ -827,10 +858,12 @@ pytype(value object_ocaml)
     else if (Python_PyCallable_Check(object)) {
         result = Callable;
     }
-    else if (Python_PyCapsule_IsValid(object, "ocaml-capsule")) {
+    else if (Python27_PyCapsule_IsValid
+        && Python27_PyCapsule_IsValid(object, "ocaml-capsule")) {
         result = Capsule;
     }
-    else if (Python_PyCapsule_IsValid(object, "ocaml-closure")) {
+    else if (Python27_PyCapsule_IsValid
+        && Python27_PyCapsule_IsValid(object, "ocaml-closure")) {
         result = Closure;
     }
     else if (flags & Py_TPFLAGS_DICT_SUBCLASS) {
@@ -870,7 +903,7 @@ pytype(value object_ocaml)
         result = Unicode;
     }
     else if (object->ob_type->tp_iternext != NULL &&
-        object->ob_type->tp_iternext != &Python__PyObject_NextNotImplemented) {
+        object->ob_type->tp_iternext != &Python27__PyObject_NextNotImplemented) {
         result = Iter;
     }
     else {
@@ -1022,7 +1055,7 @@ pyunwrap_value(value x_ocaml)
     CAMLlocal1(v);
     assert_initialized();
     PyObject *x = pyunwrap(x_ocaml);
-    void *p = Python_PyCapsule_GetPointer(x, "ocaml-capsule");
+    void *p = unwrap_capsule(x, "ocaml-capsule");
     if (!p) {
         fprintf(stderr, "pyunwrap_value: type mismatch");
         exit(EXIT_FAILURE);
@@ -1289,7 +1322,7 @@ static void **
 get_pyarray_api(PyObject *c_api)
 {
     if (version_major >= 3) {
-        return (void **)Python_PyCapsule_GetPointer(c_api, NULL);
+        return (void **)Python27_PyCapsule_GetPointer(c_api, NULL);
     }
     else {
         return (void **)Python2_PyCObject_AsVoidPtr(c_api);
@@ -1342,6 +1375,21 @@ PyLong_FromString_wrapper(value str_ocaml, value base_ocaml)
     Store_field(result, 0, pywrap(l, true));
     Store_field(result, 1, Val_int(len));
     CAMLreturn(result);
+}
+
+CAMLprim value
+Python27_PyCapsule_IsValid_wrapper(value arg0_ocaml, value arg1_ocaml)
+{
+    CAMLparam2(arg0_ocaml, arg1_ocaml);
+
+    assert_initialized();
+    if (!Python27_PyCapsule_IsValid) {
+        failwith("PyCapsule_IsValid is only available in Python >2.7");
+    }
+    PyObject *arg0 = pyunwrap(arg0_ocaml);
+    char *arg1 = String_val(arg1_ocaml);
+    int result = Python27_PyCapsule_IsValid(arg0, arg1);
+    CAMLreturn(Val_int(result));
 }
 
 #include "pyml_wrappers.inc"

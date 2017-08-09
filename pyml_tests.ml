@@ -1,3 +1,5 @@
+let use_version = ref (None, None)
+
 type status =
   | Passed
   | Failed of string
@@ -140,7 +142,7 @@ let () =
       assert (Py.Run.simple_string "
 from test import wrap, unwrap
 x = wrap('OK')
-print('Capsule type: {}'.format(x))
+print('Capsule type: {0}'.format(x))
 assert unwrap(x) == 'OK'
 ");
       Passed
@@ -259,7 +261,8 @@ let () =
           Failure _ -> ()
         | Exit -> failwith "Uncaught not initialized"
       end;
-      Py.initialize ();
+      let (version, minor) = !use_version in
+      Py.initialize ~verbose:true ?version ?minor ();
       Passed
     )
 
@@ -436,14 +439,28 @@ let show_environment_variable envvar =
   with Not_found ->
     Printf.eprintf "%s not set\n" envvar
 
-let () =
+let main () =
+  let version, minor =
+    match Sys.argv with
+      [| _ |] -> None, None
+    | [| _; version |] ->
+       begin
+         match  String.length version with
+           1 -> Some (int_of_string version), None
+         | 3 when version.[1] = '.' ->
+            Some (int_of_string (String.sub version 0 1)),
+            Some (int_of_string (String.sub version 2 1))
+         | _ -> failwith (Printf.sprintf "Cannot parse version `%s'." version)
+       end
+    | _ -> failwith "Argument should be a version number" in
+  use_version := (version, minor);
   prerr_endline "Environment variables:";
   show_environment_variable "PATH";
   show_environment_variable "PYTHONHOME";
   show_environment_variable "DYLD_LIBRARY_PATH";
   show_environment_variable "DYLD_FALLBACK_LIBRARY_PATH";
   prerr_endline "Initializing library...";
-  Py.initialize ~verbose:true ();
+  Py.initialize ~verbose:true ?version ?minor ();
   begin
     match Py.get_library_filename () with
       None -> prerr_endline "No library has been loaded.\n"
@@ -453,3 +470,7 @@ let () =
   launch_tests ();
   if !failed then
     exit 1
+
+let () =
+  if not !Sys.interactive then
+    main ()
