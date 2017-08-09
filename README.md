@@ -90,9 +90,9 @@ from ocaml import hello
 hello('World')"
 ```
 
-``Py.Module.set m "hello" (Py.Callable.of_function hello);``
+``Py.Module.set m "hello" (Py.Callable.of_function hello)``
 can be written
-``Py.Module.set_function m "hello" hello;``.
+``Py.Module.set_function m "hello" hello``.
 
 Python functions can be called from OCaml too.
 
