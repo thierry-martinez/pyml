@@ -26,6 +26,10 @@ val finalize: unit -> unit
 (** [finalize ()] unloads the library. No other functions except
     [initialize ()] should be called afterwards. *)
 
+val on_finalize: (unit -> unit) -> unit
+(** [on_finalize f] registers [f ()] to be executed when [finalize] is
+    executed. *)
+
 val is_initialized: unit -> bool
 (** [is_initialized ()] returns [true] if the library is initialized
     ([initialize ()] has been called and [finalize ()] has not been
@@ -212,7 +216,7 @@ module Object: sig
 
   val call_method_obj_args: t -> t -> t array -> t
   (** Wrapper for
-      {{:https://docs.python.org/3/c-api/object.html#c.PyObject_CallMethodObjArgs} PyObject_CallMethodObjArgs} *)  
+      {{:https://docs.python.org/3/c-api/object.html#c.PyObject_CallMethodObjArgs} PyObject_CallMethodObjArgs} *)
 
   val call_method: t -> string -> t array -> t
   (** [Py.Object.call_method o m args] is equivalent to
@@ -235,6 +239,10 @@ val null: Object.t
 
 val none: Object.t
 (** The value [None] of Python. *)
+
+val check_not_null: Object.t -> Object.t
+(** [check_not_null v] checks that [v] is not [null] and returns [v].
+    Raises the current Python error as exception otherwise. *)
 
 val set_program_name: string -> unit
 (** Sets the program name (by default, [Sys.argv.(0)]).
@@ -404,12 +412,11 @@ end
 
 (** Defining a new class type *)
 module Class: sig
-  val init: ?parents:Object.t -> ?fields:((string * Object.t) list) ->
+  val init: ?parents:(Object.t list) -> ?fields:((string * Object.t) list) ->
       ?methods:((string * Object.t) list) ->
-        Object.t -> Object.t
+        string -> Object.t
   (** [init ~parents ~fields ~methods classname] Returns a new class type.
-      @param classname is a Python string.
-      @param parents is a Python tuple for bases (default: [()]).
+      @param parents is the list of base classes (default: []).
       @param fields is an associative list for field values (default : [[]]).
       @param methods is an associative list for method closures
       (default : [[]]). *)
@@ -1663,6 +1670,11 @@ module Type: sig
   val mismatch: string -> Object.t -> 'a
   (** [mismatch ty obj] raises a type mismatch [Failure _] that indicates that
       an object of type [ty] was expected, but [obj] was found. *)
+
+  val create: string -> Object.t list -> (string * Object.t) list -> Object.t
+  (** [create classname parents dict] calls Python [type()] function to create
+      a new type [classname] deriving from [parents] with the dictionary
+      [dict]. *)
 end
 
 module Marshal: sig
@@ -1737,9 +1749,27 @@ module Array: sig
       To make the array-like structure read-only,
       raise an exception in [setter]. *)
 
+  val numpy_api: unit -> Object.t
+  (** Returns the object which contains the entry points to the Numpy API.
+      It is used internally by the following functions and by the {!Numpy}
+      module. *)
+
+  val pyarray_type: unit -> Object.t
+  (** Returns the type of Numpy arrays. *)
+
   val numpy: float array -> Object.t
+  (** [numpy a] returns a Numpy array that shares the same contents than
+      the OCaml array [a].
+      The array is passed in place (without copy): Python programs can
+      change the contents of the array and the changes are visible in
+      the OCaml array. *)
 
   val numpy_get_array: Object.t -> float array
+  (** [numpy_get_array a] returns the OCaml array from which the Numpy
+      array [a] has been converted from. Note that this function fails
+      if [a] has not been obtained by calling the {!numpy} function
+      above. If you need to convert an arbitrary Numpy array to OCaml,
+      you should use bigarrays and the {!Numpy} module. *)
 end
 
 val set_argv: string array -> unit

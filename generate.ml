@@ -1160,13 +1160,13 @@ let print_all_declarations channel =
 
 let coercion_of_caml ty v =
   match ty with
-    PyObject _ -> Printf.sprintf "pyunwrap(%s)" v
+    PyObject _ -> Printf.sprintf "pyml_unwrap(%s)" v
   | String -> Printf.sprintf "String_val(%s)" v
-  | WideString -> Printf.sprintf "pyunwrap_wide_string(%s)" v
+  | WideString -> Printf.sprintf "pyml_unwrap_wide_string(%s)" v
   | Int | Long | Size -> Printf.sprintf "Int_val(%s)" v
   | Int64 -> Printf.sprintf "Int64_val(%s)" v
-  | IntPtr -> Printf.sprintf "pyunwrap_intref(%s)" v
-  | PyCompilerFlags -> Printf.sprintf "pyunwrap_compilerflags(%s)" v
+  | IntPtr -> Printf.sprintf "pyml_unwrap_intref(%s)" v
+  | PyCompilerFlags -> Printf.sprintf "pyml_unwrap_compilerflags(%s)" v
   | Compare -> Printf.sprintf "Int_val(%s)" v
   | Unit | NeverReturn | UCS2Option | UCS4Option _ -> assert false
   | Input -> Printf.sprintf "256 + Int_val(%s)" v
@@ -1175,8 +1175,8 @@ let coercion_of_caml ty v =
   | Double -> Printf.sprintf "Double_val(%s)" v
   | StringOption ->
       Printf.sprintf "Is_block(%s) ? String_val(Field(%s, 0)) : NULL" v v
-  | UCS2 -> Printf.sprintf "pyunwrap_ucs2(%s)" v
-  | UCS4 -> Printf.sprintf "pyunwrap_ucs4(%s)" v
+  | UCS2 -> Printf.sprintf "pyml_unwrap_ucs2(%s)" v
+  | UCS4 -> Printf.sprintf "pyml_unwrap_ucs4(%s)" v
 
 let string_of_bool b =
   if b then "true"
@@ -1185,23 +1185,23 @@ let string_of_bool b =
 let coercion_of_c ty =
   match ty with
     PyObject b ->
-      Printf.sprintf "    CAMLreturn(pywrap(result, %s));" (string_of_bool b)
+      Printf.sprintf "    CAMLreturn(pyml_wrap(result, %s));" (string_of_bool b)
   | String -> Printf.sprintf "    CAMLreturn(caml_copy_string(result));"
   | StringOption ->
-      Printf.sprintf "    CAMLreturn(pywrap_string_option(result));"
-  | WideString -> Printf.sprintf "    CAMLreturn(pywrap_wide_string(result));"
+      Printf.sprintf "    CAMLreturn(pyml_wrap_string_option(result));"
+  | WideString -> Printf.sprintf "    CAMLreturn(pyml_wrap_wide_string(result));"
   | Int | Long | Size | Compare ->
       Printf.sprintf "    CAMLreturn(Val_int(result));"
   | Int64 -> Printf.sprintf "    CAMLreturn(copy_int64(result));"
-  | IntPtr -> Printf.sprintf "    CAMLreturn(pywrap_intref(result));"
+  | IntPtr -> Printf.sprintf "    CAMLreturn(pyml_wrap_intref(result));"
   | PyCompilerFlags ->
-      Printf.sprintf "    CAMLreturn(pywrap_compilerflags(result));"
+      Printf.sprintf "    CAMLreturn(pyml_wrap_compilerflags(result));"
   | Unit | NeverReturn -> Printf.sprintf "    CAMLreturn(Val_unit);"
   | Input | FileIn _ | FileOut _ | UCS2 | UCS4 -> assert false
   | Double -> Printf.sprintf "    CAMLreturn(caml_copy_double(result));"
-  | UCS2Option -> Printf.sprintf "    CAMLreturn(pywrap_ucs2_option(result));"
+  | UCS2Option -> Printf.sprintf "    CAMLreturn(pyml_wrap_ucs2_option(result));"
   | UCS4Option free ->
-      Printf.sprintf "    CAMLreturn(pywrap_ucs4_option_and_free(result, %s));"
+      Printf.sprintf "    CAMLreturn(pyml_wrap_ucs4_option_and_free(result, %s));"
         (string_of_bool free)
 
 let space_if_not_starred s =
@@ -1219,7 +1219,7 @@ let rec seq a b =
   if a < b then a :: seq (succ a) b
   else []
 
-let print_stub prefix assert_initialized channel wrapper =
+let print_stub prefix pyml_assert_initialized channel wrapper =
   let symbol = wrapper.symbol in
   let arguments = wrapper.arguments in
   let need_bytecode =
@@ -1310,7 +1310,7 @@ CAMLprim value
 %s%s
 %s
 }
-" symbol_wrapper stub_arguments camlparam assert_initialized destruct_arguments
+" symbol_wrapper stub_arguments camlparam pyml_assert_initialized destruct_arguments
     call free return;
   if need_bytecode then
     let arguments' =
@@ -1327,19 +1327,19 @@ CAMLprim value
       (String.concat ", "
          (Pyml_compat.mapi (fun i _ -> Printf.sprintf "argv[%d]" i) arguments'))
 
-let print_stubs prefix assert_initialized channel wrappers =
-  List.iter (print_stub prefix assert_initialized channel) wrappers
+let print_stubs prefix pyml_assert_initialized channel wrappers =
+  List.iter (print_stub prefix pyml_assert_initialized channel) wrappers
 
 let print_all_stubs channel =
-  print_stubs "Python_" "assert_initialized();" channel wrappers;
+  print_stubs "Python_" "pyml_assert_initialized();" channel wrappers;
   Printf.fprintf channel "\n/* Python 2 */\n";
-  print_stubs "Python2_" "assert_python2();" channel wrappers_python2;
+  print_stubs "Python2_" "pyml_assert_python2();" channel wrappers_python2;
   Printf.fprintf channel "\n/* UCS 2 */\n";
-  print_stubs "UCS2_" "assert_ucs2();" channel wrappers_ucs2;
+  print_stubs "UCS2_" "pyml_assert_ucs2();" channel wrappers_ucs2;
   Printf.fprintf channel "\n/* UCS 4 */\n";
-  print_stubs "UCS4_" "assert_ucs4();" channel wrappers_ucs4;
+  print_stubs "UCS4_" "pyml_assert_ucs4();" channel wrappers_ucs4;
   Printf.fprintf channel "\n/* Python 3 */\n";
-  print_stubs "Python3_" "assert_python3();" channel wrappers_python3
+  print_stubs "Python3_" "pyml_assert_python3();" channel wrappers_python3
 
 let write_file filename f =
   let channel = open_out filename in

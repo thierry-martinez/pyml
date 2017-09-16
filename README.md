@@ -258,8 +258,8 @@ assert (Py.Module.get_function plt "show" [| |] = Py.none)
 NumPy
 -----
 
-If the NumPy library is installed, then OCaml float arrays can be shared
-in place with Python code as NumPy arrays (without copy).
+If the NumPy library is installed, then OCaml float arrays and bigarrays
+can be shared in place with Python code as NumPy arrays (without copy).
 Python code can then directly read and write from and to the OCaml arrays
 and changes are readable from OCaml.
 
@@ -271,4 +271,29 @@ ignore (Py.Run.eval ~start:Py.File "
 from ocaml import array
 array *= 2");
 assert (array = [| 2.; 4.; 6. |])
+```
+
+Bigarrays are handled by the ``Numpy`` module that is shipped in
+``numpy.cma/cmxa`` and requires ``bigarray.cma/cmxa``. Numpy arrays can
+be obtained from bigarrays with ``Numpy.of_bigarray`` and bigarrays can
+be obtained from Numpy arrays with ``Numpy.to_bigarray`` (the provided
+kind and layout should match the format of the Numpy array).
+
+```ocaml
+let m = Py.Import.add_module "test" in
+let callback arg =
+  let bigarray =
+    Numpy.to_bigarray Bigarray.nativeint Bigarray.c_layout arg.(0) in
+  let array1 = Bigarray.array1_of_genarray bigarray in
+  assert (Bigarray.Array1.get array1 0 = 0n);
+  assert (Bigarray.Array1.get array1 1 = 1n);
+  assert (Bigarray.Array1.get array1 2 = 2n);
+  assert (Bigarray.Array1.get array1 3 = 3n);
+  Py.none in
+Py.Module.set m "callback" (Py.Callable.of_function callback);
+assert (Py.Run.simple_string "
+from test import callback
+import numpy
+callback(numpy.array([0,1,2,3]))
+")
 ```

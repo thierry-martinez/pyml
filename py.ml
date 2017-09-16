@@ -16,7 +16,7 @@ external load_library: string option -> unit = "py_load_library"
 external unsetenv: string -> unit = "py_unsetenv"
 external finalize_library: unit -> unit = "py_finalize_library"
 external pywrap_closure: string -> closure -> pyobject
-    = "pywrap_closure"
+    = "pyml_wrap_closure"
 external pynull: unit -> pyobject = "PyNull_wrapper"
 external pynone: unit -> pyobject = "PyNone_wrapper"
 external pytrue: unit -> pyobject = "PyTrue_wrapper"
@@ -737,9 +737,9 @@ module Capsule = struct
 
   let () = on_finalize (fun () -> Hashtbl.clear table)
 
-  external unsafe_wrap_value: 'a -> pyobject = "pywrap_value"
+  external unsafe_wrap_value: 'a -> pyobject = "pyml_wrap_value"
 
-  external unsafe_unwrap_value: pyobject -> 'a = "pyunwrap_value"
+  external unsafe_unwrap_value: pyobject -> 'a = "pyml_unwrap_value"
 
   let make name =
     try
@@ -791,6 +791,60 @@ module String_ = struct
           else
             failwith "String.as_UTF8_string: unavailable" in
     check_not_null (f s)
+
+  let of_string s =
+    let len = String.length s in
+    if !version_major_value >= 3 then
+      check_not_null (Pywrappers.Python3.pyunicode_fromstringandsize s len)
+    else
+      check_not_null (Pywrappers.Python2.pystring_fromstringandsize s len)
+end
+
+module Tuple_ = struct
+  let create size =
+    check_not_null (Pywrappers.pytuple_new size)
+
+  let set_item s index value =
+    assert_int_success (Pywrappers.pytuple_setitem s index value)
+
+  let set = set_item
+
+  let init size f =
+    let result = create size in
+    for index = 0 to size - 1 do
+      set_item result index (f index)
+    done;
+    result
+
+  let of_array array = init (Array.length array) (Array.get array)
+
+  let of_list list = of_array (Array.of_list list)
+end
+
+let id x = x
+
+module Dict_ = struct
+  let create () =
+    check_not_null (Pywrappers.pydict_new ())
+
+  let set_item dict key value =
+    assert_int_success (Pywrappers.pydict_setitem dict key value)
+
+  let of_bindings_map fkey fvalue list =
+    let result = create () in
+    List.iter begin fun (key, value) ->
+      set_item result (fkey key) (fvalue value);
+    end list;
+    result
+
+  let of_bindings = of_bindings_map id id
+
+  let of_bindings_string = of_bindings_map String_.of_string id
+end
+
+module Object_ = struct
+  let call_function_obj_args callable args =
+    check_not_null (pyobject_callfunctionobjargs callable args)
 end
 
 module Type = struct
@@ -857,6 +911,13 @@ module Type = struct
     failwith
       (Printf.sprintf "Type mismatch: %s expected. Got: %s (%s)"
          t (name (get o)) (string_of_repr o))
+
+  let create classname parents dict =
+    let ty = Pywrappers.pytype_type () in
+    let classname = String_.of_string classname in
+    let parents = Tuple_.of_list parents in
+    let dict = Dict_.of_bindings_string dict in
+    Object_.call_function_obj_args ty [| classname; parents; dict |]
 end
 
 module Mapping = struct
@@ -1061,13 +1122,6 @@ module String = struct
           Pywrappers.Python2.pystring_size s
     | _ -> string_type_mismatch s
 
-  let of_string s =
-    let len = String.length s in
-    if !version_major_value >= 3 then
-      check_not_null (Pywrappers.Python3.pyunicode_fromstringandsize s len)
-    else
-      check_not_null (Pywrappers.Python2.pystring_fromstringandsize s len)
-
   let to_string s =
     match Type.to_string s with
       None -> string_type_mismatch s
@@ -1191,6 +1245,8 @@ end
 exception Err of Err.t * string
 
 module Object = struct
+  include Object_
+
   type t = Pytypes.pyobject
 
   let del_item obj item =
@@ -1295,9 +1351,6 @@ module Object = struct
 
   let format_repr fmt v =
     Format.pp_print_string fmt (robust_to_string true v)
-
-  let call_function_obj_args callable args =
-    check_not_null (pyobject_callfunctionobjargs callable args)
 
   let call_method_obj_args obj name args =
     check_not_null (pyobject_callmethodobjargs obj name args)
@@ -1623,10 +1676,9 @@ end
 module Tuple = struct
   include Sequence
 
-  let check o = Type.get o = Type.Tuple
+  include Tuple_
 
-  let create size =
-    check_not_null (Pywrappers.pytuple_new size)
+  let check o = Type.get o = Type.Tuple
 
   let empty = pytuple_empty ()
 
@@ -1635,24 +1687,8 @@ module Tuple = struct
 
   let size tuple = check_int (Pywrappers.pytuple_size tuple)
 
-  let set_item s index value =
-    assert_int_success (Pywrappers.pytuple_setitem s index value)
-
-  let set = set_item
-
-  let init size f =
-    let result = create size in
-    for index = 0 to size - 1 do
-      set_item result index (f index)
-    done;
-    result
-
-  let of_array array = init (Array.length array) (Array.get array)
-
   let of_array_map f array =
     init (Array.length array) (fun i -> f (Array.get array i))
-
-  let of_list list = of_array (Array.of_list list)
 
   let of_list_map f list = of_array_map f (Array.of_list list)
 
@@ -1691,14 +1727,13 @@ module Tuple = struct
 end
 
 module Dict = struct
+  include Dict_
+
   let check o = Type.get o = Type.Dict
 
   let clear = Pywrappers.pydict_clear
 
   let copy v = check_not_null (Pywrappers.pydict_copy v)
-
-  let create () =
-    check_not_null (Pywrappers.pydict_new ())
 
   let del_item dict item =
     assert_int_success (Pywrappers.pydict_delitem dict item)
@@ -1719,9 +1754,6 @@ module Dict = struct
   let keys dict = check_not_null (Pywrappers.pydict_keys dict)
 
   let items dict = check_not_null (Pywrappers.pydict_items dict)
-
-  let set_item dict key value =
-    assert_int_success (Pywrappers.pydict_setitem dict key value)
 
   let set_item_string dict name value =
     assert_int_success (Pywrappers.pydict_setitemstring dict name value)
@@ -1764,22 +1796,9 @@ module Dict = struct
       (fkey key, fvalue value)
     end (Object.get_iter (items dict))
 
-  let id x = x
-
   let to_bindings = to_bindings_map id id
 
   let to_bindings_string = to_bindings_map String.to_string id
-
-  let of_bindings_map fkey fvalue list =
-    let result = create () in
-    List.iter begin fun (key, value) ->
-      set_item result (fkey key) (fvalue value);
-    end list;
-    result
-
-  let of_bindings = of_bindings_map id id
-
-  let of_bindings_string = of_bindings_map String.of_string id
 
   let singleton key value = of_bindings [(key, value)]
 
@@ -1917,25 +1936,17 @@ module Module = struct
 end
 
 module Class = struct
-  let type_ classname parents dict =
-    let ty = Pywrappers.pytype_type () in
-    Object.call_function_obj_args ty [| classname; parents; dict |]
-
-  let init ?(parents = Tuple.empty) ?(fields = []) ?(methods = []) classname =
-    let dict = Dict.create () in
-    let add_field (name, value) = Dict.set_item_string dict name value in
-    List.iter add_field fields;
+  let init ?(parents = []) ?(fields = []) ?(methods = []) classname =
     if version_major () >= 3 then
-      let add_method (name, closure) =
-        let m =
-          check_not_null (Pywrappers.Python3.pyinstancemethod_new closure) in
-        Dict.set_item_string dict name m in
-      List.iter add_method methods;
-      type_ classname parents dict
+      let methods = List.rev_map (fun (name, closure) ->
+        (name, Pywrappers.Python3.pyinstancemethod_new closure)) methods in
+      Type.create classname parents (List.rev_append methods fields)
     else
+      let classname = String.of_string classname in
+      let dict = Dict.of_bindings_string fields in
       let c =
         check_not_null
-          (Pywrappers.Python2.pyclass_new parents dict classname) in
+          (Pywrappers.Python2.pyclass_new (Tuple.of_list parents) dict classname) in
       let add_method (name, closure) =
         let m = check_not_null (Pywrappers.pymethod_new closure null c) in
         Dict.set_item_string dict name m in
@@ -1956,7 +1967,7 @@ module Iter = struct
       | Some item -> item in
     let methods = [next_name, Callable.of_function next'] in
     Object.call_function_obj_args
-      (Class.init ~methods (String.of_string "iterator")) [| |]
+      (Class.init ~methods "iterator") [| |]
 end
 
 module List = struct
@@ -2057,8 +2068,7 @@ module Array = struct
        "__repr__", Callable.of_function_as_tuple (fun tuple ->
          let (self) = Tuple.to_tuple1 tuple in
          Object.repr (Sequence.list self))] in
-    Object.call_function_obj_args
-      (Class.init ~methods (String.of_string "array")) [| |]
+    Object.call_function_obj_args (Class.init ~methods "array") [| |]
 
   let of_array getter setter a =
     of_indexed_structure (fun i -> getter a.(i)) (fun i v -> a.(i) <- setter v)
@@ -2090,22 +2100,23 @@ module Array = struct
         let array_pickle, array_unpickle = Capsule.make "float array" in
         let pyarray_subtype =
           let pyarray_type = get_pyarray_type numpy_api in
-          let classname = String.of_string "ocamlarray" in
-          let parents = Tuple.of_tuple1 (pyarray_type) in
-          let dict = Dict.create () in
-          Dict.set_item_string dict "ocamlarray" none;
-          Class.type_ classname parents dict in
+          Type.create "ocamlarray" [pyarray_type] [("ocamlarray", none)] in
         let info =
           { numpy_api; array_pickle; array_unpickle;
             pyarray_subtype } in
         numpy_info := Some info;
         info
 
+  let numpy_api () =
+    (get_numpy_info ()).numpy_api
+
+  let pyarray_type () =
+    get_pyarray_type (numpy_api ())
+
   let numpy a =
     let info = get_numpy_info () in
-    let result =
-      check_not_null
-        (pyarray_of_float_array info.numpy_api info.pyarray_subtype a) in
+    let result = pyarray_of_float_array info.numpy_api info.pyarray_subtype a in
+    let result = check_not_null result in
     Object.set_attr_string result "ocamlarray" (info.array_pickle a);
     result
 

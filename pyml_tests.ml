@@ -1,78 +1,29 @@
-let use_version = ref (None, None)
-
-type status =
-  | Passed
-  | Failed of string
-  | Disabled of string
-
-let tests = Queue.create ()
-
-let add_test ~title f =
-  Queue.add (title, f) tests
-
-let failed = ref false
-
-let launch_test (title, f) =
-  Printf.printf "Test '%s' ... %!" title;
-  try
-    match f () with
-      Passed -> Printf.printf "passed\n%!"
-    | Failed reason ->
-       Printf.printf "failed: %s\n%!" reason;
-       failed := true
-    | Disabled reason -> Printf.printf "disabled: %s\n%!" reason
-  with
-    Py.E (_, value) ->
-    Printf.printf
-      "raised a Python exception: %s\n%!"
-      (Py.Object.to_string value);
-    failed := true
-  | e ->
-     Printf.printf "raised an exception: %s\n%!" (Printexc.to_string e);
-     failed := true
-
-let rec launch_tests () =
-  match
-    try Some (Queue.pop tests)
-    with Queue.Empty -> None
-  with
-    None -> ()
-  | Some test ->
-      launch_test test;
-      launch_tests ()
-
-let enable_only_on_unix f arg =
-  if Sys.os_type = "Unix" then
-    f arg
-  else
-    Disabled "only on Unix"
-
 let () =
-  add_test
+  Pyml_tests_common.add_test
     ~title:"version"
     (fun () ->
       Printf.printf "Python version %s\n%!" (Py.version ());
-      Passed
+      Pyml_tests_common.Passed
     )
 
 let () =
-  add_test
+  Pyml_tests_common.add_test
     ~title:"library version"
     (fun () ->
       Printf.printf "Python library version %s\n%!" (Py.get_version ());
-      Passed
+      Pyml_tests_common.Passed
     )
 
 let () =
-  add_test
+  Pyml_tests_common.add_test
     ~title:"hello world"
     (fun () ->
       assert (Py.Run.simple_string "print('Hello world!')");
-      Passed
+      Pyml_tests_common.Passed
     )
 
 let () =
-  add_test
+  Pyml_tests_common.add_test
     ~title:"class"
     (fun () ->
       let m = Py.Import.add_module "test" in
@@ -81,7 +32,7 @@ let () =
         value_obtained := Some (Py.String.to_string (Py.Tuple.get_item arg 1));
         Py.none in
       let c =
-        Py.Class.init (Py.String.of_string "myClass")
+        Py.Class.init "myClass"
           ~methods:[("callback", Py.Callable.of_function_as_tuple callback)] in
       Py.Module.set m "myClass" c;
       assert (Py.Run.simple_string "
@@ -89,29 +40,29 @@ from test import myClass
 myClass().callback('OK')
 ");
       assert (!value_obtained = Some "OK");
-      Passed
+      Pyml_tests_common.Passed
     )
 
 let () =
-  add_test
+  Pyml_tests_common.add_test
     ~title:"empty tuple"
     (fun () ->
       assert (Py.Tuple.create 0 = Py.Tuple.empty);
-      Passed
+      Pyml_tests_common.Passed
     )
 
 let () =
-  add_test
+  Pyml_tests_common.add_test
     ~title:"make tuple"
     (fun () ->
       assert
         (Py.Tuple.to_singleton (Py.Tuple.singleton (Py.Long.of_int 0))
            = Py.Long.of_int 0);
-      Passed
+      Pyml_tests_common.Passed
     )
 
 let () =
-  add_test
+  Pyml_tests_common.add_test
     ~title:"module get/set/remove"
     (fun () ->
       let m = Py.Module.create "test" in
@@ -121,12 +72,12 @@ let () =
       begin
         try
           ignore (Py.Module.get m "test");
-          Failed "Should have been removed"
-        with Py.E _ -> Passed
+          Pyml_tests_common.Failed "Should have been removed"
+        with Py.E _ -> Pyml_tests_common.Passed
       end)
 
 let () =
-  add_test
+  Pyml_tests_common.add_test
     ~title:"capsule"
     (fun () ->
       let (wrap, unwrap) = Py.Capsule.make "string" in
@@ -145,24 +96,24 @@ x = wrap('OK')
 print('Capsule type: {0}'.format(x))
 assert unwrap(x) == 'OK'
 ");
-      Passed
+      Pyml_tests_common.Passed
     )
 
 let () =
-  add_test
+  Pyml_tests_common.add_test
     ~title:"exception"
     (fun () ->
       try
         let _ = Py.Run.eval ~start:Py.File "
 raise Exception('Great')
 " in
-        Failed "uncaught exception"
+        Pyml_tests_common.Failed "uncaught exception"
       with Py.E (_, value) ->
         assert (Py.Object.to_string value = "Great");
-        Passed)
+        Pyml_tests_common.Passed)
 
 let () =
-  add_test
+  Pyml_tests_common.add_test
     ~title:"ocaml exception"
     (fun () ->
       let m = Py.Import.add_module "test" in
@@ -177,11 +128,11 @@ try:
 except Exception as err:
     assert str(err) == \"Great\"
 ");
-      Passed
+      Pyml_tests_common.Passed
     )
 
 let () =
-  add_test
+  Pyml_tests_common.add_test
     ~title:"ocaml other exception"
     (fun () ->
       let m = Py.Import.add_module "test" in
@@ -195,13 +146,13 @@ try:
 except Exception as err:
     raise Exception('Should not be caught by Python')
 ");
-        Failed "Uncaught exception"
+        Pyml_tests_common.Failed "Uncaught exception"
       with Exit ->
-        Passed
+        Pyml_tests_common.Passed
     )
 
 let () =
-  add_test
+  Pyml_tests_common.add_test
     ~title:"run file with filename"
     (fun () ->
       let result = Pyutils.with_temp_file "print(\"Hello, world!\")"
@@ -209,47 +160,47 @@ let () =
          Py.Run.load (Py.Filename file) "test.py"
         end in
       if result = Py.none then
-        Passed
+        Pyml_tests_common.Passed
       else
         let result_str = Py.Object.to_string result in
         let msg = Printf.sprintf "Result None expected but got %s" result_str in
-        Failed msg
+        Pyml_tests_common.Failed msg
     )
 
 let () =
-  add_test
+  Pyml_tests_common.add_test
     ~title:"run file with channel"
-    (enable_only_on_unix
+    (Pyml_tests_common.enable_only_on_unix
        (fun () ->
          let result = Pyutils.with_temp_file "print(\"Hello, world!\")"
            begin fun file channel ->
            Py.Run.load (Py.Channel channel) "test.py"
            end in
          if result = Py.none then
-           Passed
+           Pyml_tests_common.Passed
          else
            let result_str = Py.Object.to_string result in
            let msg = Printf.sprintf "Result None expected but got %s" result_str in
-           Failed msg
+           Pyml_tests_common.Failed msg
        )
     )
 
 let () =
-  add_test
+  Pyml_tests_common.add_test
     ~title:"boolean"
     (fun () ->
       try
         if not (Py.Bool.to_bool (Py.Run.eval "True")) then
-          Failed "true is false"
+          Pyml_tests_common.Failed "true is false"
         else if Py.Bool.to_bool (Py.Run.eval "False") then
-          Failed "false is true"
+          Pyml_tests_common.Failed "false is true"
         else
-          Passed;
+          Pyml_tests_common.Passed;
       with Py.E (_, value) ->
-        Failed (Py.Object.to_string value))
+        Pyml_tests_common.Failed (Py.Object.to_string value))
 
 let () =
-  add_test
+  Pyml_tests_common.add_test
     ~title:"reinitialize"
     (fun () ->
       Py.finalize ();
@@ -261,59 +212,59 @@ let () =
           Failure _ -> ()
         | Exit -> failwith "Uncaught not initialized"
       end;
-      let (version, minor) = !use_version in
+      let (version, minor) = !Pyml_tests_common.use_version in
       Py.initialize ~verbose:true ?version ?minor ();
-      Passed
+      Pyml_tests_common.Passed
     )
 
 let () =
-  add_test
+  Pyml_tests_common.add_test
     ~title:"string conversion error"
     (fun () ->
       try
         let _ = Py.String.to_string (Py.Long.of_int 0) in
-        Failed "uncaught exception"
+        Pyml_tests_common.Failed "uncaught exception"
       with
         Py.E (_, value) ->
           Printf.printf "Caught exception: %s\n%!" (Py.Object.to_string value);
-          Passed
+          Pyml_tests_common.Passed
       | Failure s ->
           Printf.printf "Caught failure: %s\n%!" s;
-          Passed)
+          Pyml_tests_common.Passed)
 
 let () =
-  add_test
+  Pyml_tests_common.add_test
     ~title:"float conversion error"
     (fun () ->
       try
         let _ = Py.Float.to_float (Py.String.of_string "a") in
-        Failed "uncaught exception"
+        Pyml_tests_common.Failed "uncaught exception"
       with Py.E (_, value) ->
         Printf.printf "Caught exception: %s\n%!" (Py.Object.to_string value);
-        Passed)
+        Pyml_tests_common.Passed)
 
 let () =
-  add_test
+  Pyml_tests_common.add_test
     ~title:"long conversion error"
     (fun () ->
       try
         let _ = Py.Long.to_int (Py.String.of_string "a") in
-        Failed "uncaught exception"
+        Pyml_tests_common.Failed "uncaught exception"
       with Py.E (_, value) ->
         Printf.printf "Caught exception: %s\n%!" (Py.Object.to_string value);
-        Passed)
+        Pyml_tests_common.Passed)
 
 let () =
-  add_test
+  Pyml_tests_common.add_test
     ~title:"iterators"
     (fun () ->
       let iter = Py.Object.get_iter (Py.Run.eval "['a','b','c']") in
       let list = Py.Iter.to_list_map Py.String.to_string iter in
       assert (list = ["a"; "b"; "c"]);
-      Passed)
+      Pyml_tests_common.Passed)
 
 let () =
-  add_test
+  Pyml_tests_common.add_test
     ~title:"Dict.iter"
     (fun () ->
       let dict = Py.Dict.create () in
@@ -331,10 +282,10 @@ let () =
           None -> failwith "None!"
         | Some v' -> assert (i = int_of_string v')
       end table;
-      Passed)
+      Pyml_tests_common.Passed)
 
 let () =
-  add_test
+  Pyml_tests_common.add_test
     ~title:"unicode"
     (fun () ->
       let codepoints = [| 8203; 127; 83; 2384; 0; 12 |] in
@@ -343,51 +294,52 @@ let () =
       let python_string' = Py.String.decode_UTF8 ocaml_string in
       let codepoints' = Py.String.to_unicode python_string' in
       assert (codepoints = codepoints');
-      Passed
+      Pyml_tests_common.Passed
     )
 
 let () =
-  add_test
+  Pyml_tests_common.add_test
     ~title:"interactive loop"
-    (enable_only_on_unix (fun () ->
+    (Pyml_tests_common.enable_only_on_unix (fun () ->
       Pyutils.with_stdin_from_string "42"
         Py.Run.interactive ();
       assert (Py.Long.to_int (Py.last_value ()) = 42);
-      Passed))
+      Pyml_tests_common.Passed))
 
 let () =
-  add_test
+  Pyml_tests_common.add_test
     ~title:"IPython"
-    (enable_only_on_unix (Py.Run.frame (Pyutils.with_stdin_from_string "exit" (fun () ->
-      if Py.Import.try_import_module "IPython" = None then
-        Disabled "IPython is not available"
-      else
-        begin
-          Py.Run.ipython ~frame:false ();
-          Passed
-        end))))
+    (Pyml_tests_common.enable_only_on_unix
+       (Py.Run.frame (Pyutils.with_stdin_from_string "exit" (fun () ->
+         if Py.Import.try_import_module "IPython" = None then
+           Pyml_tests_common.Disabled "IPython is not available"
+         else
+           begin
+             Py.Run.ipython ~frame:false ();
+             Pyml_tests_common.Passed
+           end))))
 
 let () =
-  add_test
+  Pyml_tests_common.add_test
     ~title:"Marshal"
     (fun () ->
       let v = Py.Long.of_int 42 in
       let m = Py.Marshal.dumps v in
       let v' = Py.Marshal.loads m in
       assert (Py.Long.to_int v' = 42);
-      Passed)
+      Pyml_tests_common.Passed)
 
 let () =
-  add_test
+  Pyml_tests_common.add_test
     ~title:"Py.List.of_list"
     (fun () ->
       let v = Py.List.of_list [Py.Long.of_int 42] in
       assert (Py.List.length v = 1);
       assert (Py.Long.to_int (Py.List.get v 0) = 42);
-      Passed)
+      Pyml_tests_common.Passed)
 
 let () =
-  add_test ~title:"array"
+  Pyml_tests_common.add_test ~title:"array"
     (fun () ->
       let array = [| 1; 2 |] in
       let a = Py.Array.of_array Py.Long.of_int Py.Long.to_int array in
@@ -407,13 +359,13 @@ assert copy == [42, 43]
 ");
       assert (array.(0) = 42);
       assert (array.(1) = 43);
-      Passed)
+      Pyml_tests_common.Passed)
 
 let () =
-  add_test ~title:"numpy"
+  Pyml_tests_common.add_test ~title:"numpy"
     (fun () ->
       if Py.Import.try_import_module "numpy" = None then
-        Disabled "numpy is not available"
+        Pyml_tests_common.Disabled "numpy is not available"
       else
         begin
           let array = [| 1.; 2. |] in
@@ -430,47 +382,9 @@ array[1] = 43.
 ");
           assert (array.(0) = 42.);
           assert (array.(1) = 43.);
-          Passed
+          Pyml_tests_common.Passed
         end)
-
-let show_environment_variable envvar =
-  try
-    Printf.eprintf "%s=%s\n" envvar (Sys.getenv envvar)
-  with Not_found ->
-    Printf.eprintf "%s not set\n" envvar
-
-let main () =
-  let version, minor =
-    match Sys.argv with
-      [| _ |] -> None, None
-    | [| _; version |] ->
-       begin
-         match  String.length version with
-           1 -> Some (int_of_string version), None
-         | 3 when version.[1] = '.' ->
-            Some (int_of_string (String.sub version 0 1)),
-            Some (int_of_string (String.sub version 2 1))
-         | _ -> failwith (Printf.sprintf "Cannot parse version `%s'." version)
-       end
-    | _ -> failwith "Argument should be a version number" in
-  use_version := (version, minor);
-  prerr_endline "Environment variables:";
-  show_environment_variable "PATH";
-  show_environment_variable "PYTHONHOME";
-  show_environment_variable "DYLD_LIBRARY_PATH";
-  show_environment_variable "DYLD_FALLBACK_LIBRARY_PATH";
-  prerr_endline "Initializing library...";
-  Py.initialize ~verbose:true ?version ?minor ();
-  begin
-    match Py.get_library_filename () with
-      None -> prerr_endline "No library has been loaded.\n"
-    | Some filename -> Printf.eprintf "Library \"%s\" has been loaded.\n" filename
-  end;
-  prerr_endline "Starting tests...";
-  launch_tests ();
-  if !failed then
-    exit 1
 
 let () =
   if not !Sys.interactive then
-    main ()
+    Pyml_tests_common.main ()
