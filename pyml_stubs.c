@@ -136,23 +136,6 @@ typedef struct {
 #define Py_TPFLAGS_BASE_EXC_SUBCLASS    (1UL << 30)
 #define Py_TPFLAGS_TYPE_SUBCLASS        (1UL << 31)
 
-#define Py_INCREF(op)                                            \
-    (((PyObject *)(op))->ob_refcnt++)
-
-#define Py_XINCREF(op)                                           \
-    do {                                                         \
-        PyObject *_py_xincref_tmp = (PyObject *)(op);            \
-        if (_py_xincref_tmp != NULL)                             \
-            Py_INCREF(_py_xincref_tmp);                          \
-    } while (0)
-
-#define Py_DECREF(op)                                            \
-    do {                                                         \
-        PyObject *_py_decref_tmp = (PyObject *)(op);             \
-        if (--(_py_decref_tmp)->ob_refcnt == 0)                  \
-            _py_decref_tmp->ob_type->tp_dealloc(_py_decref_tmp); \
-    } while (0)
-
 #define Py_LT 0
 #define Py_LE 1
 #define Py_EQ 2

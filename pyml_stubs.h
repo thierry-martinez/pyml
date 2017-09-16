@@ -158,4 +158,21 @@ typedef Py_intptr_t npy_intp;
 void **
 pyml_get_pyarray_api(PyObject *c_api);
 
+#define Py_INCREF(op)                                            \
+    (((PyObject *)(op))->ob_refcnt++)
+
+#define Py_XINCREF(op)                                           \
+    do {                                                         \
+        PyObject *_py_xincref_tmp = (PyObject *)(op);            \
+        if (_py_xincref_tmp != NULL)                             \
+            Py_INCREF(_py_xincref_tmp);                          \
+    } while (0)
+
+#define Py_DECREF(op)                                            \
+    do {                                                         \
+        PyObject *_py_decref_tmp = (PyObject *)(op);             \
+        if (--(_py_decref_tmp)->ob_refcnt == 0)                  \
+            _py_decref_tmp->ob_type->tp_dealloc(_py_decref_tmp); \
+    } while (0)
+
 #endif /* _PYML_STUBS_H_ */

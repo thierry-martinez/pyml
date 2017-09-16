@@ -3,6 +3,7 @@
 #include <caml/fail.h>
 #include <caml/alloc.h>
 #include <caml/bigarray.h>
+#include <caml/custom.h>
 #include "pyml_stubs.h"
 
 CAMLprim value
@@ -126,6 +127,19 @@ typedef struct tagPyArrayObject_fields {
     PyObject *weakreflist;
 } PyArrayObject_fields;
 
+struct numpy_custom_operations {
+    struct custom_operations ops;
+    PyObject *obj;
+};
+
+static void numpy_finalize(value v)
+{
+    struct numpy_custom_operations *ops =
+        (struct numpy_custom_operations *) Custom_ops_val(v);
+    Py_DECREF(ops->obj);
+    free(ops);
+}
+
 CAMLprim value
 bigarray_of_pyarray_wrapper(
   value numpy_api_ocaml, value pyarray_ocaml)
@@ -198,6 +212,19 @@ bigarray_of_pyarray_wrapper(
     void *data = fields->data;
     bigarray = caml_ba_alloc(kind | layout, nd, data, dims);
     free(dims);
+    Py_INCREF(array);
+    struct custom_operations *oldops = Custom_ops_val(bigarray);
+    struct numpy_custom_operations *newops = (struct numpy_custom_operations *)
+        malloc(sizeof(struct numpy_custom_operations));
+    newops->ops.identifier = oldops->identifier;
+    newops->ops.finalize = numpy_finalize;
+    newops->ops.compare = oldops->compare;
+    newops->ops.hash = oldops->hash;
+    newops->ops.serialize = oldops->serialize;
+    newops->ops.deserialize = oldops->deserialize;
+    newops->ops.compare_ext = oldops->compare_ext;
+    newops->obj = array;
+    Custom_ops_val(bigarray) = (struct custom_operations *) newops;
     result = caml_alloc_tuple(3);
     Store_field(result, 0, Val_int(kind));
     Store_field(result, 1, Val_int(layout >> CAML_BA_LAYOUT_SHIFT));
