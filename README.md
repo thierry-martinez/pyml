@@ -14,7 +14,7 @@ actively maintained.
 *Git Repository Browser:* [http://pyml.gforge.inria.fr/browser](http://pyml.gforge.inria.fr/browser)
 
 *Tracker for bug reports and feature requests:*
-http://pyml.gforge.inria.fr/tracker
+[http://pyml.gforge.inria.fr/tracker](http://pyml.gforge.inria.fr/tracker)
 
 *OPAM:* ``opam install pyml``
 
