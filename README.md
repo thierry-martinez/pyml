@@ -117,14 +117,15 @@ All Python exceptions are caught as OCaml exceptions ``Py.E (type, msg)``, where
 ``type`` and ``msg`` are two Python objects. Typically, one can convert ``type``
 and ``msg`` to strings with ``Py.Object.to_string`` to display or analyse them.
 
-When an OCaml function [f] is called from Python
+When an OCaml function ``f`` is called from Python
 (passed by ``Py.Callable.of_function``),
-[f] can raise a Python exception by raising an OCaml exception of the form
+``f`` can raise a Python exception by raising an OCaml exception of the form
 ``Py.E (type, msg)``. To raise standard errors more conveniently,
-[f] canraise an exception of the form
+``f`` canraise an exception of the form
 ``Py.Err (type, msg)`` instead,
-where [type] belongs to the enumeration [Py.Err.t]
-and [msg] is an OCaml string. If [f] raises an exception that is neither
+where ``type`` belongs to the enumeration ``Py.Err.t``
+and ``msg`` is an OCaml string.
+If ``f`` raises an exception that is neither
 of the form ``Py.E`` nor ``Py.Err``, then the Python interpreter is interrupted,
 and the exception is raised back in OCaml.
 
