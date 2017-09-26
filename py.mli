@@ -416,9 +416,9 @@ module Class: sig
       ?methods:((string * Object.t) list) ->
         string -> Object.t
   (** [init ~parents ~fields ~methods classname] Returns a new class type.
-      @param parents is the list of base classes (default: []).
-      @param fields is an associative list for field values (default : [[]]).
-      @param methods is an associative list for method closures
+      @param parents list of base classes (default: [[]]).
+      @param fields associative list for field values (default : [[]]).
+      @param methods associative list for method closures
       (default : [[]]). *)
 end
 
