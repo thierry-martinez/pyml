@@ -177,7 +177,7 @@ For Python lists,
 ``Py.List.of_array``, ``Py.List.to_array``,
 ``Py.List.of_list`` and ``Py.List.to_list`` are available
 (along with their ``_map`` variant).
-``Py.List`` and ``Py.Array`` include the ``Py.Sequence`` module:
+``Py.List`` and ``Py.Tuple`` include the ``Py.Sequence`` module:
 along with ``to_array`` and ``to_list``, iterators like ``fold_left``
 ``fold_right``, ``for_all``, etc. are available.
 
