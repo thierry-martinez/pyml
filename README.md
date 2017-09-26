@@ -183,7 +183,7 @@ along with ``to_array`` and ``to_list``, iterators like ``fold_left``
 
 Python iterators can be iterated with ``Py.Iter.next`` which returns an option
 value, where ``None`` represents the end of the iteration. ``Py.Iter.iter``,
-``Py.Iter.fold_left`,``Py.Iter.fold_right`` and ``Py.Iter.to_list`` can be
+``Py.Iter.fold_left``,``Py.Iter.fold_right`` and ``Py.Iter.to_list`` can be
 used as well. A Python iterator can be created with ``Py.Iter.create`` from an
 OCaml function that returns an option.
 
