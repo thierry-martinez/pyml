@@ -2076,8 +2076,8 @@ module Array = struct
 
   type numpy_info = {
       numpy_api: Object.t;
-      array_pickle: float array -> Object.t;
-      array_unpickle: Object.t -> float array;
+      array_pickle: Pyml_compat.floatarray -> Object.t;
+      array_unpickle: Object.t -> Pyml_compat.floatarray;
       pyarray_subtype: Object.t;
     }
 
@@ -2087,8 +2087,9 @@ module Array = struct
 
   external get_pyarray_type: Object.t -> Object.t = "get_pyarray_type"
 
-  external pyarray_of_float_array: Object.t -> Object.t -> float array
-    -> Object.t = "pyarray_of_float_array_wrapper"
+  external pyarray_of_floatarray: Object.t -> Object.t
+    -> Pyml_compat.floatarray
+    -> Object.t = "pyarray_of_floatarray_wrapper"
 
   let get_numpy_info () =
     match !numpy_info with
@@ -2097,7 +2098,7 @@ module Array = struct
         let numpy_api =
           let numpy = Import.import_module "numpy.core.multiarray" in
           Object.get_attr_string numpy "_ARRAY_API" in
-        let array_pickle, array_unpickle = Capsule.make "float array" in
+        let array_pickle, array_unpickle = Capsule.make "floatarray" in
         let pyarray_subtype =
           let pyarray_type = get_pyarray_type numpy_api in
           Type.create "ocamlarray" [pyarray_type] [("ocamlarray", none)] in
@@ -2115,7 +2116,7 @@ module Array = struct
 
   let numpy a =
     let info = get_numpy_info () in
-    let result = pyarray_of_float_array info.numpy_api info.pyarray_subtype a in
+    let result = pyarray_of_floatarray info.numpy_api info.pyarray_subtype a in
     let result = check_not_null result in
     Object.set_attr_string result "ocamlarray" (info.array_pickle a);
     result

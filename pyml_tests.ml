@@ -368,7 +368,9 @@ let () =
         Pyml_tests_common.Disabled "numpy is not available"
       else
         begin
-          let array = [| 1.; 2. |] in
+          let array = Pyml_compat.floatarray_create 2 in
+          Pyml_compat.floatarray_set array 0 1.;
+          Pyml_compat.floatarray_set array 1 2.;
           let a = Py.Array.numpy array in
           let m = Py.Import.add_module "test" in
           Py.Module.set m "array" a;
@@ -380,8 +382,8 @@ assert array[1] == 2.
 array[0] = 42.
 array[1] = 43.
 ");
-          assert (array.(0) = 42.);
-          assert (array.(1) = 43.);
+          assert (Pyml_compat.floatarray_get array 0 = 42.);
+          assert (Pyml_compat.floatarray_get array 1 = 43.);
           Pyml_tests_common.Passed
         end)
 

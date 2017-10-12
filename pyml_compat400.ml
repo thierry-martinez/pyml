@@ -1,3 +1,13 @@
+type floatarray = float array
+
+let floatarray_create = Array.make_float
+
+let floatarray_length : floatarray -> int = Array.length
+
+let floatarray_get : floatarray -> int -> float = Array.get
+
+let floatarray_set : floatarray -> int -> float -> unit = Array.set
+
 let lowercase = String.lowercase
 
 let mapi = List.mapi

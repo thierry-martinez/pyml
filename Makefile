@@ -91,7 +91,7 @@ OCAMLLIBFLAGSBYTECODE := -custom $(OCAMLLIBFLAGS)
 
 OCAMLVERSION := $(shell $(OCAMLC) -version)
 
-PYML_COMPAT := $(shell \
+PYML_COMPAT_ML := $(shell \
 	if [ "$(OCAMLVERSION)" "<" 4.00.0 ]; then \
 		echo pyml_compat312.ml; \
 	elif [ "$(OCAMLVERSION)" "<" 4.03.0 ]; then \
@@ -100,8 +100,18 @@ PYML_COMPAT := $(shell \
 		echo pyml_compat403.ml; \
 	elif [ "$(OCAMLVERSION)" "<" 4.05.0 ]; then \
 		echo pyml_compat404.ml; \
-	else \
+	elif [ "$(OCAMLVERSION)" "<" 4.06.0 ]; then \
 		echo pyml_compat405.ml; \
+	else \
+		echo pyml_compat406.ml; \
+	fi \
+)
+
+PYML_COMPAT_MLI := $(shell \
+	if [ "$(OCAMLVERSION)" "<" 4.06.0 ]; then \
+		echo pyml_compat405.mli; \
+	else \
+		echo pyml_compat406.mli; \
 	fi \
 )
 
@@ -209,7 +219,7 @@ clean:
 	rm -f pywrappers.mli pywrappers.ml pyml_dlsyms.inc pyml_wrappers.inc
 	rm -f pyml.h
 	rm -f pyml_stubs.o dllpyml_stubs.so libpyml_stubs.a
-	rm -f pyml_compat.ml pyml_arch.ml
+	rm -f pyml_compat.ml pyml_compat.mli pyml_arch.ml
 	rm -f generate pyml_tests.native pyml_tests.bytecode
 	rm -f numpy_tests.native numpy_tests.bytecode
 	rm -f .depend
@@ -273,7 +283,10 @@ numpy_tests.bytecode: py.cmi pyml.cma numpy.cma \
 	$(OCAMLC) $(OCAMLLDFLAGS) unix.cma pyml.cma bigarray.cma numpy.cma \
 		pyml_tests_common.cmo numpy_tests.cmo -o $@
 
-pyml_compat.ml: $(PYML_COMPAT)
+pyml_compat.ml: $(PYML_COMPAT_ML)
+	cp $< $@
+
+pyml_compat.mli: $(PYML_COMPAT_MLI)
 	cp $< $@
 
 pyml_compat.cmx: pyml_compat.cmi

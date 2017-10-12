@@ -1,12 +1,14 @@
-type floatarray = float array
+type sys_floatarray = floatarray
 
-let floatarray_create = Array.create_float
+type floatarray = sys_floatarray
 
-let floatarray_length : floatarray -> int = Array.length
+let floatarray_create = Array.Floatarray.create
 
-let floatarray_get : floatarray -> int -> float = Array.get
+let floatarray_length = Array.Floatarray.length
 
-let floatarray_set : floatarray -> int -> float -> unit = Array.set
+let floatarray_get = Array.Floatarray.get
+
+let floatarray_set = Array.Floatarray.set
 
 let lowercase = String.lowercase_ascii
 

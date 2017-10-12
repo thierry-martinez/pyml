@@ -1214,7 +1214,7 @@ get_pyarray_type(value numpy_api_ocaml)
 }
 
 CAMLprim value
-pyarray_of_float_array_wrapper(
+pyarray_of_floatarray_wrapper(
     value numpy_api_ocaml, value array_type_ocaml, value array_ocaml)
 {
     CAMLparam3(numpy_api_ocaml, array_type_ocaml, array_ocaml);

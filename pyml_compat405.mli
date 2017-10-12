@@ -1,3 +1,13 @@
+type floatarray = float array
+
+val floatarray_create : int -> floatarray
+
+val floatarray_length : floatarray -> int
+
+val floatarray_get: floatarray -> int -> float
+
+val floatarray_set: floatarray -> int -> float -> unit
+
 val lowercase: string -> string
 
 val mapi: (int -> 'a -> 'b) -> 'a list -> 'b list
