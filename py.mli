@@ -359,6 +359,11 @@ module Callable: sig
       to access arguments with ``Py.Dict.find_string``, rather than using
       ``List.assoc`` with an associative list. *)
 
+  val to_function_as_tuple: Object.t -> Object.t -> Object.t
+  (** [to_function_as_tuple c] returns a function [f] such that
+      [f args] calls the Python callable [c] with the Python tuple [args]
+      as arguments. *)
+
   val to_function_as_tuple_and_dict: Object.t -> Object.t -> Object.t ->
     Object.t
   (** [to_function_as_tuple_and_dict c] returns a function [f] such that
@@ -1191,7 +1196,7 @@ module Number: sig
   (** Synonym of {!Py.Int.of_int} *)
 
   val of_int64: int64 -> Object.t
-  (** Synonym of {!Py.Float.of_int64} *)
+  (** Synonym of {!Py.Int.of_int64} *)
 
   val of_float: float -> Object.t
   (** Synonym of {!Py.Float.of_float} *)
