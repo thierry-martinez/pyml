@@ -1,6 +1,6 @@
 type floatarray = float array
 
-let floatarray_create = Array.make_float
+let floatarray_create length = Array.make length 0.
 
 let floatarray_length : floatarray -> int = Array.length
 
