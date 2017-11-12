@@ -24,7 +24,8 @@ pyarray_of_bigarray_wrapper(
         dims[i] = Caml_ba_array_val(bigarray_ocaml)->dim[i];
     }
     int type_num;
-    switch (Caml_ba_array_val(bigarray_ocaml)->flags & BIGARRAY_KIND_MASK) {
+    intnat flags = Caml_ba_array_val(bigarray_ocaml)->flags;
+    switch (flags & BIGARRAY_KIND_MASK) {
     case CAML_BA_FLOAT32:
         type_num = NPY_FLOAT;
         break;
@@ -61,19 +62,21 @@ pyarray_of_bigarray_wrapper(
     case CAML_BA_COMPLEX64:
         type_num = NPY_CDOUBLE;
         break;
+#ifdef CAML_BA_CHAR /* introduced in 4.02.0 */
     case CAML_BA_CHAR:
         type_num = NPY_CHAR;
         break;
+#endif
     default:
         failwith("Unsupported bigarray kind for NumPy array");
     }
-    int flags;
-    switch (Caml_ba_layout_val(bigarray_ocaml) & CAML_BA_LAYOUT_MASK) {
+    int np_flags;
+    switch (flags & CAML_BA_LAYOUT_MASK) {
     case CAML_BA_C_LAYOUT:
-        flags = NPY_ARRAY_CARRAY;
+        np_flags = NPY_ARRAY_CARRAY;
         break;
     case CAML_BA_FORTRAN_LAYOUT:
-        flags = NPY_ARRAY_FARRAY;
+        np_flags = NPY_ARRAY_FARRAY;
         break;
     default:
         failwith("Unsupported bigarray layout for NumPy array");
@@ -83,7 +86,7 @@ pyarray_of_bigarray_wrapper(
         (PyTypeObject *) pyml_unwrap(bigarray_type_ocaml);
     PyObject *result = PyArray_New(
         PyArray_SubType, nd, dims, type_num, NULL, data, 0,
-        flags, NULL);
+        np_flags, NULL);
     free(dims);
     CAMLreturn(pyml_wrap(result, true));
 }
@@ -193,7 +196,11 @@ bigarray_of_pyarray_wrapper(
         kind = CAML_BA_COMPLEX64;
         break;
     case NPY_CHAR:
+#ifdef CAML_BA_CHAR /* introduced in 4.02.0 */
         kind = CAML_BA_CHAR;
+#else
+        kind = CAML_BA_UINT8;
+#endif
         break;
     default:
         failwith("Unsupported NumPy kind for bigarray");
@@ -227,7 +234,7 @@ bigarray_of_pyarray_wrapper(
     Custom_ops_val(bigarray) = (struct custom_operations *) newops;
     result = caml_alloc_tuple(3);
     Store_field(result, 0, Val_int(kind));
-    Store_field(result, 1, Val_int(layout >> CAML_BA_LAYOUT_SHIFT));
+    Store_field(result, 1, Val_int(layout == CAML_BA_FORTRAN_LAYOUT ? 1 : 0));
     Store_field(result, 2, bigarray);
     CAMLreturn(result);
 }

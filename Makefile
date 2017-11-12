@@ -219,6 +219,7 @@ clean:
 	rm -f pywrappers.mli pywrappers.ml pyml_dlsyms.inc pyml_wrappers.inc
 	rm -f pyml.h
 	rm -f pyml_stubs.o dllpyml_stubs.so libpyml_stubs.a
+	rm -f numpy_stubs.o dllnumpy_stubs.so libnumpy_stubs.a
 	rm -f pyml_compat.ml pyml_compat.mli pyml_arch.ml
 	rm -f generate pyml_tests.native pyml_tests.bytecode
 	rm -f numpy_tests.native numpy_tests.bytecode
