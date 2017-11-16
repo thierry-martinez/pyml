@@ -1762,14 +1762,14 @@ module Array: sig
   val pyarray_type: unit -> Object.t
   (** Returns the type of Numpy arrays. *)
 
-  val numpy: Pyml_compat.floatarray -> Object.t
+  val numpy: Stdcompat.floatarray -> Object.t
   (** [numpy a] returns a Numpy array that shares the same contents than
       the OCaml array [a].
       The array is passed in place (without copy): Python programs can
       change the contents of the array and the changes are visible in
       the OCaml array. *)
 
-  val numpy_get_array: Object.t -> Pyml_compat.floatarray
+  val numpy_get_array: Object.t -> Stdcompat.floatarray
   (** [numpy_get_array a] returns the OCaml array from which the Numpy
       array [a] has been converted from. Note that this function fails
       if [a] has not been obtained by calling the {!numpy} function

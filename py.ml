@@ -185,7 +185,7 @@ let ldd executable =
     None -> []
   | Some lines ->
      let extract_line line =
-       Pyml_compat.trim
+       Stdcompat.String.trim
          (Pyutils.split_left_on_char '('
             (Pyutils.split_right_on_char '>' line)) in
      List.map extract_line lines
@@ -195,7 +195,7 @@ let ldconfig () =
     None -> []
   | Some lines ->
      let extract_line line =
-       Pyml_compat.trim (Pyutils.split_right_on_char '>' line) in
+       Stdcompat.String.trim (Pyutils.split_right_on_char '>' line) in
      List.map extract_line lines
 
 let libpython_from_interpreter python_full_path =
@@ -203,7 +203,7 @@ let libpython_from_interpreter python_full_path =
   let is_libpython line =
     let basename = Filename.basename line in
     Pyutils.has_prefix "libpython" basename in
-  Pyml_compat.list_find_opt is_libpython lines
+  Stdcompat.List.find_opt is_libpython lines
 
 let libpython_from_ldconfig major minor =
   let lines = ldconfig () in
@@ -215,7 +215,7 @@ let libpython_from_ldconfig major minor =
   let is_libpython line =
     let basename = Filename.basename line in
     Pyutils.has_prefix prefix basename in
-  Pyml_compat.list_find_opt is_libpython lines
+  Stdcompat.List.find_opt is_libpython lines
 
 let parse_python_list list =
   let length = String.length list in
@@ -344,7 +344,7 @@ let libpython_from_pkg_config version_major version_minor =
       version_minor in
   match run_command_opt command false with
     Some (words :: _) ->
-      let word_list = Pyml_compat.split_on_char ' ' words in
+      let word_list = Stdcompat.String.split_on_char ' ' words in
       let unable_to_parse () =
         let msg = Printf.sprintf
         "Py.find_library_path: unable to parse the output of pkg-config '%s'"
@@ -540,7 +540,7 @@ let initialize ?interpreter ?version ?minor ?(verbose = false) () =
         List.rev_append !pythonpaths interpreter_pythonpaths in
       if new_pythonpaths <> [] then
         begin
-          let former_pythonpath = Pyml_compat.getenv_opt "PYTHONPATH" in
+          let former_pythonpath = Stdcompat.Sys.getenv_opt "PYTHONPATH" in
           has_set_pythonpath := Some former_pythonpath;
           let all_paths =
             match former_pythonpath with
@@ -2076,8 +2076,8 @@ module Array = struct
 
   type numpy_info = {
       numpy_api: Object.t;
-      array_pickle: Pyml_compat.floatarray -> Object.t;
-      array_unpickle: Object.t -> Pyml_compat.floatarray;
+      array_pickle: Stdcompat.floatarray -> Object.t;
+      array_unpickle: Object.t -> Stdcompat.floatarray;
       pyarray_subtype: Object.t;
     }
 
@@ -2088,7 +2088,7 @@ module Array = struct
   external get_pyarray_type: Object.t -> Object.t = "get_pyarray_type"
 
   external pyarray_of_floatarray: Object.t -> Object.t
-    -> Pyml_compat.floatarray
+    -> Stdcompat.floatarray
     -> Object.t = "pyarray_of_floatarray_wrapper"
 
   let get_numpy_info () =

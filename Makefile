@@ -22,6 +22,7 @@ HAVE_UTOP := $(shell \
 	fi \
 )
 
+ifneq ($(MAKECMDGOALS),clean)
 ifneq ($(HAVE_OCAMLFIND),no)
 	OCAMLC := $(OCAMLFIND) ocamlc
 	ifneq ($(HAVE_OCAMLOPT),no)
@@ -31,6 +32,7 @@ ifneq ($(HAVE_OCAMLFIND),no)
 	OCAMLMKTOP := $(OCAMLFIND) ocamlmktop
 	OCAMLDEP := $(OCAMLFIND) ocamldep
 	OCAMLDOC := $(OCAMLFIND) ocamldoc
+	STDCOMPAT := $(shell $(OCAMLFIND) query stdcompat)
 else
 	OCAMLC := $(shell \
 		if ocamlc.opt -version >/dev/null 2>&1; then \
@@ -55,6 +57,12 @@ $(error There is no OCaml compiler available in path)
 	OCAMLMKTOP := ocamlmktop
 	OCAMLDEP := ocamldep
 	OCAMLDOC := ocamldoc
+	STDCOMPAT := .
+endif
+
+ifeq ($(wildcard $(STDCOMPAT)/stdcompat.cma),)
+$(error stdcompat module not found: please specify the path with STDCOMPAT=...)
+endif
 endif
 
 ifeq ($(HAVE_UTOP),yes)
@@ -79,9 +87,12 @@ else
 	TESTSOPT := tests.native
 endif
 
-MODULES := pyml_arch pyutils pyml_compat pytypes pywrappers py pycaml
+MODULES := pyml_arch pyutils pytypes pywrappers py pycaml
 
 VERSION := $(shell date "+%Y%m%d")
+
+OCAMLCFLAGS := -I $(STDCOMPAT)
+OCAMLLDFLAGS := -I $(STDCOMPAT)
 
 OCAMLLIBFLAGS := -cclib "-L. -lpyml_stubs"
 OCAMLLIBNUMPYFLAGS := -cclib "-L. -lnumpy_stubs"
@@ -90,30 +101,6 @@ OCAMLLIBFLAGSNATIVE := $(OCAMLLIBFLAGS)
 OCAMLLIBFLAGSBYTECODE := -custom $(OCAMLLIBFLAGS)
 
 OCAMLVERSION := $(shell $(OCAMLC) -version)
-
-PYML_COMPAT_ML := $(shell \
-	if [ "$(OCAMLVERSION)" "<" 4.00.0 ]; then \
-		echo pyml_compat312.ml; \
-	elif [ "$(OCAMLVERSION)" "<" 4.03.0 ]; then \
-		echo pyml_compat400.ml; \
-	elif [ "$(OCAMLVERSION)" "<" 4.04.0 ]; then \
-		echo pyml_compat403.ml; \
-	elif [ "$(OCAMLVERSION)" "<" 4.05.0 ]; then \
-		echo pyml_compat404.ml; \
-	elif [ "$(OCAMLVERSION)" "<" 4.06.0 ]; then \
-		echo pyml_compat405.ml; \
-	else \
-		echo pyml_compat406.ml; \
-	fi \
-)
-
-PYML_COMPAT_MLI := $(shell \
-	if [ "$(OCAMLVERSION)" "<" 4.06.0 ]; then \
-		echo pyml_compat405.mli; \
-	else \
-		echo pyml_compat406.mli; \
-	fi \
-)
 
 ARCH := $(shell uname)
 
@@ -128,9 +115,11 @@ else
 endif
 
 INSTALL_FILES := \
-	py.mli $(MODULES:=.cmi) $(MODULES:=.cmx) \
+	py.mli numpy.mli $(MODULES:=.cmi) $(MODULES:=.cmx) \
 	pyml.cma pyml.cmxa pyml.cmxs pyml.a \
+	numpy.cma numpy.cmxa numpy.cmxs numpy.a \
 	libpyml_stubs.a dllpyml_stubs.so \
+	libnumpy_stubs.a dllnumpy_stubs.so \
 	META
 
 .PHONY: all
@@ -172,6 +161,7 @@ endif
 	@echo make OCAMLLDFLAGS=... : set flags to OCaml compiler for linking
 	@echo make OCAMLLIBFLAGS=... :
 	@echo "  set flags to OCaml compiler for building the library"
+	@echo make STDCOMPAT=... : set path to the stdcompat library
 
 .PHONY: all.bytecode
 all.bytecode: pyml.cma numpy.cma
@@ -220,7 +210,7 @@ clean:
 	rm -f pyml.h
 	rm -f pyml_stubs.o dllpyml_stubs.so libpyml_stubs.a
 	rm -f numpy_stubs.o dllnumpy_stubs.so libnumpy_stubs.a
-	rm -f pyml_compat.ml pyml_compat.mli pyml_arch.ml
+	rm -f pyml_arch.ml
 	rm -f generate pyml_tests.native pyml_tests.bytecode
 	rm -f numpy_tests.native numpy_tests.bytecode
 	rm -f .depend
@@ -233,7 +223,7 @@ tarball:
 	git archive --format=tar.gz --prefix=pyml-$(VERSION)/ HEAD \
 		>pyml-$(VERSION).tar.gz
 
-doc: py.mli pycaml.mli numpy.mli pywrappers.ml
+	doc: py.mli pycaml.mli numpy.mli pywrappers.ml
 	mkdir -p $@
 	$(OCAMLDOC) -html -d $@ $^
 	touch $@
@@ -248,14 +238,12 @@ endif
 
 pyutils.cmo pyutils.cmx: pyutils.cmi
 
-generate: pyutils.$(CMOX) pyml_compat.$(CMOX) generate.$(CMOX)
-	$(OCAMLCOPT) unix.$(CMAX) $^ -o $@
+generate: pyutils.$(CMOX) generate.$(CMOX)
+	$(OCAMLCOPT) $(OCAMLLDFLAGS) stdcompat.$(CMAX) unix.$(CMAX) $^ -o $@
 
-generate.cmo: generate.ml pyml_compat.cmo
+generate.cmo: generate.ml
 
-generate.cmx: generate.ml pyml_compat.cmx
-
-pyml_compat.cmo pyml_compat.cmx: pyutils.cmi pyml_compat.cmi
+generate.cmx: generate.ml
 
 pywrappers.ml pyml_wrappers.inc: generate
 	./generate
@@ -266,36 +254,28 @@ pywrappers.mli: pywrappers.ml pytypes.cmi pyml_arch.cmi
 	$(OCAMLC) -i $< >$@
 
 pyml_tests.native: py.cmi pyml.cmxa pyml_tests_common.cmx pyml_tests.cmx
-	$(OCAMLOPT) $(OCAMLLDFLAGS) unix.cmxa pyml.cmxa \
+	$(OCAMLOPT) $(OCAMLLDFLAGS) unix.cmxa stdcompat.cmxa pyml.cmxa \
 		pyml_tests_common.cmx pyml_tests.cmx -o $@
 
 pyml_tests.bytecode: py.cmi pyml.cma pyml_tests_common.cmo pyml_tests.cmo
-	$(OCAMLC) $(OCAMLLDFLAGS) unix.cma pyml.cma \
+	$(OCAMLC) $(OCAMLLDFLAGS) unix.cma stdcompat.cma pyml.cma \
 		pyml_tests_common.cmo pyml_tests.cmo -o $@
 
 numpy_tests.native: py.cmi pyml.cmxa numpy.cmxa \
 		pyml_tests_common.cmx numpy_tests.cmx
 	$(OCAMLOPT) $(OCAMLLDFLAGS) \
-		unix.cmxa pyml.cmxa bigarray.cmxa numpy.cmxa \
+		unix.cmxa stdcompat.cmxa pyml.cmxa bigarray.cmxa numpy.cmxa \
 		pyml_tests_common.cmx numpy_tests.cmx -o $@
 
 numpy_tests.bytecode: py.cmi pyml.cma numpy.cma \
 		pyml_tests_common.cmo numpy_tests.cmo
-	$(OCAMLC) $(OCAMLLDFLAGS) unix.cma pyml.cma bigarray.cma numpy.cma \
-		pyml_tests_common.cmo numpy_tests.cmo -o $@
-
-pyml_compat.ml: $(PYML_COMPAT_ML)
-	cp $< $@
-
-pyml_compat.mli: $(PYML_COMPAT_MLI)
-	cp $< $@
-
-pyml_compat.cmx: pyml_compat.cmi
+	$(OCAMLC) $(OCAMLLDFLAGS) unix.cma stdcompat.cma pyml.cma bigarray.cma \
+		numpy.cma pyml_tests_common.cmo numpy_tests.cmo -o $@
 
 pyml_arch.ml: $(PYML_ARCH)
 	cp $< $@
 
-pyml_arch.cmx: pyml_arch.cmi
+pyml_arch.cmo pyml_arch.cmx: pyml_arch.cmi
 
 %.cmi: %.mli
 	$(OCAMLC) $(OCAMLCFLAGS) -c $< -o $@
@@ -343,7 +323,8 @@ pymltop_libdir.ml:
 	fi >$@
 
 pymltop: pyml.cma numpy.cma pymltop_libdir.cmo pytop.cmo
-	$(OCAMLMKTOP) -o $@ unix.cma bigarray.cma $^
+	$(OCAMLMKTOP) $(OCAMLLDFLAGS) unix.cma stdcompat.cma bigarray.cma $^ \
+		-o $@
 
 pyutop.cmo: pyutop.ml
 ifeq ($(HAVE_OCAMLFIND),no)
@@ -358,4 +339,4 @@ endif
 #	ocamlmktop raises "Warning 31". See https://github.com/diml/utop/issues/212
 #	$(OCAMLMKTOP) -o $@ -thread -linkpkg -package utop -dontlink compiler-libs $^
 	ocamlfind ocamlc -thread -linkpkg -linkall -predicates create_toploop \
-		-package compiler-libs.toplevel,utop $^ -o $@
+		-package compiler-libs.toplevel,utop,stdcompat $^ -o $@

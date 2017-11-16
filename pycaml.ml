@@ -465,7 +465,7 @@ let unpythonizing_function ?name ?(catch_weird_exceptions = true) ?extra_guards
 
 let py_profiling_active = ref false
 
-let py_profile_hash = Pyml_compat.lazy_from_fun (fun () -> Hashtbl.create 100)
+let py_profile_hash = Stdcompat.Lazy.from_fun (fun () -> Hashtbl.create 100)
 
 let py_activate_profiling () =
   let old_value = !py_profiling_active in
