@@ -8,5 +8,8 @@ dev-repo: "https://scm.gforge.inria.fr/anonscm/git/pyml/pyml.git"
 build: [make "all" "pymltop" "pymlutop" {utop:installed} "PREFIX=%{prefix}%"]
 install: [make "install" "PREFIX=%{prefix}%"]
 remove: [make "uninstall" "PREFIX=%{prefix}%"]
-depends: ["ocamlfind" {build}]
+depends: [
+  "ocamlfind" {build}
+  "stdcompat"
+]
 depopts: ["utop"]
