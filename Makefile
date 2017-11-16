@@ -122,8 +122,8 @@ INSTALL_FILES := \
 	libnumpy_stubs.a dllnumpy_stubs.so \
 	META
 
-.PHONY: all
-all: all.bytecode $(ALLOPT)
+.PHONY : all
+all : all.bytecode $(ALLOPT)
 	@echo The py.ml library is compiled.
 	@echo Run \`make doc\' to build the documentation.
 	@echo Run \`make tests\' to check the test suite.
@@ -135,8 +135,8 @@ ifneq ($(HAVE_UTOP),no)
 	@echo Run \`make pymlutop\' to build the utop toplevel.
 endif
 
-.PHONY: help
-help:
+.PHONY : help
+help :
 	@echo make [all] : build the library
 	@echo make all.bytecode : build only the bytecode library
 	@echo make all.native : build only the native library
@@ -163,27 +163,27 @@ endif
 	@echo "  set flags to OCaml compiler for building the library"
 	@echo make STDCOMPAT=... : set path to the stdcompat library
 
-.PHONY: all.bytecode
-all.bytecode: pyml.cma numpy.cma
+.PHONY : all.bytecode
+all.bytecode : pyml.cma numpy.cma
 
-.PHONY: all.native
-all.native: pyml.cmxa pyml.cmxs numpy.cmxa numpy.cmxs
+.PHONY : all.native
+all.native : pyml.cmxa pyml.cmxs numpy.cmxa numpy.cmxs
 
-.PHONY: tests
-tests: tests.bytecode $(TESTSOPT)
+.PHONY : tests
+tests : tests.bytecode $(TESTSOPT)
 
-.PHONY: tests.bytecode
-tests.bytecode: pyml_tests.bytecode numpy_tests.bytecode
+.PHONY : tests.bytecode
+tests.bytecode : pyml_tests.bytecode numpy_tests.bytecode
 	./pyml_tests.bytecode
 	./numpy_tests.bytecode
 
-.PHONY: tests.native
-tests.native: pyml_tests.native numpy_tests.native
+.PHONY : tests.native
+tests.native : pyml_tests.native numpy_tests.native
 	./pyml_tests.native
 	./numpy_tests.native
 
-.PHONY: install
-install: $(INSTALL_FILES)
+.PHONY : install
+install : $(INSTALL_FILES)
 ifeq ($(HAVE_OCAMLFIND),no)
 	$(error ocamlfind is needed for 'make install')
 endif
@@ -191,14 +191,14 @@ endif
 	[ ! -f pymltop ] || $(INSTALL_PROGRAM) pymltop $(bindir)/pymltop
 	[ ! -f pymlutop ] || $(INSTALL_PROGRAM) pymlutop $(bindir)/pymlutop
 
-.PHONY: uninstall
-uninstall:
+.PHONY : uninstall
+uninstall :
 	$(OCAMLFIND) remove pyml
 	- rm $(bindir)/pymltop
 	- rm $(bindir)/pymlutop
 
-.PHONY: clean
-clean:
+.PHONY : clean
+clean :
 	for module in $(MODULES) numpy generate pyml_tests_common pyml_tests \
 		numpy_tests; do \
 		rm -f $$module.cmi $$module.cmo $$module.cmx $$module.a \
@@ -218,17 +218,17 @@ clean:
 	rm -f pymltop pytop.cmo pymlutop pyutop.cmo
 	rm -f pymltop_libdir.ml pymltop_libdir.cmo
 
-.PHONY: tarball
-tarball:
+.PHONY : tarball
+tarball :
 	git archive --format=tar.gz --prefix=pyml-$(VERSION)/ HEAD \
 		>pyml-$(VERSION).tar.gz
 
-	doc: py.mli pycaml.mli numpy.mli pywrappers.ml
+doc : py.mli pycaml.mli numpy.mli pywrappers.ml
 	mkdir -p $@
 	$(OCAMLDOC) -html -d $@ $^
 	touch $@
 
-.depend: $(MODULES:=.ml) $(MODULES:=.mli) numpy.ml numpy.mli \
+.depend : $(MODULES:=.ml) $(MODULES:=.mli) numpy.ml numpy.mli \
 	pyml_tests_common.mli pyml_tests_common.ml pyml_tests.ml numpy_tests.ml
 	$(OCAMLDEP) $^ >$@
 
@@ -236,103 +236,103 @@ ifneq ($(MAKECMDGOALS),clean)
 -include .depend
 endif
 
-pyutils.cmo pyutils.cmx: pyutils.cmi
+pyutils.cmo pyutils.cmx : pyutils.cmi
 
-generate: pyutils.$(CMOX) generate.$(CMOX)
+generate : pyutils.$(CMOX) generate.$(CMOX)
 	$(OCAMLCOPT) $(OCAMLLDFLAGS) stdcompat.$(CMAX) unix.$(CMAX) $^ -o $@
 
-generate.cmo: generate.ml
+generate.cmo : generate.ml
 
-generate.cmx: generate.ml
+generate.cmx : generate.ml
 
-pywrappers.ml pyml_wrappers.inc: generate
+pywrappers.ml pyml_wrappers.inc : generate
 	./generate
 
-pyml_wrappers.inc: pywrappers.ml
+pyml_wrappers.inc : pywrappers.ml
 
-pywrappers.mli: pywrappers.ml pytypes.cmi pyml_arch.cmi
+pywrappers.mli : pywrappers.ml pytypes.cmi pyml_arch.cmi
 	$(OCAMLC) -i $< >$@
 
-pyml_tests.native: py.cmi pyml.cmxa pyml_tests_common.cmx pyml_tests.cmx
+pyml_tests.native : py.cmi pyml.cmxa pyml_tests_common.cmx pyml_tests.cmx
 	$(OCAMLOPT) $(OCAMLLDFLAGS) unix.cmxa stdcompat.cmxa pyml.cmxa \
 		pyml_tests_common.cmx pyml_tests.cmx -o $@
 
-pyml_tests.bytecode: py.cmi pyml.cma pyml_tests_common.cmo pyml_tests.cmo
+pyml_tests.bytecode : py.cmi pyml.cma pyml_tests_common.cmo pyml_tests.cmo
 	$(OCAMLC) $(OCAMLLDFLAGS) unix.cma stdcompat.cma pyml.cma \
 		pyml_tests_common.cmo pyml_tests.cmo -o $@
 
-numpy_tests.native: py.cmi pyml.cmxa numpy.cmxa \
+numpy_tests.native : py.cmi pyml.cmxa numpy.cmxa \
 		pyml_tests_common.cmx numpy_tests.cmx
 	$(OCAMLOPT) $(OCAMLLDFLAGS) \
 		unix.cmxa stdcompat.cmxa pyml.cmxa bigarray.cmxa numpy.cmxa \
 		pyml_tests_common.cmx numpy_tests.cmx -o $@
 
-numpy_tests.bytecode: py.cmi pyml.cma numpy.cma \
+numpy_tests.bytecode : py.cmi pyml.cma numpy.cma \
 		pyml_tests_common.cmo numpy_tests.cmo
 	$(OCAMLC) $(OCAMLLDFLAGS) unix.cma stdcompat.cma pyml.cma bigarray.cma \
 		numpy.cma pyml_tests_common.cmo numpy_tests.cmo -o $@
 
-pyml_arch.ml: $(PYML_ARCH)
+pyml_arch.ml : $(PYML_ARCH)
 	cp $< $@
 
-pyml_arch.cmo pyml_arch.cmx: pyml_arch.cmi
+pyml_arch.cmo pyml_arch.cmx : pyml_arch.cmi
 
-%.cmi: %.mli
+%.cmi : %.mli
 	$(OCAMLC) $(OCAMLCFLAGS) -c $< -o $@
 
-%.cmo: %.ml
+%.cmo : %.ml
 	$(OCAMLC) $(OCAMLCFLAGS) -c $< -o $@
 
-%.cmx: %.ml
+%.cmx : %.ml
 	$(OCAMLOPT) $(OCAMLCFLAGS) -c $< -o $@
 
-%.o: %.c
+%.o : %.c
 	$(OCAMLC) -c $< -o $@
 
-pyml_stubs.o: pyml_wrappers.inc
+pyml_stubs.o : pyml_wrappers.inc
 
-pyml.cma: $(MODULES:=.cmo) libpyml_stubs.a
+pyml.cma : $(MODULES:=.cmo) libpyml_stubs.a
 	$(OCAMLC) $(OCAMLLIBFLAGSBYTECODE) -a $(MODULES:=.cmo) -o $@
 
-pyml.cmxa: $(MODULES:=.cmx) libpyml_stubs.a
+pyml.cmxa : $(MODULES:=.cmx) libpyml_stubs.a
 	$(OCAMLOPT) $(OCAMLLIBFLAGSNATIVE) -a $(MODULES:=.cmx) -o $@
 
-pyml.cmxs: $(MODULES:=.cmx) libpyml_stubs.a
+pyml.cmxs : $(MODULES:=.cmx) libpyml_stubs.a
 	$(OCAMLOPT) $(OCAMLLIBFLAGSNATIVE) -shared $(MODULES:=.cmx) -o $@
 
-lib%.a: %.o
+lib%.a : %.o
 	$(OCAMLMKLIB) -o $(basename $<) $<
 
-numpy.cma: numpy.cmo libnumpy_stubs.a
+numpy.cma : numpy.cmo libnumpy_stubs.a
 	$(OCAMLC) -custom $(OCAMLLIBNUMPYFLAGS) -a numpy.cmo -o $@
 
-numpy.cmxa: numpy.cmx libnumpy_stubs.a
+numpy.cmxa : numpy.cmx libnumpy_stubs.a
 	$(OCAMLOPT) $(OCAMLLIBNUMPYFLAGS) -a numpy.cmx -o $@
 
-numpy.cmxs: numpy.cmx libnumpy_stubs.a
+numpy.cmxs : numpy.cmx libnumpy_stubs.a
 	$(OCAMLOPT) $(OCAMLLIBNUMPYFLAGS) -shared numpy.cmx -o $@
 
-pytop.cmo: pytop.ml pymltop_libdir.cmi
+pytop.cmo : pytop.ml pymltop_libdir.cmi
 	$(OCAMLC) -I +compiler-libs -c $<
 
-pymltop_libdir.ml:
+pymltop_libdir.ml :
 	if [ -z "$(PREFIX)" ]; then \
 	  echo "let libdir=\"$(PWD)\""; \
 	else \
 	  echo "let libdir=\"$(PREFIX)/lib/pyml/\""; \
 	fi >$@
 
-pymltop: pyml.cma numpy.cma pymltop_libdir.cmo pytop.cmo
+pymltop : pyml.cma numpy.cma pymltop_libdir.cmo pytop.cmo
 	$(OCAMLMKTOP) $(OCAMLLDFLAGS) unix.cma stdcompat.cma bigarray.cma $^ \
 		-o $@
 
-pyutop.cmo: pyutop.ml
+pyutop.cmo : pyutop.ml
 ifeq ($(HAVE_OCAMLFIND),no)
 	$(error ocamlfind is needed for utop)
 endif
 	$(OCAMLC) $(OCAMLCFLAGS) -thread -package utop -c $< -o $@
 
-pymlutop: pyml.cma numpy.cma pymltop_libdir.cmo pytop.cmo pyutop.cmo
+pymlutop : pyml.cma numpy.cma pymltop_libdir.cmo pytop.cmo pyutop.cmo
 ifeq ($(HAVE_OCAMLFIND),no)
 	$(error ocamlfind is needed for utop)
 endif
