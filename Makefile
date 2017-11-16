@@ -225,7 +225,7 @@ tarball :
 
 doc : py.mli pycaml.mli numpy.mli pywrappers.ml
 	mkdir -p $@
-	$(OCAMLDOC) -html -d $@ $^
+	$(OCAMLDOC) $(OCAMLCFLAGS) -html -d $@ $^
 	touch $@
 
 .depend : $(MODULES:=.ml) $(MODULES:=.mli) numpy.ml numpy.mli \
