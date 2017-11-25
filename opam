@@ -11,5 +11,6 @@ remove: [make "uninstall" "PREFIX=%{prefix}%"]
 depends: [
   "ocamlfind" {build}
   "stdcompat" {>= "1"}
+  "num"
 ]
 depopts: ["utop"]
