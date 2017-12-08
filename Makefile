@@ -116,6 +116,7 @@ endif
 
 INSTALL_FILES := \
 	py.mli numpy.mli $(MODULES:=.cmi) $(MODULES:=.cmx) \
+	numpy.cmi \
 	pyml.cma pyml.cmxa pyml.cmxs pyml.a \
 	numpy.cma numpy.cmxa numpy.cmxs numpy.a \
 	libpyml_stubs.a dllpyml_stubs.so \
