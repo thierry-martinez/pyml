@@ -318,6 +318,12 @@ resolve(const char *symbol)
     return result;
 }
 
+static void *
+resolve_optional(const char *symbol)
+{
+    return find_symbol(library, symbol);
+}
+
 value
 pyml_wrap(PyObject *object, bool steal)
 {
@@ -570,6 +576,29 @@ pyml_assert_python3()
     if (version_major != 3) {
         pyml_assert_initialized();
         failwith("Python 3 needed");
+    }
+}
+
+void
+pyml_check_symbol_available(void *symbol)
+{
+    if (!symbol) {
+        char *fmt = "Symbol unavailable with this version of Python: %s.\n";
+        ssize_t size = snprintf(NULL, 0, fmt, symbol);
+        char *msg = xmalloc(size + 1);
+        snprintf(msg, size + 1, fmt, symbol);
+        failwith(msg);
+    }
+}
+
+void *
+deref_not_null(void *pointer)
+{
+    if (pointer) {
+        return *(void **) pointer;
+    }
+    else {
+        return NULL;
     }
 }
 

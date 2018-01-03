@@ -63,6 +63,8 @@ endif
 ifeq ($(wildcard $(STDCOMPAT)/stdcompat.cma),)
 $(error stdcompat module not found: please specify the path with STDCOMPAT=...)
 endif
+
+OCAMLVERSION := $(shell $(OCAMLC) -version)
 endif
 
 ifeq ($(HAVE_UTOP),yes)
@@ -99,8 +101,6 @@ OCAMLLIBNUMPYFLAGS := -cclib "-L. -lnumpy_stubs"
 
 OCAMLLIBFLAGSNATIVE := $(OCAMLLIBFLAGS)
 OCAMLLIBFLAGSBYTECODE := -custom $(OCAMLLIBFLAGS)
-
-OCAMLVERSION := $(shell $(OCAMLC) -version)
 
 ARCH := $(shell uname)
 
