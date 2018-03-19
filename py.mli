@@ -1792,9 +1792,12 @@ module Array: sig
   val numpy: Stdcompat.floatarray -> Object.t
   (** [numpy a] returns a Numpy array that shares the same contents than
       the OCaml array [a].
-      The array is passed in place (without copy): Python programs can
+      The array is passed in place (without copy) which relies on the
+      unboxed representation of [floatarray] : Python programs can
       change the contents of the array and the changes are visible in
-      the OCaml array. *)
+      the OCaml array.
+      Note that the {!Numpy} module provides a more general interface
+      between Numpy arrays and OCaml bigarrays. *)
 
   val numpy_get_array: Object.t -> Stdcompat.floatarray
   (** [numpy_get_array a] returns the OCaml array from which the Numpy
