@@ -1486,12 +1486,19 @@ module String: sig
       {{:https://docs.python.org/2/c-api/unicode.html#c.PyUnicode_GetLength} PyUnicode_GetLength}. *)
 
   val of_string: string -> Object.t
-  (** [of_string s] returns the Python string with the value [s]. *)
+  (** [of_string s] returns the Python string with the value [s].
+      [s] should be a valid UTF-8 string. *)
+
+  val of_bytes: bytes -> Object.t
+  (** Same as [of_string] but with an argument of type [bytes]. *)
 
   val to_string: Object.t -> string
   (** [to_string o] returns the string contained in the Python value [o].
       A failure ([Failure _]) is raised if [o] is neither a
       [String]/[Bytes] value nor a [Unicode] value. *)
+
+  val to_bytes: Object.t -> bytes
+  (** Same as [to_string] but with an a result of type [bytes]. *)
 
   val of_unicode: ?size:int -> int array -> Object.t
   (** [of_unicode codepoints] returns the Python Unicode string with the
@@ -1500,6 +1507,26 @@ module String: sig
   val to_unicode: Object.t -> int array
   (** [to_unicode s] returns the codepoints of the Python Unicode string
       [s]. *)
+end
+
+(** Interface for Python values of type [Bytes].
+    With Python 2, aliases for [String]. *)
+module Bytes: sig
+  val of_string: string -> Object.t
+  (** [of_string s] returns the Python byte sequence with the contents of
+      [s]. *)
+
+  val of_bytes: bytes -> Object.t
+  (** Same as [of_string] but with an argument of type [bytes]. *)
+
+  val to_string: Object.t -> string
+  (** [to_string o] returns the string contained in the Python value [o]. *)
+
+  val to_bytes: Object.t -> bytes
+  (** Same as [to_string] but with an a result of type [bytes]. *)
+
+  val length: Object.t -> int
+  (** [length s] returns the length of the Python byte sequence [s]. *)
 end
 
 (** Interface for Python values of type [Tuple]. *)

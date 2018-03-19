@@ -798,6 +798,9 @@ module String_ = struct
       check_not_null (Pywrappers.Python3.pyunicode_fromstringandsize s len)
     else
       check_not_null (Pywrappers.Python2.pystring_fromstringandsize s len)
+
+  let of_bytes s =
+    of_string (Stdcompat.Bytes.unsafe_to_string s)
 end
 
 module Tuple_ = struct
@@ -983,7 +986,7 @@ type byteorder =
 
 let string_length = String.length
 
-module String = struct
+module String__ = struct
   include String_
 
   let check_bytes s =
@@ -1126,7 +1129,26 @@ module String = struct
     match Type.to_string s with
       None -> string_type_mismatch s
     | Some s -> check_some s
+
+  let to_bytes s =
+    Stdcompat.Bytes.unsafe_of_string (to_string s)
 end
+
+module Bytes = struct
+  include String__
+
+  let of_string s =
+    let len = String.length s in
+    if !version_major_value >= 3 then
+      check_not_null (Pywrappers.Python3.pybytes_fromstringandsize s len)
+    else
+      check_not_null (Pywrappers.Python2.pystring_fromstringandsize s len)
+
+  let of_bytes s =
+    of_string (Stdcompat.Bytes.unsafe_to_string s)
+end
+
+module String = String__
 
 module Err = struct
   type t =
