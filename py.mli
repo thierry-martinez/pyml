@@ -1489,7 +1489,7 @@ module String: sig
   (** [of_string s] returns the Python string with the value [s].
       [s] should be a valid UTF-8 string. *)
 
-  val of_bytes: bytes -> Object.t
+  val of_bytes: Stdcompat.bytes -> Object.t
   (** Same as [of_string] but with an argument of type [bytes]. *)
 
   val to_string: Object.t -> string
@@ -1497,7 +1497,7 @@ module String: sig
       A failure ([Failure _]) is raised if [o] is neither a
       [String]/[Bytes] value nor a [Unicode] value. *)
 
-  val to_bytes: Object.t -> bytes
+  val to_bytes: Object.t -> Stdcompat.bytes
   (** Same as [to_string] but with an a result of type [bytes]. *)
 
   val of_unicode: ?size:int -> int array -> Object.t
@@ -1516,13 +1516,13 @@ module Bytes: sig
   (** [of_string s] returns the Python byte sequence with the contents of
       [s]. *)
 
-  val of_bytes: bytes -> Object.t
+  val of_bytes: Stdcompat.bytes -> Object.t
   (** Same as [of_string] but with an argument of type [bytes]. *)
 
   val to_string: Object.t -> string
   (** [to_string o] returns the string contained in the Python value [o]. *)
 
-  val to_bytes: Object.t -> bytes
+  val to_bytes: Object.t -> Stdcompat.bytes
   (** Same as [to_string] but with an a result of type [bytes]. *)
 
   val length: Object.t -> int
