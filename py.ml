@@ -1906,7 +1906,7 @@ module Import = struct
           let ty = Object.to_string e in
           ty = "<class 'ModuleNotFoundError'>" ||
             ty = "<type 'exceptions.ImportError'>" ->
-      None 
+      None
 
   let import_module_level name globals locals fromlist level =
     check_not_null
@@ -1918,6 +1918,8 @@ module Import = struct
   let reload_module obj =
     check_not_null (Pywrappers.pyimport_reloadmodule obj)
 end
+
+let import = Import.import_module
 
 module Module = struct
   let check o = Type.get o = Type.Module

@@ -795,7 +795,14 @@ module Import: sig
 
   val import_module: string -> Object.t
   (** Wrapper for
-      {{:https://docs.python.org/3/c-api/import.html#c.PyImport_ImportModule} PyImport_ImportModule} *)
+      {{:https://docs.python.org/3/c-api/import.html#c.PyImport_ImportModule} PyImport_ImportModule}
+      Note that Python memoizes imported module, so that you will get the same
+      object if you import the same module twice.
+      ({{:https://github.com/thierry-martinez/pyml/issues/16}GitHub issue #16})
+
+{[let m = Py.Import.import_module "json"
+and m' = Py.Import.import_module "json" in
+assert (m = m')]} *)
 
   val try_import_module: string -> Object.t option
   (** [try_import_module m] imports the module [m] and returns the module object if the import succeeds:.
@@ -817,6 +824,9 @@ module Import: sig
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/import.html#c.PyImport_ReloadModule} PyImport_ReloadModule} *)
 end
+
+val import: string -> Object.t
+(** Equivalent to {!Import.import_module}. *)
 
 (** Interface for Python values of type [Iter]. *)
 module Iter: sig
