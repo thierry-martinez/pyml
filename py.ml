@@ -1623,6 +1623,25 @@ module Iter_ = struct
     | Some item -> p item || exists p i
 end
 
+(* From stdcompat *)
+let vec_to_seq length get v =
+  let length = length v in
+  let rec aux i () =
+    if i = length then Stdcompat.Seq.Nil
+    else
+      let x = get v i in
+      Stdcompat.Seq.Cons (x, aux (i + 1)) in
+  aux 0
+
+let vec_to_seqi length get v =
+  let length = length v in
+  let rec aux i () =
+    if i = length then Stdcompat.Seq.Nil
+    else
+      let x = get v i in
+      Stdcompat.Seq.Cons ((i, x), aux (i + 1)) in
+  aux 0
+
 module Sequence = struct
   let check obj = bool_of_int (Pywrappers.pysequence_check obj)
 
@@ -1700,6 +1719,10 @@ module Sequence = struct
 
   let exists p sequence =
     Iter_.exists p (Object.get_iter sequence)
+
+  let to_seq = vec_to_seq size get
+
+  let to_seqi = vec_to_seqi size get
 end
 
 module Tuple = struct
@@ -1722,6 +1745,8 @@ module Tuple = struct
   let of_list_map f list = of_array_map f (Array.of_list list)
 
   let of_sequence = Sequence.tuple
+
+  let of_seq s = of_array (Stdcompat.Array.of_seq s)
 
   let of_tuple1 v0 = init 1 (function _ -> v0)
 
@@ -2007,6 +2032,32 @@ module Iter = struct
     let methods = [next_name, Callable.of_function next'] in
     Object.call_function_obj_args
       (Class.init ~methods "iterator") [| |]
+
+  let of_seq s =
+    let s = ref s in
+    let next () =
+      match !s () with
+      | Stdcompat.Seq.Nil -> None
+      | Stdcompat.Seq.Cons (head, tail) ->
+          s := tail;
+          Some head in
+    create next
+
+  let to_seq i =
+    let rec seq lazy_next () =
+      match Lazy.force lazy_next with
+      | None -> Stdcompat.Seq.Nil
+      | Some item ->
+          Stdcompat.Seq.Cons (item, seq (lazy (next i))) in
+    seq (lazy (next i))
+
+  let to_seq_unsafe i =
+    let rec seq () =
+      match next i with
+      | None -> Stdcompat.Seq.Nil
+      | Some item ->
+          Stdcompat.Seq.Cons (item, seq) in
+    seq
 end
 
 module List = struct
@@ -2044,6 +2095,8 @@ module List = struct
   let of_sequence = Sequence.list
 
   let singleton v = init 1 (fun _ -> v)
+
+  let of_seq s = of_array (Stdcompat.Array.of_seq s)
 end
 
 module Marshal = struct

@@ -111,7 +111,7 @@ module Object: sig
   (** Equivalent to {!get_item_string} but raises a [Not_found] exception in
       case of failure. *)
 
-  val find_string_opt: t -> t -> t option
+  val find_string_opt: t -> string -> t option
   (** Alias for {!get_item_string}. *)
 
   val get_iter: t -> t
@@ -874,6 +874,21 @@ module Iter: sig
       tail-recursive and [f] is applied to the elements of [s] in the reverse
       order. *)
 
+  val of_seq: Object.t Stdcompat.Seq.t -> Object.t
+  (** [of_seq s] returns an interator that iterates over the values of the
+      sequence s. *)
+
+  val to_seq: Object.t -> Object.t Stdcompat.Seq.t
+  (** [to_seq i] returns the sequence of the values from the iteration [i].
+      The Python iteration is consumed while the sequence is browsed.
+      Values are memoized, so that the sequence can be browsed many times. *)
+
+  val to_seq_unsafe: Object.t -> Object.t Stdcompat.Seq.t
+  (** [to_seq i] returns the sequence of the values from the iteration [i].
+      The Python iteration is consumed while the sequence is browsed.
+      Warning: values are not memoized, so that the sequence can be browsed
+      only once. *)
+
   val fold_left: ('a -> Object.t -> 'a) -> 'a -> Object.t -> 'a
   (** [fold_left f v i] returns [(f (...(f v i1)...) in)] where [i1], ..., [in]
       are the remaining values from the iteration [i]. *)
@@ -970,6 +985,15 @@ module List: sig
 
   val of_sequence: Object.t -> Object.t
   (** Equivalent to {!Sequence.list}. *)
+
+  val of_seq: Object.t Stdcompat.Seq.t -> Object.t
+  (** [of_seq s] returns the Python list with the same elements as [s]. *)
+
+  val to_seq: Object.t -> Object.t Stdcompat.Seq.t
+  (** Equivalent to {!Sequence.to_seq}. *)
+
+  val to_seqi: Object.t -> (int * Object.t) Stdcompat.Seq.t
+  (** Equivalent to {!Sequence.to_seqi}. *)
 
   val singleton: Object.t -> Object.t
   (** [singleton o] returns the Python list [[o]]. *)
@@ -1445,6 +1469,14 @@ module Sequence: sig
       tail-recursive and [f] is applied to the elements of [s] in the reverse
       order. *)
 
+  val to_seq: Object.t -> Object.t Stdcompat.Seq.t
+  (** [to_seq s] returns the OCaml sequence of the values from the Python
+      sequence [s]. *)
+
+  val to_seqi: Object.t -> (int * Object.t) Stdcompat.Seq.t
+  (** [to_seqi s] returns the OCaml indexed sequence of the values from the
+      Python sequence [s]. *)
+
   val fold_left: ('a -> Object.t -> 'a) -> 'a -> Object.t -> 'a
   (** [fold_left f v s] returns [(f (...(f v s1)...) sn)] where [s1], ..., [sn]
       are the elements of the Python sequence [s]. *)
@@ -1625,6 +1657,15 @@ module Tuple: sig
 
   val to_list_map: (Object.t -> 'a) -> Object.t -> 'a list
   (** Equivalent to {!Sequence.to_list_map}. *)
+
+  val of_seq: Object.t Stdcompat.Seq.t -> Object.t
+  (** [of_seq s] returns the Python tuple with the values of the sequence s. *)
+
+  val to_seq: Object.t -> Object.t Stdcompat.Seq.t
+  (** Equivalent to {!Sequence.to_seq}. *)
+
+  val to_seqi: Object.t -> (int * Object.t) Stdcompat.Seq.t
+  (** Equivalent to {!Sequence.to_seqi}. *)
 
   val fold_left: ('a -> Object.t -> 'a) -> 'a -> Object.t -> 'a
   (** Equivalent to {!Sequence.fold_left}. *)
