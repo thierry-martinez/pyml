@@ -524,7 +524,7 @@ let version_mismatch interpreter found expected =
 
 let build_version_string major minor =
   Printf.sprintf "%d.%d" major minor
-  
+
 let initialize ?interpreter ?version ?minor ?(verbose = false) () =
   if !initialized then
     failwith "Py.initialize: already initialized";
@@ -929,7 +929,10 @@ module Mapping = struct
   let get_item_string mapping key =
     option (Pywrappers.pymapping_getitemstring mapping key)
 
-  let find_string mapping key = Pyutils.option_unwrap (get_item_string mapping key)
+  let find_string mapping key =
+    Pyutils.option_unwrap (get_item_string mapping key)
+
+  let find_string_opt = get_item_string
 
   let has_key mapping key = Pywrappers.pymapping_haskey mapping key <> 0
 
@@ -1288,9 +1291,13 @@ module Object = struct
 
   let find obj attr = Pyutils.option_unwrap (get_item obj attr)
 
+  let find_opt = get_item
+
   let get_item_string obj key = get_item obj (String.of_string key)
 
   let find_string obj attr = Pyutils.option_unwrap (get_item_string obj attr)
+
+  let find_string_opt = get_item_string
 
   let get_iter obj =
     check_not_null (Pywrappers.pyobject_getiter obj)
@@ -1768,10 +1775,14 @@ module Dict = struct
 
   let find dict key = Pyutils.option_unwrap (get_item dict key)
 
+  let find_opt = get_item
+
   let get_item_string dict name =
     option (Pywrappers.pydict_getitemstring dict name)
 
   let find_string dict key = Pyutils.option_unwrap (get_item_string dict key)
+
+  let find_string_opt = get_item_string
 
   let keys dict = check_not_null (Pywrappers.pydict_keys dict)
 
@@ -1898,7 +1909,7 @@ module Import = struct
   let import_module name =
     check_not_null (Pywrappers.pyimport_importmodule name)
 
-  let try_import_module name =
+  let import_module_opt name =
     try
       Some (check_not_null (Pywrappers.pyimport_importmodule name))
     with E (e, msg)
@@ -1907,6 +1918,8 @@ module Import = struct
           ty = "<class 'ModuleNotFoundError'>" ||
             ty = "<type 'exceptions.ImportError'>" ->
       None
+
+  let try_import_module = import_module_opt
 
   let import_module_level name globals locals fromlist level =
     check_not_null
@@ -1920,6 +1933,8 @@ module Import = struct
 end
 
 let import = Import.import_module
+
+let import_opt = Import.import_module_opt
 
 module Module = struct
   let check o = Type.get o = Type.Module

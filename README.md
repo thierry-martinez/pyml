@@ -222,9 +222,11 @@ Modules
 -------
 
 New modules can be defined with ``Py.Import.add_module``
-and existing modules can be imported with ``Py.Import.import_module``.
+and existing modules can be imported with ``Py.Import.import_module``
+(or the shorter ``Py.import`` alias).
 Trying to import a module that does not exist leads to a Python exception:
-use ``Py.Import.try_import_module`` to get an option result instead.
+use ``Py.Import.import_module_opt`` to get an option result instead
+(or the shorter ``Py.import_opt`` alias).
 
 ``Module.get`` and ``Module.set`` allow to retrieve and define module
 members.
@@ -249,8 +251,8 @@ plt.show()
 The code can be written directly in OCaml as such:
 
 ```ocaml
-let np = Py.Import.import_module "numpy" in
-let plt = Py.Import.import_module "matplotlib.pyplot" in
+let np = Py.import "numpy" in
+let plt = Py.import "matplotlib.pyplot" in
 let x = Py.Module.get_function np "arange"
   (Array.map Py.Float.of_float [| 0.; 5.; 0.1 |]) in
 let y = Py.Module.get_function np "sin" [| x |] in

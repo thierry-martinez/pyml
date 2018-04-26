@@ -100,6 +100,9 @@ module Object: sig
   (** Equivalent to {!get_item} but raises a [Not_found] exception in
       case of failure. *)
 
+  val find_opt: t -> t -> t option
+  (** Alias for {!get_item}. *)
+
   val get_item_string: t -> string -> t option
   (** [get_item_string o key] returns the element corresponding to the object
       [key] or [None] on failure. *)
@@ -107,6 +110,9 @@ module Object: sig
   val find_string: t -> string -> t
   (** Equivalent to {!get_item_string} but raises a [Not_found] exception in
       case of failure. *)
+
+  val find_string_opt: t -> t -> t option
+  (** Alias for {!get_item_string}. *)
 
   val get_iter: t -> t
   (** Wrapper for
@@ -538,6 +544,9 @@ module Dict: sig
       [key]. Equivalent to {!get_item} but [find] raises [Not_found] if the
       key [key] is not present. *)
 
+  val find_opt: Object.t -> Object.t -> Object.t option
+  (** Alias for {!get_item}. *)
+
   val get_item_string: Object.t -> string -> Object.t option
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/dict.html#c.PyDict_GetItemString} PyDict_GetItemString} *)
@@ -546,6 +555,9 @@ module Dict: sig
   (** [find_string p key] returns the object from Python dictionary [p]
       which has a key [key]. Equivalent to {!get_item_string} but [find_string]
       raises [Not_found] if the key [key] is not present. *)
+
+  val find_string_opt: Object.t -> string -> Object.t option
+  (** Alias for {!get_item_string}. *)
 
   val keys: Object.t -> Object.t
   (** Wrapper for
@@ -804,11 +816,16 @@ module Import: sig
 and m' = Py.Import.import_module "json" in
 assert (m = m')]} *)
 
-  val try_import_module: string -> Object.t option
-  (** [try_import_module m] imports the module [m] and returns the module object if the import succeeds:.
+  val import_module_opt: string -> Object.t option
+  (** [import_module_opt m] imports the module [m] and
+      returns the module object if the import succeeds:.
       in this case, it is equivalent to [Some (import_module m)].
-      If the module is not found, i.e. if [import_module] raises a Python exception of class
+      If the module is not found,
+      i.e. if [import_module] raises a Python exception of class
       [ModuleNotFoundError], then [try_import_module] returns [None]. *)
+
+  val try_import_module: string -> Object.t option
+  (** Alias for {!import_module_opt}. *)
 
   val import_module_ex:
       string -> Object.t -> Object.t -> Object.t -> Object.t
@@ -827,6 +844,9 @@ end
 
 val import: string -> Object.t
 (** Equivalent to {!Import.import_module}. *)
+
+val import_opt: string -> Object.t option
+(** Equivalent to {!Import.import_module_opt}. *)
 
 (** Interface for Python values of type [Iter]. *)
 module Iter: sig
@@ -968,6 +988,9 @@ module Mapping: sig
   val find_string: Object.t -> string -> Object.t
   (** Equivalent to {!get_item_string} but raises a [Not_found] exception in
       case of failure. *)
+
+  val find_string_opt: Object.t -> string -> Object.t option
+  (** Alias for {!get_item_string}. *)
 
   val has_key: Object.t -> Object.t -> bool
   (** Wrapper for
