@@ -897,8 +897,9 @@ module Iter: sig
       The Python iteration is consumed while the sequence is browsed.
       Values are memoized, so that the sequence can be browsed many times. *)
 
-  val to_seq_unsafe: Object.t -> Object.t Stdcompat.Seq.t
-  (** [to_seq i] returns the sequence of the values from the iteration [i].
+  val unsafe_to_seq: Object.t -> Object.t Stdcompat.Seq.t
+  (** [unsafe_to_seq i] returns the sequence of the values from the iteration
+      [i].
       The Python iteration is consumed while the sequence is browsed.
       Warning: values are not memoized, so that the sequence can be browsed
       only once. *)

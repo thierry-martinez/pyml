@@ -2072,7 +2072,7 @@ module Iter = struct
           Stdcompat.Seq.Cons (item, seq (lazy (next i))) in
     seq (lazy (next i))
 
-  let to_seq_unsafe i =
+  let unsafe_to_seq i =
     let rec seq () =
       match next i with
       | None -> Stdcompat.Seq.Nil
