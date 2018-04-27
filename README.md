@@ -115,9 +115,8 @@ as above. If IPython is available, the top-loop can be run with
 
 With OCaml 4.06 and greater, the module ``Pyops`` declares indexing operators.
 
----------------------------------------
 | Indexing operator | Getter | Setter |
----------------------------------------
+|-------------------|--------|--------|
 | ``x.@(v)`` | ``Py.Object.find_attr`` | ``Py.Object.set_attr`` |
 | ``x.@$(v)`` | ``Py.Object.find_attr_string`` / ``Py.Module.get`` | ``Py.Object.set_attr_string`` / ``Py.Module.set `` |
 | ``x.![v]`` | ``Py.Object.find`` | ``Py.Object.set_item`` |
@@ -125,7 +124,6 @@ With OCaml 4.06 and greater, the module ``Pyops`` declares indexing operators.
 | ``x.%[v]`` | ``Py.Dict.find`` | ``Py.Dict.set_item`` |
 | ``x.%$[v]`` | ``Py.Dict.find_string`` | ``Py.Dict.set_item_string`` |
 | ``x.&(v)`` | ``Py.Module.get_function`` | ``Py.Module.set_function`` |
------------------------------------------------------------------------
 
 The hello world above can be written:
 
