@@ -125,7 +125,7 @@ With OCaml 4.06 and greater, the module ``Pyops`` declares indexing operators.
 | ``x.%$[v]`` | ``Py.Dict.find_string`` | ``Py.Dict.set_item_string`` |
 | ``x.&(v)`` | ``Py.Module.get_function`` | ``Py.Module.set_function`` |
 
-The hello world above can be written:
+The "hello world" example above can be written:
 
 ``` ocaml
 let m = Py.Import.add_module "ocaml" in
