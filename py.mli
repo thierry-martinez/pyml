@@ -84,13 +84,27 @@ module Object: sig
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/object.html#c.PyObject_DelItemString} PyObject_DelItemString} *)
 
-  val get_attr: t -> t -> t
+  val get_attr: t -> t -> t option
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/object.html#c.PyObject_GetAttr} PyObject_GetAttr} *)
 
-  val get_attr_string: t -> string -> t
+  val find_attr: t -> t -> t
+  (** Equivalent to {!get_attr} but raises a [Not_found] exception in
+      case of failure. *)
+
+  val find_attr_opt: t -> t -> t option
+  (** Alias for {!get_attr}. *)
+
+  val get_attr_string: t -> string -> t option
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/object.html#c.PyObject_GetAttrString} PyObject_GetAttrString} *)
+
+  val find_attr_string: t -> string -> t
+  (** Equivalent to {!get_attr_string} but raises a [Not_found] exception in
+      case of failure. *)
+
+  val find_attr_string_opt: t -> string -> t option
+  (** Alias for {!get_attr_string}. *)
 
   val get_item: t -> t -> t option
   (** Wrapper for
@@ -1074,16 +1088,30 @@ module Module: sig
       {{:https://docs.python.org/3/c-api/module.html#c.PyModule_GetName} PyModule_GetName} *)
 
   val get: Object.t -> string -> Object.t
-  (** Equivalent to {!Object.get_attr_string}. *)
+  (** Equivalent to {!Object.find_attr_string}. *)
+
+  val get_opt: Object.t -> string -> Object.t option
+  (** Equivalent to {!Object.find_attr_string_opt}. *)
 
   val get_function: Object.t -> string -> Object.t array -> Object.t
   (** [Py.Module.get_function m name] is equivalent to
       [Py.Callable.to_function (Py.Module.get m name)]. *)
 
+  val get_function_opt: Object.t -> string ->
+    (Object.t array -> Object.t) option
+  (** [Py.Module.get_function_opt] is equivalent to
+      [Py.Module.get_function] but returns [None] in case of failure. *)
+
   val get_function_with_keywords: Object.t -> string -> Object.t array ->
     (string * Object.t) list -> Object.t
   (** [Py.Module.get_function_with_keywords m name] is equivalent to
       [Py.Callable.to_function_with_keywords (Py.Module.get m name)]. *)
+
+  val get_function_with_keywords_opt: Object.t -> string ->
+    (Object.t array -> (string * Object.t) list -> Object.t) option
+  (** [Py.Module.get_function_with_keywords_opt] is equivalent to
+      [Py.Module.get_function_with_keywords]
+      but returns [None] in case of failure. *)
 
   val set: Object.t -> string -> Object.t -> unit
   (** Equivalent to {!Object.set_attr_string}. *)

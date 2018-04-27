@@ -112,6 +112,34 @@ It can be run after some OCaml values have been made accessible through a module
 as above. If IPython is available, the top-loop can be run with
 ``Py.Run.ipython ()``.
 
+
+With OCaml 4.06 and greater, the module ``Pyops`` declares indexing operators.
+
+---------------------------------------
+| Indexing operator | Getter | Setter |
+---------------------------------------
+| ``x.@(v)`` | ``Py.Object.find_attr`` | ``Py.Object.set_attr`` |
+| ``x.@$(v)`` | ``Py.Object.find_attr_string`` / ``Py.Module.get`` | ``Py.Object.set_attr_string`` / ``Py.Module.set `` |
+| ``x.![v]`` | ``Py.Object.find`` | ``Py.Object.set_item`` |
+| ``x.!$[v]`` | ``Py.Object.find_string`` | ``Py.Object.set_item_string`` |
+| ``x.%[v]`` | ``Py.Dict.find`` | ``Py.Dict.set_item`` |
+| ``x.%$[v]`` | ``Py.Dict.find_string`` | ``Py.Dict.set_item_string`` |
+| ``x.&(v)`` | ``Py.Module.get_function`` | ``Py.Module.set_function`` |
+-----------------------------------------------------------------------
+
+The hello world above can be written:
+
+``` ocaml
+let m = Py.Import.add_module "ocaml" in
+let open Pyops in
+m.&("hello") <- (fun args ->
+  Printf.printf "Hello, %s!\n" (Py.String.to_string args.(0));
+  Py.none);
+Py.Run.eval ~start:Py.File "
+from ocaml import hello
+hello('World')"
+```
+
 Error handling
 --------------
 
@@ -258,6 +286,18 @@ let x = Py.Module.get_function np "arange"
 let y = Py.Module.get_function np "sin" [| x |] in
 ignore (Py.Module.get_function plt "plot" [| x; y |]);
 assert (Py.Module.get_function plt "show" [| |] = Py.none)
+```
+
+or, using indexing operators (OCaml 4.06):
+
+```ocaml
+let np = Py.import "numpy" in
+let plt = Py.import "matplotlib.pyplot" in
+let open Pyops in
+let x = np.&("arange")(Array.map Py.Float.of_float [| 0.; 5.; 0.1 |]) in
+let y = np.&("sin")[| x |] in
+ignore (plt.&("plot")[| x; y |]);
+assert (plt.&("show")[| |] = Py.none)
 ```
 
 NumPy

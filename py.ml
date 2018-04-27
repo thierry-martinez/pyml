@@ -1281,10 +1281,19 @@ module Object = struct
     assert_int_success (Pywrappers.pyobject_delitemstring obj item)
 
   let get_attr obj attr =
-    check_not_null (Pywrappers.pyobject_getattr obj attr)
+    option (Pywrappers.pyobject_getattr obj attr)
 
   let get_attr_string obj attr =
-    check_not_null (Pywrappers.pyobject_getattrstring obj attr)
+    option (Pywrappers.pyobject_getattrstring obj attr)
+
+  let find_attr obj attr = Pyutils.option_unwrap (get_attr obj attr)
+
+  let find_attr_opt = get_attr
+
+  let find_attr_string obj attr =
+    Pyutils.option_unwrap (get_attr_string obj attr)
+
+  let find_attr_string_opt = get_attr_string
 
   let get_item obj key =
     option (Pywrappers.pyobject_getitem obj key)
@@ -1961,6 +1970,11 @@ let import = Import.import_module
 
 let import_opt = Import.import_module_opt
 
+let option_map f o =
+  match o with
+  | None -> None
+  | Some x -> Some (f x)
+
 module Module = struct
   let check o = Type.get o = Type.Module
 
@@ -1976,14 +1990,21 @@ module Module = struct
   let get_name m =
     check_some (Pywrappers.pymodule_getname m)
 
-  let get = Object.get_attr_string
+  let get = Object.find_attr_string
+
+  let get_opt = Object.find_attr_string_opt
 
   let set = Object.set_attr_string
 
   let get_function m name = Callable.to_function (get m name)
 
+  let get_function_opt m name = option_map Callable.to_function (get_opt m name)
+
   let get_function_with_keywords m name =
     Callable.to_function_with_keywords (get m name)
+
+  let get_function_with_keywords_opt m name =
+    option_map Callable.to_function_with_keywords (get_opt m name)
 
   let set_function m name f = set m name (Callable.of_function f)
 
@@ -2189,7 +2210,7 @@ module Array = struct
     | None ->
         let numpy_api =
           let numpy = Import.import_module "numpy.core.multiarray" in
-          Object.get_attr_string numpy "_ARRAY_API" in
+          Object.find_attr_string numpy "_ARRAY_API" in
         let array_pickle, array_unpickle = Capsule.make "floatarray" in
         let pyarray_subtype =
           let pyarray_type = get_pyarray_type numpy_api in
@@ -2215,7 +2236,7 @@ module Array = struct
 
   let numpy_get_array a =
     let info = get_numpy_info () in
-    info.array_unpickle (Object.get_attr_string a "ocamlarray")
+    info.array_unpickle (Object.find_attr_string a "ocamlarray")
 end
 
 module Run = struct
