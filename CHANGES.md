@@ -1,5 +1,7 @@
-Next release
-============
+[*] marks changes that break compatibility with previous versions.
+
+2018-05-30
+==========
 
 - `Py.import` is an alias for `Py.Import.import_module`.
 - Use `*_opt` naming convention for the functions that return an option
