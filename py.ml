@@ -12,7 +12,8 @@ type closure =
     WithoutKeywords of (pyobject -> pyobject)
   | WithKeywords of (pyobject -> pyobject -> pyobject)
 
-external load_library: string option -> unit = "py_load_library"
+external load_library: string option -> bool option -> unit = "py_load_library"
+external is_debug_build: unit -> bool = "py_is_debug_build"
 external unsetenv: string -> unit = "py_unsetenv"
 external finalize_library: unit -> unit = "py_finalize_library"
 external pywrap_closure: string -> closure -> pyobject
@@ -426,9 +427,10 @@ let load_library filename =
 
 let get_library_filename () = !library_filename
 
-let find_library verbose version_major version_minor python_full_path =
+let find_library ~verbose ~version_major ~version_minor ~debug_build
+    python_full_path =
   try
-    load_library None
+    load_library None debug_build
   with Failure _ ->
     let library_filenames =
       find_library_path version_major version_minor python_full_path in
@@ -437,7 +439,8 @@ let find_library verbose version_major version_minor python_full_path =
       match library_filenames with
         [] ->
           let msg =
-            Printf.sprintf "Py.find_library: unable to find the Python library%s"
+            Printf.sprintf
+              "Py.find_library: unable to find the Python library%s"
               (Buffer.contents errors) in
           failwith msg
       | filename :: others ->
@@ -451,7 +454,7 @@ let find_library verbose version_major version_minor python_full_path =
                   Printf.eprintf "Trying to load \"%s\".\n" filename;
                   flush stderr;
                 end;
-              load_library (Some filename);
+              load_library (Some filename) debug_build;
             with Failure msg ->
               if pythonhome_set then
                 uninit_pythonhome ();
@@ -465,13 +468,15 @@ let find_library verbose version_major version_minor python_full_path =
           end in
     try_load_library library_filenames
 
-let initialize_library verbose version_major version_minor python_full_path =
+let initialize_library ~verbose ~version_major ~version_minor
+    ~debug_build python_full_path =
   begin
     match !python_home with
       None -> ()
     | Some s -> ignore (init_pythonhome verbose s)
   end;
-  find_library verbose version_major version_minor python_full_path;
+  find_library ~verbose ~version_major ~version_minor ~debug_build
+    python_full_path;
   begin
     match python_full_path with
       None -> ()
@@ -513,7 +518,8 @@ let find_interpreter interpreter version minor =
            (fun version' ->
              Pyutils.option_or
                (Pyutils.option_bind minor
-                  (fun minor' -> which (Printf.sprintf "python%d.%d" version' minor')))
+                  (fun minor' ->
+                    which (Printf.sprintf "python%d.%d" version' minor')))
                (fun () -> which (Printf.sprintf "python%d" version'))))
         (fun () -> which "python")
 
@@ -525,9 +531,15 @@ let version_mismatch interpreter found expected =
 let build_version_string major minor =
   Printf.sprintf "%d.%d" major minor
 
-let initialize ?interpreter ?version ?minor ?(verbose = false) () =
+let initialize ?library_name ?interpreter ?version ?minor ?(verbose = false)
+    ?debug_build () =
   if !initialized then
     failwith "Py.initialize: already initialized";
+  begin
+    match library_name with
+    | Some library_name ->
+        load_library (Some library_name) debug_build;
+    | None ->
   begin
     try
       let python_full_path = find_interpreter interpreter version minor in
@@ -558,7 +570,8 @@ let initialize ?interpreter ?version ?minor ?(verbose = false) () =
       let (version_major, version_minor) =
         match python_full_path with
           Some python_full_path' ->
-            let version_string = python_version_from_interpreter python_full_path' in
+            let version_string =
+              python_version_from_interpreter python_full_path' in
             let (version_major, version_minor) =
               extract_version_major_minor version_string in
             begin
@@ -574,26 +587,29 @@ let initialize ?interpreter ?version ?minor ?(verbose = false) () =
                     None -> ()
                   | Some version_minor' ->
                       if version_minor <> version_minor' then
+                        let expected =
+                          build_version_string version_major version_minor in
+                        let got =
+                          build_version_string version_major' version_minor' in
                         failwith
-                          (version_mismatch
-                             python_full_path'
-                             (build_version_string version_major version_minor)
-                             (build_version_string version_major' version_minor'));
+                          (version_mismatch python_full_path' expected got);
             end;
             (Some version_major, Some version_minor)
         | _ -> version, minor in
-      initialize_library verbose version_major version_minor python_full_path;
-      let version = get_version () in
-      let (version_major, version_minor) =
-        extract_version_major_minor version in
-      version_value := version;
-      version_major_value := version_major;
-      version_minor_value := version_minor
+      initialize_library ~verbose ~version_major ~version_minor ~debug_build
+        python_full_path;
     with e ->
       uninit_pythonhome ();
       uninit_pythonpath ();
       raise e
   end;
+  end;
+  let version = get_version () in
+  let (version_major, version_minor) =
+    extract_version_major_minor version in
+  version_value := version;
+  version_major_value := version_major;
+  version_minor_value := version_minor;
   initialized := true
 
 let on_finalize_list = ref []

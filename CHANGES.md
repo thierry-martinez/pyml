@@ -1,5 +1,11 @@
 [*] marks changes that break compatibility with previous versions.
 
+Next version
+============
+- Support for debug build of Python library
+  (Suggested by Arlen Cox:
+   https://github.com/thierry-martinez/pyml/issues/18)
+
 2018-05-30
 ==========
 
