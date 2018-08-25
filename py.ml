@@ -1,3 +1,5 @@
+open Stdcompat
+
 type pyobject = Pytypes.pyobject
 
 type input = Pytypes.input = Single | File | Eval
@@ -186,7 +188,7 @@ let ldd executable =
     None -> []
   | Some lines ->
      let extract_line line =
-       Stdcompat.String.trim
+       String.trim
          (Pyutils.split_left_on_char '('
             (Pyutils.split_right_on_char '>' line)) in
      List.map extract_line lines
@@ -196,7 +198,7 @@ let ldconfig () =
     None -> []
   | Some lines ->
      let extract_line line =
-       Stdcompat.String.trim (Pyutils.split_right_on_char '>' line) in
+       String.trim (Pyutils.split_right_on_char '>' line) in
      List.map extract_line lines
 
 let libpython_from_interpreter python_full_path =
@@ -204,7 +206,7 @@ let libpython_from_interpreter python_full_path =
   let is_libpython line =
     let basename = Filename.basename line in
     Pyutils.has_prefix "libpython" basename in
-  Stdcompat.List.find_opt is_libpython lines
+  List.find_opt is_libpython lines
 
 let libpython_from_ldconfig major minor =
   let lines = ldconfig () in
@@ -216,7 +218,7 @@ let libpython_from_ldconfig major minor =
   let is_libpython line =
     let basename = Filename.basename line in
     Pyutils.has_prefix prefix basename in
-  Stdcompat.List.find_opt is_libpython lines
+  List.find_opt is_libpython lines
 
 let parse_python_list list =
   let length = String.length list in
@@ -345,7 +347,7 @@ let libpython_from_pkg_config version_major version_minor =
       version_minor in
   match run_command_opt command false with
     Some (words :: _) ->
-      let word_list = Stdcompat.String.split_on_char ' ' words in
+      let word_list = String.split_on_char ' ' words in
       let unable_to_parse () =
         let msg = Printf.sprintf
         "Py.find_library_path: unable to parse the output of pkg-config '%s'"
@@ -395,7 +397,7 @@ let libpython_from_pythonhome version_major version_minor python_full_path =
   concat_library_filenames library_paths library_filenames
 
 let find_library_path version_major version_minor python_full_path =
-  match Pyutils.option_bind python_full_path libpython_from_interpreter with
+  match Option.bind python_full_path libpython_from_interpreter with
     Some path -> [path]
   | None ->
       match libpython_from_ldconfig version_major version_minor with
@@ -507,21 +509,25 @@ let which program =
 
 let find_interpreter interpreter version minor =
   match interpreter with
-      Some interpreter' ->
-        if String.contains interpreter' '/' then
-          Some interpreter'
-        else
-          which interpreter'
-  |  None ->
-      Pyutils.option_or
-        (Pyutils.option_bind version
+    Some interpreter' ->
+      if String.contains interpreter' '/' then
+        Some interpreter'
+      else
+        which interpreter'
+  | None ->
+      match
+        Option.bind version
            (fun version' ->
-             Pyutils.option_or
-               (Pyutils.option_bind minor
-                  (fun minor' ->
-                    which (Printf.sprintf "python%d.%d" version' minor')))
-               (fun () -> which (Printf.sprintf "python%d" version'))))
-        (fun () -> which "python")
+             match
+               Option.bind minor
+                 (fun minor' ->
+                   which (Printf.sprintf "python%d.%d" version' minor'))
+             with
+             | Some result -> Some result
+             | None -> which (Printf.sprintf "python%d" version'))
+      with
+      | Some result -> Some result
+      | None -> which "python"
 
 let version_mismatch interpreter found expected =
   Printf.sprintf
@@ -552,7 +558,7 @@ let initialize ?library_name ?interpreter ?version ?minor ?(verbose = false)
         List.rev_append !pythonpaths interpreter_pythonpaths in
       if new_pythonpaths <> [] then
         begin
-          let former_pythonpath = Stdcompat.Sys.getenv_opt "PYTHONPATH" in
+          let former_pythonpath = Sys.getenv_opt "PYTHONPATH" in
           has_set_pythonpath := Some former_pythonpath;
           let all_paths =
             match former_pythonpath with
@@ -816,7 +822,7 @@ module String_ = struct
       check_not_null (Pywrappers.Python2.pystring_fromstringandsize s len)
 
   let of_bytes s =
-    of_string (Stdcompat.Bytes.unsafe_to_string s)
+    of_string (Bytes.unsafe_to_string s)
 end
 
 module Tuple_ = struct
@@ -1150,7 +1156,7 @@ module String__ = struct
     | Some s -> check_some s
 
   let to_bytes s =
-    Stdcompat.Bytes.unsafe_of_string (to_string s)
+    Bytes.unsafe_of_string (to_string s)
 end
 
 module Bytes = struct
@@ -1164,7 +1170,7 @@ module Bytes = struct
       check_not_null (Pywrappers.Python2.pystring_fromstringandsize s len)
 
   let of_bytes s =
-    of_string (Stdcompat.Bytes.unsafe_to_string s)
+    of_string (Bytes.unsafe_to_string s)
 end
 
 module String = String__
@@ -1652,19 +1658,19 @@ end
 let vec_to_seq length get v =
   let length = length v in
   let rec aux i () =
-    if i = length then Stdcompat.Seq.Nil
+    if i = length then Seq.Nil
     else
       let x = get v i in
-      Stdcompat.Seq.Cons (x, aux (i + 1)) in
+      Seq.Cons (x, aux (i + 1)) in
   aux 0
 
 let vec_to_seqi length get v =
   let length = length v in
   let rec aux i () =
-    if i = length then Stdcompat.Seq.Nil
+    if i = length then Seq.Nil
     else
       let x = get v i in
-      Stdcompat.Seq.Cons ((i, x), aux (i + 1)) in
+      Seq.Cons ((i, x), aux (i + 1)) in
   aux 0
 
 module Sequence = struct
@@ -1771,7 +1777,7 @@ module Tuple = struct
 
   let of_sequence = Sequence.tuple
 
-  let of_seq s = of_array (Stdcompat.Array.of_seq s)
+  let of_seq s = of_array (Array.of_seq s)
 
   let of_tuple1 v0 = init 1 (function _ -> v0)
 
@@ -2074,8 +2080,8 @@ module Iter = struct
     let s = ref s in
     let next () =
       match !s () with
-      | Stdcompat.Seq.Nil -> None
-      | Stdcompat.Seq.Cons (head, tail) ->
+      | Seq.Nil -> None
+      | Seq.Cons (head, tail) ->
           s := tail;
           Some head in
     create next
@@ -2083,17 +2089,17 @@ module Iter = struct
   let to_seq i =
     let rec seq lazy_next () =
       match Lazy.force lazy_next with
-      | None -> Stdcompat.Seq.Nil
+      | None -> Seq.Nil
       | Some item ->
-          Stdcompat.Seq.Cons (item, seq (lazy (next i))) in
+          Seq.Cons (item, seq (lazy (next i))) in
     seq (lazy (next i))
 
   let unsafe_to_seq i =
     let rec seq () =
       match next i with
-      | None -> Stdcompat.Seq.Nil
+      | None -> Seq.Nil
       | Some item ->
-          Stdcompat.Seq.Cons (item, seq) in
+          Seq.Cons (item, seq) in
     seq
 end
 
@@ -2133,7 +2139,7 @@ module List = struct
 
   let singleton v = init 1 (fun _ -> v)
 
-  let of_seq s = of_array (Stdcompat.Array.of_seq s)
+  let of_seq s = of_array (Array.of_seq s)
 end
 
 module Marshal = struct
@@ -2205,8 +2211,8 @@ module Array = struct
 
   type numpy_info = {
       numpy_api: Object.t;
-      array_pickle: Stdcompat.floatarray -> Object.t;
-      array_unpickle: Object.t -> Stdcompat.floatarray;
+      array_pickle: floatarray -> Object.t;
+      array_unpickle: Object.t -> floatarray;
       pyarray_subtype: Object.t;
     }
 
@@ -2217,7 +2223,7 @@ module Array = struct
   external get_pyarray_type: Object.t -> Object.t = "get_pyarray_type"
 
   external pyarray_of_floatarray: Object.t -> Object.t
-    -> Stdcompat.floatarray
+    -> floatarray
     -> Object.t = "pyarray_of_floatarray_wrapper"
 
   let get_numpy_info () =
