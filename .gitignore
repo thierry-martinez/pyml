@@ -1,5 +1,6 @@
 .depend
-*.cm[aiox]
+*.cm[aioxt]
+*.cmti
 *.cmx[as]
 *.[ao]
 *.so
