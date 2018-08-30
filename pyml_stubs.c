@@ -582,13 +582,21 @@ pyml_assert_python3()
 }
 
 void
-pyml_check_symbol_available(void *symbol)
+pyml_check_symbol_available(void *symbol, char *symbol_name)
 {
     if (!symbol) {
         char *fmt = "Symbol unavailable with this version of Python: %s.\n";
-        ssize_t size = snprintf(NULL, 0, fmt, symbol);
+        ssize_t size = snprintf(NULL, 0, fmt, symbol_name);
+        if (size < 0) {
+          failwith("Symbol unavailable with this version of Python.\n");
+          return;
+        }
         char *msg = xmalloc(size + 1);
-        snprintf(msg, size + 1, fmt, symbol);
+        size = snprintf(msg, size + 1, fmt, symbol_name);
+        if (size < 0) {
+          failwith("Symbol unavailable with this version of Python.\n");
+          return;
+        }
         failwith(msg);
     }
 }
