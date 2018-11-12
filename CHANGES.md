@@ -5,6 +5,7 @@ Next version
 - Support for debug build of Python library
   (Suggested by Arlen Cox:
    https://github.com/thierry-martinez/pyml/issues/18)
+- Bug fix in pyml_check_symbol_available
 
 2018-05-30
 ==========
