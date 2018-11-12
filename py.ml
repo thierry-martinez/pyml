@@ -2352,3 +2352,24 @@ let set_argv argv =
   Module.set (Module.sys ()) "argv" (List.of_array_map String.of_string argv)
 
 let last_value () = Module.get (Module.builtins ()) "_"
+
+let compile ~source ~filename ?(dont_inherit = false)
+    ?(optimize = `Default) mode =
+  let compile =
+    Module.get_function_with_keywords (Module.builtins ()) "compile" in
+  let source = String.of_string source in
+  let filename = String.of_string filename in
+  let mode =
+    String.of_string @@ match mode with
+    | `Exec -> "exec"
+    | `Eval -> "eval"
+    | `Single -> "single" in
+  let optimize =
+    Int.of_int @@ match optimize with
+    | `Default -> -1
+    | `Debug -> 0
+    | `Normal -> 1
+    | `RemoveDocstrings -> 2 in
+  let dont_inherit = Bool.of_bool dont_inherit in
+  compile [| source; filename; mode |]
+    ["dont_inherit", dont_inherit; "optimize", optimize]

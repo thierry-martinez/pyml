@@ -810,7 +810,9 @@ module Import: sig
       {{:https://docs.python.org/3/c-api/import.html#c.PyImport_AddModule} PyImport_AddModule} *)
 
   val exec_code_module: string -> Object.t -> Object.t
-  (** Wrapper for
+  (** [exec_code_module name bytecode] imports the module [name] compiled in [bytecode].
+      [bytecode] can be obtained with {!val:Py.compile}.
+      Wrapper for
       {{:https://docs.python.org/3/c-api/import.html#c.PyImport_ExecCodeModule} PyImport_ExecCodeModule} *)
 
   val exec_code_module_ex: string -> Object.t -> string -> Object.t
@@ -1931,3 +1933,12 @@ val last_value: unit -> Object.t
 val exception_printer: exn -> string option
 (** This printer pretty-prints [E (ty, value)] exceptions.
     It is automatically registered to [Printexc.register_printer]. *)
+
+val compile: source:string -> filename:string -> ?dont_inherit:bool ->
+  ?optimize:[`Default | `Debug | `Normal | `RemoveDocstrings ] ->
+  [`Exec | `Eval | `Single] -> Object.t
+(** [compile ~source ~filename ?dont_inherit ?optimize mode] returns
+    the bytecode obtained by compiling ~source. It is a wrapper for
+    the built-in function
+    {{:https://docs.python.org/3/library/functions.html#compile} compile()}.
+ {{:https://github.com/thierry-martinez/pyml/issues/25} GitHub issue #25}*)

@@ -6,6 +6,9 @@ Next version
   (Suggested by Arlen Cox:
    https://github.com/thierry-martinez/pyml/issues/18)
 - Bug fix in pyml_check_symbol_available
+- `Py.compile` is a wrapper for the built-in function `compile`
+  (Suggested by Dhruv Makwana:
+   https://github.com/thierry-martinez/pyml/issues/25)
 
 2018-05-30
 ==========
