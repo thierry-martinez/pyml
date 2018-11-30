@@ -2,9 +2,9 @@ opam-version: "1.2"
 maintainer: "Thierry Martinez <martinez@nsup.org>"
 authors: "Thierry Martinez <martinez@nsup.org>"
 homepage: "http://pyml.gforge.inria.fr"
-bug-reports: "http://pyml.gforge.inria.fr/tracker"
+bug-reports: "https://github.com/thierry-martinez/pyml/issues"
 license: "BSD"
-dev-repo: "https://scm.gforge.inria.fr/anonscm/git/pyml/pyml.git"
+dev-repo: "https://github.com/thierry-martinez/pyml.git"
 build: [make "all" "pymltop" "pymlutop" {utop:installed} "PREFIX=%{prefix}%"]
 install: [make "install" "PREFIX=%{prefix}%"]
 remove: [make "uninstall" "PREFIX=%{prefix}%"]
