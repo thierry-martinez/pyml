@@ -339,6 +339,28 @@ let () =
       Pyml_tests_common.Passed)
 
 let () =
+  Pyml_tests_common.add_test
+    ~title:"Py.List.sort"
+    (fun () ->
+      let pi_digits = [ 3; 1; 4; 1; 5; 9; 2; 6; 5; 3; 5; 8 ] in
+      let v = Py.List.of_list [] in
+      assert (Py.List.length v = 0);
+      let count = Py.Object.call_method v "count" [|Py.Long.of_int 1|] in
+      assert (Py.Long.to_int count = 0);
+      List.iter
+        (fun i -> ignore (Py.Object.call_method v "append" [|Py.Long.of_int i|]))
+        pi_digits;
+      let count = Py.Object.call_method v "count" [|Py.Long.of_int 1|] in
+      assert (Py.Long.to_int count = 2);
+      assert (Py.List.length v = List.length pi_digits);
+      let _ = Py.Object.call_method v "sort" [||] in
+      let sorted_digits = List.map Py.Int.to_int (Py.List.to_list v) in
+      assert (sorted_digits = List.sort compare pi_digits);
+      let _ = Py.Object.call_method v "clear" [||] in
+      assert (Py.List.length v = 0);
+      Pyml_tests_common.Passed)
+
+let () =
   Pyml_tests_common.add_test ~title:"array"
     (fun () ->
       let array = [| 1; 2 |] in

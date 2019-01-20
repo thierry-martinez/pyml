@@ -1008,7 +1008,7 @@ PyObject_CallMethodObjArgs_wrapper(
     mlsize_t argument_count = Wosize_val(arguments_ocaml);
     switch (argument_count) {
     case 0:
-        result = Python_PyObject_CallMethodObjArgs(object, name);
+        result = Python_PyObject_CallMethodObjArgs(object, name, NULL);
         break;
     case 1:
         result = Python_PyObject_CallMethodObjArgs
