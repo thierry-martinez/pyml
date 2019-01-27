@@ -156,7 +156,7 @@ let () =
     ~title:"run file with filename"
     (fun () ->
       let result = Pyutils.with_temp_file "print(\"Hello, world!\")"
-        begin fun file channel ->
+        begin fun file _channel ->
          Py.Run.load (Py.Filename file) "test.py"
         end in
       if result = Py.none then
@@ -173,7 +173,7 @@ let () =
     (Pyml_tests_common.enable_only_on_unix
        (fun () ->
          let result = Pyutils.with_temp_file "print(\"Hello, world!\")"
-           begin fun file channel ->
+           begin fun _file channel ->
            Py.Run.load (Py.Channel channel) "test.py"
            end in
          if result = Py.none then
