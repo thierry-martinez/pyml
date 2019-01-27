@@ -1169,10 +1169,6 @@ module Number: sig
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/number.html#c.PyNumber_And} PyNumber_And} *)
 
-  val check: Object.t -> bool
-  (** Wrapper for
-      {{:https://docs.python.org/3/c-api/number.html#c.PyNumber_Check} PyNumber_Check} *)
-
   val divmod: Object.t -> Object.t -> Object.t
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/number.html#c.PyNumber_Divmod} PyNumber_Divmod} *)

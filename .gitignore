@@ -1,9 +1,12 @@
+_build
+.merlin
 .depend
 *.cm[aioxt]
 *.cmti
 *.cmx[as]
 *.[ao]
 *.so
+*.swp
 *~
 *.inc
 /generate
