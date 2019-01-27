@@ -1380,8 +1380,8 @@ module Pycaml = struct\n";
     in
     List.filter (fun w -> not (Set_string.mem w.symbol python3_symbols)) wrappers_python2
   in
-  Printf.printf "%d\n%!" (List.length wrappers_python2_not_in_python3);
-  Printf.printf "%d\n%!" (List.length wrappers_python2);
+  print_pycamls "  " "Python2." channel wrappers_python2_not_in_python3;
+  print_pycamls "  " "Python3." channel wrappers_python3;
   Printf.fprintf channel "end\n"
 
 let print_dlsym indent prefix channel wrapper =

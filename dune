@@ -1,6 +1,6 @@
 (library
   (name pyml)
-  (modules numpy py pyml_arch pytypes pywrappers)
+  (modules numpy py pycaml pyml_arch pytypes pywrappers)
   (c_names numpy_stubs pyml_stubs)
   (wrapped false)
   (libraries bigarray stdcompat pyutils))
