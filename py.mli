@@ -1542,6 +1542,12 @@ module String: sig
   (** [check o] returns [o] if [o] is a Python string
       (either [Bytes] or [Unicode] with Python 3). *)
 
+  val check_bytes: Object.t -> bool
+  (** [check_bytes o] returns [o] if [o] is a Python bytes string. *)
+
+  val check_unicode: Object.t -> bool
+  (** [check_unicode o] returns [o] if [o] is a Python unicode string. *)
+
   val format: Object.t -> Object.t -> Object.t
   (** [format fmt args] returns the formatted Python string from the string
       format [fmt] and the arguments [args].

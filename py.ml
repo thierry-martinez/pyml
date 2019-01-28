@@ -1016,10 +1016,10 @@ let string_length = String.length
 module String__ = struct
   include String_
 
-  let _check_bytes s =
+  let check_bytes s =
     Type.get s = Type.Bytes
 
-  let _check_unicode s =
+  let check_unicode s =
     Type.get s = Type.Unicode
 
   let check s =
