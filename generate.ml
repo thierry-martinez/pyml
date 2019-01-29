@@ -1318,7 +1318,7 @@ let print_pycaml indent prefix channel wrapper =
       Value | Deref -> ""
     | Fun [] -> " ()"
     | Fun [_] -> " arg"
-    | Fun list ->
+    | Fun _list ->
         Printf.sprintf " (%s)" (String.concat ", " arguments_list) in
   let convert i ty =
     let arg = Printf.sprintf "arg%d" i in
@@ -1337,7 +1337,7 @@ let print_pycaml indent prefix channel wrapper =
       Value | Deref -> ""
     | Fun [] -> " ()"
     | Fun [_] -> " arg"
-    | Fun list ->
+    | Fun _list ->
         Printf.sprintf " %s" (String.concat " " converted_arguments_list) in
   Printf.fprintf channel "%slet %s%s = %s%s%s\n"
     indent symbol_lowercase arguments_tuple prefix symbol_lowercase
@@ -1345,6 +1345,8 @@ let print_pycaml indent prefix channel wrapper =
 
 let print_pycamls indent prefix channel wrappers =
   List.iter (print_pycaml indent prefix channel) wrappers
+
+module Set_string = Set.Make(String)
 
 let print_all_externals channel =
   Printf.fprintf channel "(** Low-level bindings. *)
@@ -1356,15 +1358,15 @@ let print_all_externals channel =
 (** Python 2 specific bindings. *)
 module Python2 = struct\n";
   print_externals "  " "Python2_" channel wrappers_python2;
-  Printf.fprintf channel "end
+  Printf.fprintf channel "end\n
 (** UCS2 specific bindings. *)
 module UCS2 = struct\n";
   print_externals "  " "UCS2_" channel wrappers_ucs2;
-  Printf.fprintf channel "end
+  Printf.fprintf channel "end\n
 (** UCS4 specific bindings. *)
 module UCS4 = struct\n";
   print_externals "  " "UCS4_" channel wrappers_ucs4;
-  Printf.fprintf channel "end
+  Printf.fprintf channel "end\n
 (** Python 3 specific bindings. *)
 module Python3 = struct\n";
   print_externals "  " "Python3_" channel wrappers_python3;
@@ -1372,7 +1374,13 @@ module Python3 = struct\n";
 (** Automatic wrappers for Pycaml_compat. *)
 module Pycaml = struct\n";
   print_pycamls "  " "" channel wrappers;
-  print_pycamls "  " "Python2." channel wrappers_python2;
+  let wrappers_python2_not_in_python3 =
+    let python3_symbols =
+      List.map (fun w -> w.symbol) wrappers_python3 |> Set_string.of_list
+    in
+    List.filter (fun w -> not (Set_string.mem w.symbol python3_symbols)) wrappers_python2
+  in
+  print_pycamls "  " "Python2." channel wrappers_python2_not_in_python3;
   print_pycamls "  " "Python3." channel wrappers_python3;
   Printf.fprintf channel "end\n"
 

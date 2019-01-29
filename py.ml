@@ -45,6 +45,8 @@ external pycapsule_isvalid: Pytypes.pyobject -> string -> int
       = "Python27_PyCapsule_IsValid_wrapper"
 
 external ucs: unit -> ucs = "py_get_UCS"
+(* Avoid warning 32. *)
+let () = ignore (UCSNone, UCS2, UCS4)
 
 let initialized = ref false
 
@@ -1399,7 +1401,7 @@ module Object = struct
       try
         try
           repr_or_string repr v
-        with E (ty, value) ->
+        with E (_ty, _value) ->
           repr_or_string (Pervasives.not repr) v
       with E (ty, value) ->
         Printf.sprintf "[ERROR] %s: %s" (to_string ty) (to_string value)
@@ -1494,7 +1496,7 @@ module Number = struct
 
   let number_and v0 v1 = check_not_null (Pywrappers.pynumber_and v0 v1)
 
-  let check v = Pywrappers.pynumber_check v <> 0
+  let _check v = Pywrappers.pynumber_check v <> 0
 
   let divmod v0 v1 = check_not_null (Pywrappers.pynumber_divmod v0 v1)
 
@@ -1606,8 +1608,6 @@ module Number = struct
   let ( lor ) = number_or
 
   let ( lxor ) = number_xor
-
-  let ( lnot ) = invert
 
   let ( lsl ) = lshift
 
@@ -1968,7 +1968,7 @@ module Import = struct
   let import_module_opt name =
     try
       Some (check_not_null (Pywrappers.pyimport_importmodule name))
-    with E (e, msg)
+    with E (e, _msg)
         when
           let ty = Object.to_string e in
           ty = "<class 'ModuleNotFoundError'>" ||
@@ -2182,13 +2182,13 @@ module Array = struct
       ["__len__",
        Callable.of_function_as_tuple (fun _tuple -> Int.of_int length);
        "__getitem__", Callable.of_function_as_tuple (fun tuple ->
-         let (self, key) = Tuple.to_tuple2 tuple in
+         let (_self, key) = Tuple.to_tuple2 tuple in
          getter (Long.to_int key));
        "__setitem__", Callable.of_function_as_tuple (fun tuple ->
-         let (self, key, value) = Tuple.to_tuple3 tuple in
+         let (_self, key, value) = Tuple.to_tuple3 tuple in
          setter (Long.to_int key) value;
          none);
-       "__iter__", Callable.of_function_as_tuple (fun tuple ->
+       "__iter__", Callable.of_function_as_tuple (fun _tuple ->
          let cursor = ref 0 in
          let next () =
            let index = !cursor in
