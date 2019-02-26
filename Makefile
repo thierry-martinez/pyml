@@ -34,7 +34,11 @@ ifneq ($(HAVE_OCAMLFIND),no)
 	OCAMLDOC := $(OCAMLFIND) ocamldoc
 	STDCOMPAT := $(shell $(OCAMLFIND) query stdcompat)
         OCAMLCFLAGS := -package stdcompat
-        OCAMLLDFLAGS := -package stdcompat -linkpkg
+        OCAMLLDFLAGS := -linkpkg
+	OCAMLBYTECODELIBS := -package unix,stdcompat
+	OCAMLBYTECODELIBSNUMPY := -package unix,stdcompat,bigarray
+	OCAMLNATIVELIBS := -package unix,stdcompat
+	OCAMLNATIVELIBSNUMPY := -package unix,stdcompat,bigarray
 else
 	OCAMLC := $(shell \
 		if ocamlc.opt -version >/dev/null 2>&1; then \
@@ -62,6 +66,10 @@ $(error There is no OCaml compiler available in path)
 	STDCOMPAT := .
         OCAMLCFLAGS :=
         OCAMLLDFLAGS :=
+	OCAMLBYTECODELIBS := unix.cma stdcompat.cma
+	OCAMLBYTECODELIBSNUMPY := unix.cma stdcompat.cma bigarray.cma
+	OCAMLNATIVELIBS := unix.cmxa stdcompat.cmxa
+	OCAMLNATIVELIBSNUMPY := unix.cmxa stdcompat.cmxa bigarray.cmxa
 endif
 
 ifeq ($(wildcard $(STDCOMPAT)/stdcompat.cma),)
@@ -84,6 +92,7 @@ ifeq ($(OCAMLOPTEXE),)
 	CMAX := cma
 	ALLOPT :=
 	TESTSOPT :=
+	OCAMLPREFERREDLIBS := $(OCAMLBYTECODELIBS)
 else
 	OCAMLOPT := $(OCAMLOPTEXE)
 	OCAMLCOPT := $(OCAMLOPT)
@@ -91,6 +100,7 @@ else
 	CMAX := cmxa
 	ALLOPT := all.native
 	TESTSOPT := tests.native
+	OCAMLPREFERREDLIBS := $(OCAMLNATIVELIBS)
 endif
 
 ifeq (4.06.0,$(word 1,$(sort 4.06.0 $(OCAMLVERSION))))
@@ -247,7 +257,7 @@ endif
 pyutils.cmo pyutils.cmx : pyutils.cmi
 
 generate : pyutils.$(CMOX) generate.$(CMOX)
-	$(OCAMLCOPT) $(OCAMLLDFLAGS) stdcompat.$(CMAX) unix.$(CMAX) $^ -o $@
+	$(OCAMLCOPT) $(OCAMLLDFLAGS) $(OCAMLPREFERREDLIBS) $^ -o $@
 
 generate.cmo : generate.ml
 
@@ -262,22 +272,22 @@ pywrappers.mli : pywrappers.ml pytypes.cmi pyml_arch.cmi
 	$(OCAMLC) -i $< >$@
 
 pyml_tests.native : py.cmi pyml.cmxa pyml_tests_common.cmx pyml_tests.cmx
-	$(OCAMLOPT) $(OCAMLLDFLAGS) unix.cmxa stdcompat.cmxa pyml.cmxa \
+	$(OCAMLOPT) $(OCAMLLDFLAGS) $(OCAMLNATIVELIBS) pyml.cmxa \
 		pyml_tests_common.cmx pyml_tests.cmx -o $@
 
 pyml_tests.bytecode : py.cmi pyml.cma pyml_tests_common.cmo pyml_tests.cmo
-	$(OCAMLC) $(OCAMLLDFLAGS) unix.cma stdcompat.cma pyml.cma \
+	$(OCAMLC) $(OCAMLLDFLAGS) $(OCAMLBYTECODELIBS) pyml.cma \
 		pyml_tests_common.cmo pyml_tests.cmo -o $@
 
 numpy_tests.native : py.cmi pyml.cmxa numpy.cmxa \
 		pyml_tests_common.cmx numpy_tests.cmx
-	$(OCAMLOPT) $(OCAMLLDFLAGS) \
-		unix.cmxa stdcompat.cmxa pyml.cmxa bigarray.cmxa numpy.cmxa \
+	$(OCAMLOPT) $(OCAMLLDFLAGS) $(OCAMLNATIVELIBSNUMPY) \
+		pyml.cmxa numpy.cmxa \
 		pyml_tests_common.cmx numpy_tests.cmx -o $@
 
 numpy_tests.bytecode : py.cmi pyml.cma numpy.cma \
 		pyml_tests_common.cmo numpy_tests.cmo
-	$(OCAMLC) $(OCAMLLDFLAGS) unix.cma stdcompat.cma pyml.cma bigarray.cma \
+	$(OCAMLC) $(OCAMLLDFLAGS) $(OCAMLBYTECODELIBSNUMPY) pyml.cma \
 		numpy.cma pyml_tests_common.cmo numpy_tests.cmo -o $@
 
 pyml_arch.ml : $(PYML_ARCH)
@@ -331,8 +341,7 @@ pymltop_libdir.ml :
 	fi >$@
 
 pymltop : pyml.cma numpy.cma pymltop_libdir.cmo pytop.cmo
-	$(OCAMLMKTOP) $(OCAMLLDFLAGS) unix.cma stdcompat.cma bigarray.cma $^ \
-		-o $@
+	$(OCAMLMKTOP) $(OCAMLLDFLAGS) $(OCAMLLIBNUMPYFLAGS) $(OCAMLBYTECODELIBSNUMPY) $^ -o $@
 
 pyutop.cmo : pyutop.ml
 ifeq ($(HAVE_OCAMLFIND),no)
