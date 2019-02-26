@@ -33,6 +33,8 @@ ifneq ($(HAVE_OCAMLFIND),no)
 	OCAMLDEP := $(OCAMLFIND) ocamldep
 	OCAMLDOC := $(OCAMLFIND) ocamldoc
 	STDCOMPAT := $(shell $(OCAMLFIND) query stdcompat)
+        OCAMLCFLAGS := -package stdcompat
+        OCAMLLDFLAGS := -package stdcompat -linkpkg
 else
 	OCAMLC := $(shell \
 		if ocamlc.opt -version >/dev/null 2>&1; then \
@@ -58,6 +60,8 @@ $(error There is no OCaml compiler available in path)
 	OCAMLDEP := ocamldep
 	OCAMLDOC := ocamldoc
 	STDCOMPAT := .
+        OCAMLCFLAGS :=
+        OCAMLLDFLAGS :=
 endif
 
 ifeq ($(wildcard $(STDCOMPAT)/stdcompat.cma),)
@@ -98,9 +102,6 @@ endif
 MODULES := pyml_arch pyutils pytypes pywrappers py pycaml $(PYOPS)
 
 VERSION := $(shell date "+%Y%m%d")
-
-OCAMLCFLAGS := -I $(STDCOMPAT)
-OCAMLLDFLAGS := -I $(STDCOMPAT)
 
 OCAMLLIBFLAGS := -cclib "-L. -lpyml_stubs"
 OCAMLLIBNUMPYFLAGS := -cclib "-L. -lnumpy_stubs"
