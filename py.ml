@@ -1422,6 +1422,9 @@ module Object = struct
 
   let call callable args kw =
     check_not_null (Pywrappers.pyobject_call callable args kw)
+
+  let size obj =
+    check_int (Pywrappers.pyobject_size obj)
 end
 
 let exception_printer exn =

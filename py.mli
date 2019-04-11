@@ -255,6 +255,10 @@ module Object: sig
   val call: t -> t -> t -> t
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/object.html#c.PyObject_Call} PyObject_Call} *)
+
+  val size: t -> int
+  (** Wrapper for
+      {{:https://docs.python.org/3/c-api/object.html#c.PyObject_Size} PyObject_Size} *)
 end
 
 exception E of Object.t * Object.t
