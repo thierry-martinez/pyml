@@ -198,11 +198,12 @@ let () =
           Pyml_tests_common.Passed;
       with Py.E (_, value) ->
         Pyml_tests_common.Failed (Py.Object.to_string value))
-
+(*
 let () =
   Pyml_tests_common.add_test
     ~title:"reinitialize"
     (fun () ->
+      Gc.full_major ();
       Py.finalize ();
       begin
         try
@@ -216,7 +217,7 @@ let () =
       Py.initialize ~verbose:true ?version ?minor ();
       Pyml_tests_common.Passed
     )
-
+*)
 let () =
   Pyml_tests_common.add_test
     ~title:"string conversion error"
@@ -406,6 +407,36 @@ array[1] = 43.
 ");
           assert (Stdcompat.Array.Floatarray.get array 0 = 42.);
           assert (Stdcompat.Array.Floatarray.get array 1 = 43.);
+          Pyml_tests_common.Passed
+        end)
+
+let () =
+  Pyml_tests_common.add_test ~title:"numpy crunch"
+    (fun () ->
+      if Py.Import.try_import_module "numpy" = None then
+        Pyml_tests_common.Disabled "numpy is not available"
+      else
+        begin
+          let array = Stdcompat.Float.Array.init 0x10000 float_of_int in
+          let numpy_array = Py.Array.numpy array in
+          let add =
+            Py.Module.get_function (Py.Import.import_module "numpy") "add" in
+          let rec crunch numpy_array n =
+            if n <= 0 then
+              numpy_array
+            else
+              let array =
+                Stdcompat.Float.Array.map_from_array Stdcompat.Fun.id
+                  (Py.Sequence.to_array_map Py.Float.to_float
+                     (add [| numpy_array; numpy_array |])) in
+              crunch (Py.Array.numpy array) (pred n) in
+          ignore (crunch (Py.Array.numpy array) 0x100);
+          assert (Stdcompat.Float.Array.length array = 0x10000);
+          for i = 0 to 0x10000 - 1 do
+            assert (Stdcompat.Float.Array.get array i = float_of_int i)
+          done;
+          Stdcompat.Float.Array.set array 1 42.;
+          assert (Py.Float.to_float (Py.Sequence.get numpy_array 1) = 42.);
           Pyml_tests_common.Passed
         end)
 

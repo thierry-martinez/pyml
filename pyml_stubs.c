@@ -1338,6 +1338,18 @@ pyarray_of_floatarray_wrapper(
 }
 
 CAMLprim value
+pyarray_move_floatarray_wrapper(value numpy_array_ocaml, value array_ocaml)
+{
+    CAMLparam2(numpy_array_ocaml, array_ocaml);
+    pyml_assert_initialized();
+    PyObject *numpy_array = pyml_unwrap(numpy_array_ocaml);
+    PyArrayObject_fields *fields =
+      (PyArrayObject_fields *) pyobjectdescr(numpy_array);
+    fields->data = (void *) array_ocaml;
+    CAMLreturn(Val_unit);
+}
+
+CAMLprim value
 PyLong_FromString_wrapper(value str_ocaml, value base_ocaml)
 {
     CAMLparam2(str_ocaml, base_ocaml);

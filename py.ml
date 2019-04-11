@@ -2229,6 +2229,9 @@ module Array = struct
     -> floatarray
     -> Object.t = "pyarray_of_floatarray_wrapper"
 
+  external pyarray_move_floatarray: Object.t -> floatarray
+    -> unit = "pyarray_move_floatarray_wrapper"
+
   let get_numpy_info () =
     match !numpy_info with
       Some info -> info
@@ -2252,16 +2255,34 @@ module Array = struct
   let pyarray_type () =
     get_pyarray_type (numpy_api ())
 
+  let numpy_get_array a =
+    let info = get_numpy_info () in
+    info.array_unpickle (Object.find_attr_string a "ocamlarray")
+
+  let clean_weak_ref weak_ref alarm_ref () =
+    match Weak.get weak_ref 0 with
+    | None ->
+        begin
+          match !alarm_ref with
+          | None -> ()
+          | Some alarm ->
+              Gc.delete_alarm alarm;
+              alarm_ref := None
+        end
+    | Some numpy_array ->
+        let array = numpy_get_array numpy_array in
+        pyarray_move_floatarray numpy_array array
+
   let numpy a =
     let info = get_numpy_info () in
     let result = pyarray_of_floatarray info.numpy_api info.pyarray_subtype a in
     let result = check_not_null result in
     Object.set_attr_string result "ocamlarray" (info.array_pickle a);
+    let weak_ref = Weak.create 1 in
+    Weak.set weak_ref 0 (Some result);
+    let alarm_ref = ref None in
+    alarm_ref := Some (Gc.create_alarm (clean_weak_ref weak_ref alarm_ref));
     result
-
-  let numpy_get_array a =
-    let info = get_numpy_info () in
-    info.array_unpickle (Object.find_attr_string a "ocamlarray")
 end
 
 module Run = struct
