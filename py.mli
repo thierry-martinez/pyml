@@ -1896,7 +1896,7 @@ module Array: sig
       raise an exception in [setter]. *)
 
   val of_array: ('a -> Object.t) -> (Object.t -> 'a) -> 'a array -> Object.t
-  (** [Py.Array.of_indexed_structure getter setter array] returns a Python
+  (** [Py.Array.of_array getter setter array] returns a Python
       array-like structure accessing the elements of [array] via [getter]
       and [setter].
       To make the array-like structure read-only,
