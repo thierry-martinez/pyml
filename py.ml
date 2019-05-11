@@ -902,6 +902,8 @@ module Type = struct
   let is_subtype a b =
     bool_of_int (Pywrappers.pytype_issubtype a b)
 
+  external is_none: pyobject -> bool = "pytype_is_none"
+
   let name t =
     match t with
       Unknown -> "Unknown"

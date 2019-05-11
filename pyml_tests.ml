@@ -441,5 +441,20 @@ let () =
         end)
 
 let () =
+  Pyml_tests_common.add_test
+    ~title:"none"
+    (fun () ->
+      let none = Py.none in
+      assert (none = Py.none);
+      assert (Py.Type.is_none none);
+      assert (Py.Type.get none = None);
+      let not_none = Py.Long.of_int 42 in
+      assert (not_none <> Py.none);
+      assert (not (Py.Type.is_none not_none));
+      assert (Py.Type.get not_none <> None);
+      Pyml_tests_common.Passed
+    )
+
+let () =
   if not !Sys.interactive then
     Pyml_tests_common.main ()
