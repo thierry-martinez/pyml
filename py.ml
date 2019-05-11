@@ -875,6 +875,11 @@ module Object_ = struct
 end
 
 module Type = struct
+  (* We rely on physical equality to check if an object is none as
+     [pyml_wrap] ensures that the same ocaml value is always used
+     to represent [None]. *)
+  let is_none v = v == none
+
   let none = None
 
   type t =
@@ -901,8 +906,6 @@ module Type = struct
 
   let is_subtype a b =
     bool_of_int (Pywrappers.pytype_issubtype a b)
-
-  external is_none: pyobject -> bool = "pytype_is_none"
 
   let name t =
     match t with

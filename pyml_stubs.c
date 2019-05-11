@@ -934,17 +934,6 @@ pytype(value object_ocaml)
 }
 
 CAMLprim value
-pytype_is_none(value object_ocaml)
-{
-    CAMLparam1(object_ocaml);
-    pyml_assert_initialized();
-    PyObject *object = pyml_unwrap(object_ocaml);
-    if (object == Python__Py_NoneStruct)
-      return Val_true;
-    return Val_false;
-}
-
-CAMLprim value
 PyObject_CallFunctionObjArgs_wrapper(
     value callable_ocaml, value arguments_ocaml)
 {
