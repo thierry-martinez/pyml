@@ -448,6 +448,10 @@ let () =
       assert (none = Py.none);
       assert (Py.Type.is_none none);
       assert (Py.Type.get none = None);
+      let none = Py.Run.eval "None" in
+      assert (none = Py.none);
+      assert (Py.Type.is_none none);
+      assert (Py.Type.get none = None);
       let not_none = Py.Long.of_int 42 in
       assert (not_none <> Py.none);
       assert (not (Py.Type.is_none not_none));
