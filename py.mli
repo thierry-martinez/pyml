@@ -76,7 +76,26 @@ val check_error: unit -> unit
 (** General functions to handle Python values *)
 module Object: sig
   type t = Pytypes.pyobject
-  (** The type of a Python value. *)
+  (** The type of a Python value.
+
+   Structural comparison of values of type [Py.Object.t] rely on
+   Python comparison of underlying values. That is to say, if [u] and [v]
+   are two values of type [Py.Object.t], and by abuse of notations, if we
+   denote also [u] and [v] their respective value in Python, we have [u = v]
+   in OCaml if and only if [u == v] in Python, and [u < v] in OCaml if and
+   only if [u < v] in Python, etc.
+
+   Moreover, there are five values which are handled specially:
+   - {!val:Py.null}: the value [NULL] used in the Python API for error case
+   - {!val:Py.none}: the value [None];
+   - {!val:Py.Bool.t}: the value [True];
+   - {!val:Py.Bool.f}: the value [False];
+   - {!val:Py.Tuple.empty}: the value [()].
+
+   These values are guaranteed to be unique, so that the physical equality
+   can be used to compare against their definitions: for instance, a value
+   [v] of type [Py.Object.t] is [None] if and only if [v == Py.none].
+   *)
 
   val del_attr: t -> t -> unit
   (** Wrapper for
@@ -269,14 +288,26 @@ exception E of Object.t * Object.t
 val null: Object.t
 (** The value [NULL] of the C Python API. [null] is useful for calling
     directly the functions of {!Pywrappers} module.
-    The value should not appear when using the functions of the [Py] module. *)
+    The value should not appear when using the functions of the [Py] module.
+    This value is guaranteed to be the unique value associated to [NULL]. *)
 
-val none: Object.t
-(** The value [None] of Python. *)
+val is_null: Object.t -> bool
+(** [Py.is_null v] is true if and only if [v] is [NULL].
+    Since [Py.none] is guaranteed to be the unique value associated to [NULL],
+    [Py.is_null v] is equivalent to [v == Py.null]. *)
 
 val check_not_null: Object.t -> Object.t
 (** [check_not_null v] checks that [v] is not [null] and returns [v].
     Raises the current Python error as exception otherwise. *)
+
+val none: Object.t
+(** The value [None] of Python.
+    This value is guaranteed to be the unique value associated to [None]. *)
+
+val is_none: Object.t -> bool
+(** [Py.is_none v] is true if and only if [v] is [None].
+    Since [Py.none] is guaranteed to be the unique value associated to [None],
+    [Py.is_none v] is equivalent to [v == Py.none]. *)
 
 val set_program_name: string -> unit
 (** Sets the program name (by default, [Sys.argv.(0)]).
@@ -340,10 +371,22 @@ val get_build_info: unit -> string
 (** Interface for Python values of type [Bool]. *)
 module Bool: sig
   val t: Object.t
-  (** The Python value [True]. *)
+  (** The Python value [True].
+      This value is guaranteed to be the unique value associated to [True]. *)
+
+  val is_true: Object.t -> bool
+  (** [Py.is_true v] is true if and only if [v] is [True].
+      Since [Py.Bool.t] is guaranteed to be the unique value associated to [True],
+      [Py.is_true v] is equivalent to [v == Py.t]. *)
 
   val f: Object.t
-  (** The Python value [False]. *)
+  (** The Python value [False].
+      This value is guaranteed to be the unique value associated to [False]. *)
+
+  val is_false: Object.t -> bool
+  (** [Py.is_false v] is true if and only if [v] is [False].
+      Since [Py.Bool.f] is guaranteed to be the unique value associated to [False],
+      [Py.is_false f] is equivalent to [v == Py.f]. *)
 
   val check: Object.t -> bool
   (** [check v] returns [true] if [v = t] or [v = f]. *)
@@ -1651,7 +1694,13 @@ module Tuple: sig
       {{:https://docs.python.org/3/c-api/tuple.html#c.PyTuple_New} PyTuple_New} *)
 
   val empty: Object.t
-  (** The empty tuple [()]. *)
+  (** The empty tuple [()].
+      This value is guaranteed to be the unique value associated to [()]. *)
+
+    val is_empty: Object.t -> bool
+  (** [Py.is_empty v] is true if and only if [v] is [()].
+      Since [Py.Tuple.empty] is guaranteed to be the unique value associated to
+      [()], [Py.is_empty v] is equivalent to [v == Py.empty]. *)
 
   val get_item: Object.t -> int -> Object.t
   (** Equivalent to {!Sequence.get_item}. *)

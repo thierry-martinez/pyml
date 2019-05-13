@@ -647,8 +647,14 @@ let version_minor () =
 let null =
   pynull ()
 
+let is_null v =
+  v == null
+
 let none =
   pynone ()
+
+let is_none v =
+  v == none
 
 exception E of pyobject * pyobject
 
@@ -988,7 +994,13 @@ end
 module Bool = struct
   let t = pytrue ()
 
+  let is_true v =
+    v == t
+
   let f = pyfalse ()
+
+  let is_false v =
+    v == f
 
   let check v = v = t || v = f
 
@@ -1772,6 +1784,9 @@ module Tuple = struct
   let check o = Type.get o = Type.Tuple
 
   let empty = pytuple_empty ()
+
+  let is_empty v =
+    v == empty
 
   let get_slice tuple i0 i1 =
     check_not_null (Pywrappers.pytuple_getslice tuple i0 i1)
