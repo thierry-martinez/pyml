@@ -881,6 +881,11 @@ module Object_ = struct
 end
 
 module Type = struct
+  (* We rely on physical equality to check if an object is none as
+     [pyml_wrap] ensures that the same ocaml value is always used
+     to represent [None]. *)
+  let is_none v = v == none
+
   let none = None
 
   type t =

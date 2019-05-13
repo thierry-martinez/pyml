@@ -1866,6 +1866,9 @@ module Type: sig
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/type.html#c.PyType_IsSubtype} PyType_IsSubtype} *)
 
+  val is_none: Object.t -> bool
+  (** [is_none o] returns [true] if the Python object [o] is [None]. *)
+
   val name: t -> string
   (** [name t] returns a string that represents the type [t]. *)
 
