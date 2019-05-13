@@ -291,7 +291,7 @@ val null: Object.t
     The value should not appear when using the functions of the [Py] module.
     This value is guaranteed to be the unique value associated to [NULL]. *)
 
-val is_none: Object.t -> bool
+val is_null: Object.t -> bool
 (** [Py.is_null v] is true if and only if [v] is [NULL].
     Since [Py.none] is guaranteed to be the unique value associated to [NULL],
     [Py.is_null v] is equivalent to [v == Py.null]. *)
@@ -1865,9 +1865,6 @@ module Type: sig
   val is_subtype: Object.t -> Object.t -> bool
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/type.html#c.PyType_IsSubtype} PyType_IsSubtype} *)
-
-  val is_none: Object.t -> bool
-  (** [is_none o] returns [true] if the Python object [o] is [None]. *)
 
   val name: t -> string
   (** [name t] returns a string that represents the type [t]. *)
