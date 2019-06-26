@@ -1419,7 +1419,7 @@ module Object = struct
         try
           repr_or_string repr v
         with E (_ty, _value) ->
-          repr_or_string (Pervasives.not repr) v
+          repr_or_string (Stdlib.not repr) v
       with E (ty, value) ->
         Printf.sprintf "[ERROR] %s: %s" (to_string ty) (to_string value)
     else
