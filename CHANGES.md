@@ -1,7 +1,7 @@
 [*] marks changes that break compatibility with previous versions.
 
-Next version
-============
+2019-06-26
+==========
 - Support for debug build of Python library
   (Suggested by Arlen Cox:
    https://github.com/thierry-martinez/pyml/issues/18)
