@@ -1,3 +1,6 @@
+module Stdlib_printexc = Printexc
+(* Workaround for opaque Printexc bug in Stdcompat 9 *)
+
 open Stdcompat
 
 type pyobject = Pytypes.pyobject
@@ -1452,7 +1455,7 @@ let exception_printer exn =
         (Object.to_string value))
   | _ -> None
 
-let () = Printexc.register_printer exception_printer
+let () = Stdlib_printexc.register_printer exception_printer
 
 module Long = struct
   let check o = Type.get o = Type.Long
