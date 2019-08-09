@@ -460,7 +460,7 @@ pycall_callback(PyObject *obj, PyObject *args)
     void *p = unwrap_capsule(obj, "ocaml-closure");
     if (!p) {
         Py_INCREF(Python__Py_NoneStruct);
-        return Python__Py_NoneStruct;
+        CAMLreturnT(PyObject *, Python__Py_NoneStruct);
     }
     ml_func = *(value *) p;
     ml_args = pyml_wrap(args, false);
@@ -479,7 +479,7 @@ pycall_callback_with_keywords(PyObject *obj, PyObject *args, PyObject *keywords)
     void *p = unwrap_capsule(obj, "ocaml-closure");
     if (!p) {
         Py_INCREF(Python__Py_NoneStruct);
-        return Python__Py_NoneStruct;
+        CAMLreturnT(PyObject *, Python__Py_NoneStruct);
     }
     ml_func = *(value *) p;
     ml_args = pyml_wrap(args, false);
