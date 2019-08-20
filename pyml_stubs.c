@@ -499,26 +499,6 @@ caml_destructor(PyObject *v, const char *capsule_name)
 }
 
 static void
-camldestr_closure(PyObject *v)
-{
-    void *valptr = (void *)unwrap_capsule(v, "ocaml-closure");
-    char *ml_doc = (char *)((PyMethodDef *)(valptr + sizeof(value)))->ml_doc;
-    caml_remove_global_root((value *)valptr);
-    free(valptr);
-    free(ml_doc);
-}
-
-static PyObject *
-camlwrap_closure(value val, void *aux_str, int size)
-{
-    value *v = (value *) malloc(sizeof(value) + size);
-    *v = val;
-    memcpy((void *)v + sizeof(value), aux_str, size);
-    caml_register_global_root(v);
-    return wrap_capsule(v, "ocaml-closure", camldestr_closure);
-}
-
-static void
 camldestr_capsule(PyObject *v)
 {
     caml_destructor(v, "ocaml-capsule");
@@ -616,6 +596,21 @@ deref_not_null(void *pointer)
     }
 }
 
+struct pyml_closure {
+  value value;
+  PyMethodDef method;
+};
+
+static void
+camldestr_closure(PyObject *v)
+{
+    struct pyml_closure *valptr = unwrap_capsule(v, "ocaml-closure");
+    const char *ml_doc = valptr->method.ml_doc;
+    caml_remove_global_root((value *)valptr);
+    free(valptr);
+    free((void *) ml_doc);
+}
+
 CAMLprim value
 pyml_wrap_closure(value docstring, value closure)
 {
@@ -634,7 +629,11 @@ pyml_wrap_closure(value docstring, value closure)
         ml.ml_meth = (PyCFunction) pycall_callback_with_keywords;
     }
     ml.ml_doc = strdup(String_val(docstring));
-    obj = camlwrap_closure(Field(closure, 0), &ml, sizeof(ml));
+    struct pyml_closure *v = malloc(sizeof(struct pyml_closure));
+    v->value = Field(closure, 0);
+    v->method = ml;
+    caml_register_global_root(&v->value);
+    obj = wrap_capsule(v, "ocaml-closure", camldestr_closure);
     ml_def = (PyMethodDef *) caml_aux(obj);
     PyObject *f = Python_PyCFunction_NewEx(ml_def, obj, NULL);
     CAMLreturn(pyml_wrap(f, true));
