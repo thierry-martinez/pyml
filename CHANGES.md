@@ -1,5 +1,16 @@
 [*] marks changes that break compatibility with previous versions.
 
+Next version
+============
+
+- [PR 36] GC issue when registering a function with a dynamically
+  allocated docstring
+  (Fixed by Laurent Mazare, https://github.com/thierry-martinez/pyml/pull/36)
+
+- [PR 34] Ensure that every function starting with "CAMLparamK" ends with
+  "CAMLreturnX"
+  (Fixed by Xavier Clerc, https://github.com/thierry-martinez/pyml/pull/34)
+
 2019-06-26
 ==========
 - Support for debug build of Python library
