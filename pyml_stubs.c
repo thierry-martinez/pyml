@@ -501,7 +501,11 @@ caml_destructor(PyObject *v, const char *capsule_name)
 static void
 camldestr_closure(PyObject *v)
 {
-    caml_destructor(v, "ocaml-closure");
+    void *valptr = (void *)unwrap_capsule(v, "ocaml-closure");
+    char *ml_doc = (char *)((PyMethodDef *)(valptr + sizeof(value)))->ml_doc;
+    caml_remove_global_root((value *)valptr);
+    free(valptr);
+    free(ml_doc);
 }
 
 static PyObject *
@@ -629,7 +633,7 @@ pyml_wrap_closure(value docstring, value closure)
         ml.ml_flags = 3;
         ml.ml_meth = (PyCFunction) pycall_callback_with_keywords;
     }
-    ml.ml_doc = String_val(docstring);
+    ml.ml_doc = strdup(String_val(docstring));
     obj = camlwrap_closure(Field(closure, 0), &ml, sizeof(ml));
     ml_def = (PyMethodDef *) caml_aux(obj);
     PyObject *f = Python_PyCFunction_NewEx(ml_def, obj, NULL);
