@@ -460,5 +460,26 @@ let () =
     )
 
 let () =
+  Pyml_tests_common.add_test
+    ~title:"docstring"
+    (fun () ->
+      Gc.full_major ();
+      let fn =
+        let docstring = Printf.sprintf "test%d" 42 in
+        Py.Callable.of_function ~docstring (fun _ -> Py.none)
+      in
+      Gc.full_major ();
+      let other_string = Printf.sprintf "test%d" 43 in
+      let doc = Py.Object.get_attr_string fn "__doc__" in
+      begin
+        match doc with
+          None -> failwith "None!"
+        | Some doc -> assert (Py.String.to_string doc = "test42")
+      end;
+      ignore other_string;
+      Pyml_tests_common.Passed
+    )
+
+let () =
   if not !Sys.interactive then
     Pyml_tests_common.main ()
