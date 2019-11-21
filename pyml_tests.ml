@@ -481,5 +481,33 @@ let () =
     )
 
 let () =
+  Pyml_tests_common.add_test
+    ~title:"is-instance"
+    (fun () ->
+      let forty_two = Py.Int.of_int 42 in
+      let forty_two_str = Py.String.of_string "42" in
+      let int = Py.Dict.find_string (Py.Eval.get_builtins ()) "int" in
+      assert (Py.Object.is_instance forty_two int);
+      assert (not (Py.Object.is_instance forty_two_str int));
+      Pyml_tests_common.Passed
+    )
+
+let () =
+  Pyml_tests_common.add_test
+    ~title:"is-subclass"
+    (fun () ->
+      let int = Py.Dict.find_string (Py.Eval.get_builtins ()) "int" in
+      let cls1 = Py.Class.init ~parents:[int] "cls1" in
+      let cls2 = Py.Class.init ~parents:[cls1] "cls2" in
+      assert (Py.Object.is_subclass cls1 int);
+      assert (not (Py.Object.is_subclass int cls1));
+      assert (Py.Object.is_subclass cls2 cls1);
+      assert (not (Py.Object.is_subclass cls1 cls2));
+      assert (Py.Object.is_subclass cls2 int);
+      assert (not (Py.Object.is_subclass int cls2));
+      Pyml_tests_common.Passed
+    )
+
+let () =
   if not !Sys.interactive then
     Pyml_tests_common.main ()
