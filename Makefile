@@ -117,7 +117,7 @@ OCAMLLIBFLAGS := -cclib "-L. -lpyml_stubs"
 OCAMLLIBNUMPYFLAGS := -cclib "-L. -lnumpy_stubs"
 
 OCAMLLIBFLAGSNATIVE := $(OCAMLLIBFLAGS)
-OCAMLLIBFLAGSBYTECODE := -custom $(OCAMLLIBFLAGS)
+OCAMLLIBFLAGSBYTECODE := $(OCAMLLIBFLAGS)
 
 ARCH := $(shell uname)
 
@@ -310,7 +310,7 @@ pyml_arch.cmo pyml_arch.cmx : pyml_arch.cmi
 pyml_stubs.o : pyml_wrappers.inc
 
 pyml.cma : $(MODULES:=.cmo) libpyml_stubs.a
-	$(OCAMLC) $(OCAMLLIBFLAGSBYTECODE) -a $(MODULES:=.cmo) -o $@
+	$(OCAMLC) $(OCAMLLIBFLAGSBYTECODE) -a -dllib -lpyml_stubs $(MODULES:=.cmo) -o $@
 
 pyml.cmxa : $(MODULES:=.cmx) libpyml_stubs.a
 	$(OCAMLOPT) $(OCAMLLIBFLAGSNATIVE) -a $(MODULES:=.cmx) -o $@
@@ -322,7 +322,7 @@ lib%.a : %.o
 	$(OCAMLMKLIB) -o $(basename $<) $<
 
 numpy.cma : numpy.cmo libnumpy_stubs.a
-	$(OCAMLC) -custom $(OCAMLLIBNUMPYFLAGS) -a numpy.cmo -o $@
+	$(OCAMLC) $(OCAMLLIBNUMPYFLAGS) -a -dllib -lnumpy_stubs numpy.cmo -o $@
 
 numpy.cmxa : numpy.cmx libnumpy_stubs.a
 	$(OCAMLOPT) $(OCAMLLIBNUMPYFLAGS) -a numpy.cmx -o $@

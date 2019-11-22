@@ -11,6 +11,9 @@ Next version
   "CAMLreturnX"
   (Fixed by Xavier Clerc, https://github.com/thierry-martinez/pyml/pull/34)
 
+- Do not use -custom and fix dynamic loading of stubs
+  (Fixed by Stéphane Glondu)
+
 2019-06-26
 ==========
 - Support for debug build of Python library
