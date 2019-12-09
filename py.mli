@@ -185,6 +185,14 @@ module Object: sig
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/object.html#c.PyObject_Not} PyObject_Not} *)
 
+  val is_instance: t -> t -> bool
+  (** Wrapper for
+      {{:https://docs.python.org/3/c-api/object.html#c.PyObject_IsInstance} PyObject_IsInstance} *)
+
+  val is_subclass: t -> t -> bool
+  (** Wrapper for
+      {{:https://docs.python.org/3/c-api/object.html#c.PyObject_IsSubclass} PyObject_IsSubclass} *)
+
   val print: t -> out_channel file -> unit
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/object.html#c.PyObject_Print} PyObject_Print} *)

@@ -1370,6 +1370,10 @@ module Object = struct
 
   let not obj = bool_of_int (Pywrappers.pyobject_istrue obj)
 
+  let is_instance obj cls = bool_of_int (Pywrappers.pyobject_isinstance obj cls)
+
+  let is_subclass cls1 cls2 = bool_of_int (Pywrappers.pyobject_issubclass cls1 cls2)
+
   let print obj out_channel =
     assert_int_success
       (Pywrappers.pyobject_print obj
