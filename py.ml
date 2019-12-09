@@ -532,7 +532,13 @@ let find_interpreter interpreter version minor =
              | None -> which (Printf.sprintf "python%d" version'))
       with
       | Some result -> Some result
-      | None -> which "python"
+      | None ->
+          match which "python" with
+          | Some result -> Some result
+          | None ->
+              match which "python3" with
+              | Some result -> Some result
+              | None -> None
 
 let version_mismatch interpreter found expected =
   Printf.sprintf
