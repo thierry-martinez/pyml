@@ -11,8 +11,8 @@ Next version
   "CAMLreturnX"
   (Fixed by Xavier Clerc, https://github.com/thierry-martinez/pyml/pull/34)
 
-- Do not use -custom and fix dynamic loading of stubs
-  (Fixed by Stéphane Glondu)
+- [PR 38] Check for executable called python3.
+  (Fixed by Olaf Hering, https://github.com/thierry-martinez/pyml/pull/38)
 
 - [PR 39] Expose is-instance and is-subclass.
   (Fixed by Laurent Mazare, https://github.com/thierry-martinez/pyml/pull/39)
