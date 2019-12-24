@@ -601,25 +601,32 @@ struct pyml_closure {
   PyMethodDef method;
 };
 
+static char *anon_closure = "anonymous_closure";
+
 static void
 camldestr_closure(PyObject *v)
 {
     struct pyml_closure *valptr = unwrap_capsule(v, "ocaml-closure");
     const char *ml_doc = valptr->method.ml_doc;
+    const char *ml_name = valptr->method.ml_name;
     caml_remove_global_root((value *)valptr);
     free(valptr);
     free((void *) ml_doc);
+    if (ml_name != anon_closure) free((void *) ml_name);
 }
 
 CAMLprim value
-pyml_wrap_closure(value docstring, value closure)
+pyml_wrap_closure(value name, value docstring, value closure)
 {
-    CAMLparam2(docstring, closure);
+    CAMLparam3(name, docstring, closure);
     pyml_assert_initialized();
     PyMethodDef ml;
     PyObject *obj;
     PyMethodDef *ml_def;
-    ml.ml_name = "anonymous_closure";
+    ml.ml_name = anon_closure;
+    if (name != Val_int(0)) {
+      ml.ml_name = strdup(String_val(Field(name, 0)));
+    }
     if (Tag_val(closure) == 0) {
         ml.ml_flags = 1;
         ml.ml_meth = pycall_callback;

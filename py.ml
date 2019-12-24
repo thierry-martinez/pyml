@@ -21,7 +21,7 @@ external load_library: string option -> bool option -> unit = "py_load_library"
 external is_debug_build: unit -> bool = "py_is_debug_build"
 external unsetenv: string -> unit = "py_unsetenv"
 external finalize_library: unit -> unit = "py_finalize_library"
-external pywrap_closure: string -> closure -> pyobject
+external pywrap_closure: string option -> string -> closure -> pyobject
     = "pyml_wrap_closure"
 external pynull: unit -> pyobject = "PyNull_wrapper"
 external pynone: unit -> pyobject = "PyNone_wrapper"
@@ -1942,19 +1942,19 @@ module Callable = struct
         Err.set_error errtype msg;
         null
 
-  let of_function_as_tuple ?(docstring = "Anonymous closure") f =
-    check_not_null (pywrap_closure docstring
+  let of_function_as_tuple ?name ?(docstring = "Anonymous closure") f =
+    check_not_null (pywrap_closure name docstring
       (WithoutKeywords (handle_errors f)))
 
-  let of_function_as_tuple_and_dict ?(docstring = "Anonymous closure") f =
-    check_not_null (pywrap_closure docstring
+  let of_function_as_tuple_and_dict ?name ?(docstring = "Anonymous closure") f =
+    check_not_null (pywrap_closure name docstring
       (WithKeywords (fun args -> handle_errors (f args))))
 
-  let of_function ?docstring f =
-    of_function_as_tuple ?docstring (fun args -> f (Tuple.to_array args))
+  let of_function ?name ?docstring f =
+    of_function_as_tuple ?name ?docstring (fun args -> f (Tuple.to_array args))
 
-  let of_function_with_keywords ?docstring f =
-    of_function_as_tuple_and_dict ?docstring
+  let of_function_with_keywords ?name ?docstring f =
+    of_function_as_tuple_and_dict ?name ?docstring
       (fun args dict -> f (Tuple.to_array args) dict)
 
   let to_function_as_tuple c =

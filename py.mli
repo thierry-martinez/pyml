@@ -414,7 +414,7 @@ module Callable: sig
       Wrapper for
       {{: https://docs.python.org/3/c-api/object.html#c.PyCallable_Check} PyCallable_Check}. *)
 
-  val of_function_as_tuple: ?docstring:string -> (Object.t -> Object.t) ->
+  val of_function_as_tuple: ?name:string -> ?docstring:string -> (Object.t -> Object.t) ->
     Object.t
   (** [of_function_as_tuple f] returns a Python callable object that calls the
       function [f].
@@ -426,17 +426,17 @@ module Callable: sig
       If [f] raises any other exception, this exception bypasses the Python
       interpreter. *)
 
-  val of_function_as_tuple_and_dict: ?docstring:string ->
+  val of_function_as_tuple_and_dict: ?name:string -> ?docstring:string ->
     (Object.t -> Object.t -> Object.t) -> Object.t
   (** [of_function_as_tuple_and_dict f] returns a Python callable object that
       calls the function [f].
       Arguments are passed as a tuple and a dictionary of keywords. *)
 
-  val of_function: ?docstring:string -> (Object.t array -> Object.t) -> Object.t
+  val of_function: ?name:string -> ?docstring:string -> (Object.t array -> Object.t) -> Object.t
   (** Equivalent to {!of_function_as_tuple} but with an array of Python objects
       instead of a tuple for passing arguments. *)
 
-  val of_function_with_keywords: ?docstring:string ->
+  val of_function_with_keywords: ?name:string -> ?docstring:string ->
     (Object.t array -> Object.t -> Object.t) -> Object.t
   (** Equivalent to {!of_function_as_tuple_and_dict} but with an array of
       Python objects instead of a tuple for passing arguments.
