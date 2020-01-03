@@ -127,6 +127,8 @@ else ifeq ($(ARCH),Darwin)
 	PYML_ARCH := pyml_arch_darwin.ml
 else ifeq ($(findstring CYGWIN,$(ARCH)),CYGWIN)
 	PYML_ARCH := pyml_arch_cygwin.ml
+else ifeq ($(ARCH),FreeBSD)
+	PYML_ARCH := pyml_arch_freebsd.ml
 else
 	$(error Unsupported OS $(ARCH)
 endif
