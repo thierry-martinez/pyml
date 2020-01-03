@@ -130,7 +130,7 @@ else ifeq ($(findstring CYGWIN,$(ARCH)),CYGWIN)
 else ifeq ($(ARCH),FreeBSD)
 	PYML_ARCH := pyml_arch_freebsd.ml
 else
-	$(error Unsupported OS $(ARCH)
+	$(error Unsupported OS $(ARCH))
 endif
 
 INSTALL_FILES := \
