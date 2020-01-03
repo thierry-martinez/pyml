@@ -119,18 +119,18 @@ OCAMLLIBNUMPYFLAGS := -cclib "-L. -lnumpy_stubs"
 OCAMLLIBFLAGSNATIVE := $(OCAMLLIBFLAGS)
 OCAMLLIBFLAGSBYTECODE := $(OCAMLLIBFLAGS)
 
-ARCH := $(shell uname)
+UNAME_ARCH := $(shell uname)
 
-ifeq ($(ARCH),Linux)
+ifeq ($(UNAME_ARCH),Linux)
 	PYML_ARCH := pyml_arch_linux.ml
-else ifeq ($(ARCH),Darwin)
+else ifeq ($(UNAME_ARCH),Darwin)
 	PYML_ARCH := pyml_arch_darwin.ml
-else ifeq ($(findstring CYGWIN,$(ARCH)),CYGWIN)
+else ifeq ($(findstring CYGWIN,$(UNAME_ARCH)),CYGWIN)
 	PYML_ARCH := pyml_arch_cygwin.ml
-else ifeq ($(ARCH),FreeBSD)
+else ifeq ($(UNAME_ARCH),FreeBSD)
 	PYML_ARCH := pyml_arch_freebsd.ml
 else
-	$(error Unsupported OS $(ARCH))
+	$(error Unsupported OS $(UNAME_ARCH))
 endif
 
 INSTALL_FILES := \
