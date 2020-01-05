@@ -46,6 +46,8 @@ external pylong_fromstring: string -> int -> pyobject * int
     = "PyLong_FromString_wrapper"
 external pycapsule_isvalid: Pytypes.pyobject -> string -> int
       = "Python27_PyCapsule_IsValid_wrapper"
+external pycapsule_check: Pytypes.pyobject -> int
+      = "pyml_capsule_check"
 
 external ucs: unit -> ucs = "py_get_UCS"
 (* Avoid warning 32. *)
@@ -767,41 +769,6 @@ let option result =
   else
     Some result
 
-module Capsule = struct
-  let is_valid v name  = pycapsule_isvalid v name <> 0
-
-  let check v = is_valid v "ocaml-capsule"
-
-  let table = Hashtbl.create 17
-
-  let () = on_finalize (fun () -> Hashtbl.clear table)
-
-  external unsafe_wrap_value: 'a -> pyobject = "pyml_wrap_value"
-
-  external unsafe_unwrap_value: pyobject -> 'a = "pyml_unwrap_value"
-
-  let make name =
-    try
-      Hashtbl.find table name;
-      failwith
-        (Printf.sprintf "Py.Capsule.make: capsule of type %s already defined"
-           name)
-    with Not_found ->
-      Hashtbl.add table name ();
-      let wrap v = unsafe_wrap_value (name, v) in
-      let unwrap x =
-        let name', v = unsafe_unwrap_value x in
-        if name <> name' then
-          failwith
-            (Printf.sprintf
-               "Py.Capsule: capsule of type %s, but type %s expected"
-               name' name);
-        v in
-      (wrap, unwrap)
-
-  let type_of x = fst (unsafe_unwrap_value x)
-end
-
 module Eval = struct
   let call_object_with_keywords func arg keyword =
     check_not_null (Pywrappers.pyeval_callobjectwithkeywords func arg keyword)
@@ -965,6 +932,43 @@ module Type = struct
     let parents = Tuple_.of_list parents in
     let dict = Dict_.of_bindings_string dict in
     Object_.call_function_obj_args ty [| classname; parents; dict |]
+end
+
+module Capsule = struct
+  let is_valid v name  = pycapsule_isvalid v name <> 0
+
+  let check v = is_valid v "ocaml-capsule"
+
+  let table = Hashtbl.create 17
+
+  let () = on_finalize (fun () -> Hashtbl.clear table)
+
+  external unsafe_wrap_value: 'a -> pyobject = "pyml_wrap_value"
+
+  external unsafe_unwrap_value: pyobject -> 'a = "pyml_unwrap_value"
+
+  let make name =
+    try
+      Hashtbl.find table name;
+      failwith
+        (Printf.sprintf "Py.Capsule.make: capsule of type %s already defined"
+           name)
+    with Not_found ->
+      Hashtbl.add table name ();
+      let wrap v = unsafe_wrap_value (name, v) in
+      let unwrap x =
+        if pycapsule_check x = 0 then
+          Type.mismatch "capsule" x;
+        let name', v = unsafe_unwrap_value x in
+        if name <> name' then
+          failwith
+            (Printf.sprintf
+               "Py.Capsule: capsule of type %s, but type %s expected"
+               name' name);
+        v in
+      (wrap, unwrap)
+
+  let type_of x = fst (unsafe_unwrap_value x)
 end
 
 module Mapping = struct

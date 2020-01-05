@@ -1064,6 +1064,17 @@ PyObject_CallMethodObjArgs_wrapper(
 }
 
 CAMLprim value
+pyml_capsule_check(value v)
+{
+    CAMLparam1(v);
+    pyml_assert_initialized();
+    PyObject *o = getcustom(v);
+    PyObject *ob_type = pyobjectdescr(o)->ob_type;
+    int check_result = ob_type == Python_PyCapsule_Type;
+    CAMLreturn(Val_int(check_result));
+}
+
+CAMLprim value
 pyml_wrap_value(value v)
 {
     CAMLparam1(v);
