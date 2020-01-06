@@ -482,6 +482,31 @@ let () =
 
 let () =
   Pyml_tests_common.add_test
+    ~title:"function-name"
+    (fun () ->
+      let run make_name expect_name =
+        Gc.full_major ();
+        let fn =
+          let name = make_name () in
+          Py.Callable.of_function ?name (fun _ -> Py.none)
+        in
+        Gc.full_major ();
+        let other_string = Printf.sprintf "test%d" 43 in
+        let name = Py.Object.get_attr_string fn "__name__" in
+        begin
+          match name with
+            None -> failwith "None!"
+          | Some doc -> assert (Py.String.to_string doc = expect_name)
+        end;
+        ignore other_string
+      in
+      run (fun () -> Some (Printf.sprintf "test%d" 42)) "test42";
+      run (fun () -> None) "anonymous_closure";
+      Pyml_tests_common.Passed
+    )
+
+let () =
+  Pyml_tests_common.add_test
     ~title:"is-instance"
     (fun () ->
       let forty_two = Py.Int.of_int 42 in
