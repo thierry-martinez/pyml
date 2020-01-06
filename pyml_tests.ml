@@ -101,6 +101,37 @@ assert unwrap(x) == 'OK'
 
 let () =
   Pyml_tests_common.add_test
+    ~title:"capsule-conversion-error"
+    (fun () ->
+      let ref_str = "foobar" in
+      let ref_pair1 = (3.141592, 42) in
+      let ref_pair2 = (2.71828182846, 42) in
+      let (wrap_str, unwrap_str) = Py.Capsule.make "string-1" in
+      let (wrap_pair, unwrap_pair) = Py.Capsule.make "pair-1" in
+      let s = wrap_str ref_str in
+      let p1 = wrap_pair ref_pair1 in
+      let p2 = wrap_pair ref_pair2 in
+      assert (unwrap_str s = ref_str);
+      assert (unwrap_pair p1 = ref_pair1);
+      assert (unwrap_pair p2 = ref_pair2);
+      let unwrap_failed =
+        try
+          ignore (unwrap_pair s : float * int);
+          false
+        with _ -> true
+      in
+      assert unwrap_failed;
+      let unwrap_failed =
+        try
+          ignore (unwrap_pair (Py.Long.of_int 42) : float * int);
+          false
+        with _ -> true
+      in
+      assert unwrap_failed;
+      Pyml_tests_common.Passed)
+
+let () =
+  Pyml_tests_common.add_test
     ~title:"exception"
     (fun () ->
       try
