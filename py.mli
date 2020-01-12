@@ -2003,6 +2003,12 @@ module Gil : sig
   val check : unit -> bool
   (** [check ()] returns true if the current thread holds the global
       interpreter lock. *)
+
+  val with_lock : (unit -> 'a) -> 'a
+  (** [with_lock f] runs [f] ensuring that we hold the global interpreter
+      lock to do so. If the lock needs to be acquired it is released once
+      [f] completes or if [f] raises an exception.
+  *)
 end
 
 val set_argv: string array -> unit

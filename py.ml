@@ -2414,6 +2414,17 @@ module Gil = struct
   let ensure = Pywrappers.pygilstate_ensure
   let release = Pywrappers.pygilstate_release
   let check () = Pywrappers.pygilstate_check () <> 0
+
+  let with_lock f =
+    let t = ensure () in
+    try
+      let result = f () in
+      release t;
+      result
+    with
+    | e ->
+      release t;
+      raise e
 end
 
 let set_argv argv =
