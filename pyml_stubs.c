@@ -5,7 +5,6 @@
 #include <caml/callback.h>
 #include <caml/custom.h>
 #include <caml/alloc.h>
-#include<caml/threads.h>
 #include <sys/param.h>
 #include <string.h>
 #include <stdbool.h>

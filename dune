@@ -2,9 +2,8 @@
   (name pyml)
   (modules numpy py pycaml pyml_arch pytypes pywrappers)
   (c_names numpy_stubs pyml_stubs)
-  (flags :standard -thread)
   (wrapped false)
-  (libraries bigarray stdcompat pyutils threads.posix))
+  (libraries bigarray stdcompat pyutils))
 
 (executables
   (names generate)
