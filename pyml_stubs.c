@@ -465,9 +465,7 @@ pycall_callback(PyObject *obj, PyObject *args)
     }
     ml_func = *(value *) p;
     ml_args = pyml_wrap(args, false);
-    caml_acquire_runtime_system();
     ml_out = caml_callback(ml_func, ml_args);
-    caml_release_runtime_system();
     out = pyml_unwrap(ml_out);
     Py_XINCREF(out);
     CAMLreturnT(PyObject *, out);
@@ -487,9 +485,7 @@ pycall_callback_with_keywords(PyObject *obj, PyObject *args, PyObject *keywords)
     ml_func = *(value *) p;
     ml_args = pyml_wrap(args, false);
     ml_keywords = pyml_wrap(keywords, false);
-    caml_acquire_runtime_system();
     ml_out = caml_callback2(ml_func, ml_args, ml_keywords);
-    caml_release_runtime_system();
     out = pyml_unwrap(ml_out);
     Py_XINCREF(out);
     CAMLreturnT(PyObject *, out);
