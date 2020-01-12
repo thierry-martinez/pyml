@@ -1988,6 +1988,23 @@ module Array: sig
       you should use bigarrays and the {!Numpy} module. *)
 end
 
+module Gil : sig
+  type t
+
+  val ensure : unit -> t
+  (** [ensure ()] ensures that the current thread holds the global
+      interpreter lock and hence can call the Python C API in a safe
+      way.
+  *)
+
+  val release : t -> unit
+  (** [release t] releases any resource acquired by [ensure]. *)
+
+  val check : unit -> bool
+  (** [check ()] returns true if the current thread holds the global
+      interpreter lock. *)
+end
+
 val set_argv: string array -> unit
 (** [set_argv argv] set Python's [sys.argv]. *)
 
