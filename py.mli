@@ -1995,14 +1995,19 @@ module Gil : sig
   (** [ensure ()] ensures that the current thread holds the global
       interpreter lock and hence can call the Python C API in a safe
       way.
-  *)
+      Wrapper for
+      {{::https//docs.python.org/3/c-api/init.html#c.PyGILState_Ensure} PyGILState_Ensure} *)
 
   val release : t -> unit
-  (** [release t] releases any resource acquired by [ensure]. *)
+  (** [release t] releases any resource acquired by [ensure].
+      Wrapper for
+      {{::https//docs.python.org/3/c-api/init.html#c.PyGILState_Release} PyGILState_Release} *)
 
   val check : unit -> bool
   (** [check ()] returns true if the current thread holds the global
-      interpreter lock. *)
+      interpreter lock.
+      Wrapper for
+      {{::https//docs.python.org/3/c-api/init.html#c.PyGILState_Check} PyGILState_Check} *)
 
   val with_lock : (unit -> 'a) -> 'a
   (** [with_lock f] runs [f] ensuring that we hold the global interpreter

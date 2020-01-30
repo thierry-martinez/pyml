@@ -2417,14 +2417,7 @@ module Gil = struct
 
   let with_lock f =
     let t = ensure () in
-    try
-      let result = f () in
-      release t;
-      result
-    with
-    | e ->
-      release t;
-      raise e
+    Fun.protect f ~finally:(fun () -> release t)
 end
 
 let set_argv argv =
