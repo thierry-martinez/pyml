@@ -2409,6 +2409,17 @@ except ImportError:
     else f ()
 end
 
+module Gil = struct
+  type t = int
+  let ensure = Pywrappers.pygilstate_ensure
+  let release = Pywrappers.pygilstate_release
+  let check () = Pywrappers.pygilstate_check () <> 0
+
+  let with_lock f =
+    let t = ensure () in
+    Fun.protect f ~finally:(fun () -> release t)
+end
+
 let set_argv argv =
   Module.set (Module.sys ()) "argv" (List.of_array_map String.of_string argv)
 
