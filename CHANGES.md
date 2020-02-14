@@ -1,23 +1,34 @@
 [*] marks changes that break compatibility with previous versions.
 
-Next version
-============
+2020-01-15
+==========
+
+- Compatible with OCaml 4.10.0.
 
 - [PR 36] GC issue when registering a function with a dynamically
-  allocated docstring
+  allocated docstring.
   (Fixed by Laurent Mazare, https://github.com/thierry-martinez/pyml/pull/36)
 
 - [PR 34] Ensure that every function starting with "CAMLparamK" ends with
-  "CAMLreturnX"
+  "CAMLreturnX".
   (Fixed by Xavier Clerc, https://github.com/thierry-martinez/pyml/pull/34)
+
+- [GitHub issue #37] Fix test suite: 'list' object has no attribute 'clear'
+  (Reported by Olaf Hering, https://github.com/thierry-martinez/pyml/issues/37)
 
 - [PR 38] Check for executable called python3.
   (Fixed by Olaf Hering, https://github.com/thierry-martinez/pyml/pull/38)
 
 - [PR 39] Expose is-instance and is-subclass.
-  (Fixed by Laurent Mazare, https://github.com/thierry-martinez/pyml/pull/39)
+  (Contribution by Laurent Mazare,
+   https://github.com/thierry-martinez/pyml/pull/39)
 
-- Do not use -custom and fix dynamic loading of stubs
+- [PR 44] Expose some GIL functions (functions from the Python C API
+  related to the global interpreter lock.
+  (Contribution by Laurent Mazare,
+   https://github.com/thierry-martinez/pyml/pull/44)
+
+- Fix dynamic loading of stubs.
   (Fixed by Stéphane Glondu)
 
 2019-06-26
