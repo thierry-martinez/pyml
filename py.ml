@@ -113,7 +113,8 @@ let extract_version_major_minor version =
   with Exit | Failure _ ->
     let msg =
       Printf.sprintf
-        "Py.extract_version_major_minor: unable to parse the version number '%s'"
+        "Py.extract_version_major_minor:\
+          unable to parse the version number '%s'"
         version in
     failwith msg
 
@@ -221,7 +222,8 @@ let libpython_from_ldconfig major minor =
     match major, minor with
       None, _ -> "libpython"
     | Some major', None -> Printf.sprintf "libpython%d" major'
-    | Some major', Some minor' -> Printf.sprintf "libpython%d.%d" major' minor' in
+    | Some major', Some minor' ->
+        Printf.sprintf "libpython%d.%d" major' minor' in
   let is_libpython line =
     let basename = Filename.basename line in
     Pyutils.has_prefix prefix basename in
@@ -364,10 +366,12 @@ let libpython_from_pkg_config version_major version_minor =
         if String.length word > 2 then
           match String.sub word 0 2 with
             "-L" ->
-              let word' = Pyutils.substring_between word 2 (String.length word) in
+              let word' =
+                Pyutils.substring_between word 2 (String.length word) in
               (word' :: library_paths, library_filename)
           | "-l" ->
-              let word' = Pyutils.substring_between word 2 (String.length word) in
+              let word' =
+                Pyutils.substring_between word 2 (String.length word) in
               if library_filename <> None then
                 unable_to_parse ();
               let library_filename =
@@ -1382,7 +1386,8 @@ module Object = struct
 
   let is_instance obj cls = bool_of_int (Pywrappers.pyobject_isinstance obj cls)
 
-  let is_subclass cls1 cls2 = bool_of_int (Pywrappers.pyobject_issubclass cls1 cls2)
+  let is_subclass cls1 cls2 =
+    bool_of_int (Pywrappers.pyobject_issubclass cls1 cls2)
 
   let print obj out_channel =
     assert_int_success
@@ -2092,8 +2097,8 @@ module Class = struct
       let classname = String.of_string classname in
       let dict = Dict.of_bindings_string fields in
       let c =
-        check_not_null
-          (Pywrappers.Python2.pyclass_new (Tuple.of_list parents) dict classname) in
+        check_not_null (Pywrappers.Python2.pyclass_new (Tuple.of_list parents)
+          dict classname) in
       let add_method (name, closure) =
         let m = check_not_null (Pywrappers.pymethod_new closure null c) in
         Dict.set_item_string dict name m in

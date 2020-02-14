@@ -379,8 +379,8 @@ let () =
       assert (Py.List.length v = 0);
       let count = Py.Object.call_method v "count" [|Py.Long.of_int 1|] in
       assert (Py.Long.to_int count = 0);
-      List.iter
-        (fun i -> ignore (Py.Object.call_method v "append" [|Py.Long.of_int i|]))
+      List.iter (fun i ->
+          ignore (Py.Object.call_method v "append" [|Py.Long.of_int i|]))
         pi_digits;
       let count = Py.Object.call_method v "count" [|Py.Long.of_int 1|] in
       assert (Py.Long.to_int count = 2);
