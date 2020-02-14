@@ -13,6 +13,5 @@ depends: [
   "ocaml" {>= "3.12.1" & < "4.11.0"}
   "ocamlfind" {build}
   "stdcompat" {>= "9"}
-  "num"
 ]
 depopts: ["utop"]
