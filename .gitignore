@@ -17,3 +17,7 @@ _build
 /pywrappers.mli
 /pywrappers.ml
 /pymlutop
+/pyml_tests.bytecode
+/numpy_tests.bytecode
+/pyml_tests.native
+/numpy_tests.native
