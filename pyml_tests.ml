@@ -388,8 +388,12 @@ let () =
       let _ = Py.Object.call_method v "sort" [||] in
       let sorted_digits = List.map Py.Int.to_int (Py.List.to_list v) in
       assert (sorted_digits = List.sort compare pi_digits);
-      let _ = Py.Object.call_method v "clear" [||] in
-      assert (Py.List.length v = 0);
+      (* No `clear' method in lists in Python 2 *)
+      if Py.version_major () >= 3 then
+        begin
+          let _ = Py.Object.call_method v "clear" [||] in
+          assert (Py.List.length v = 0)
+        end;
       Pyml_tests_common.Passed)
 
 let () =
