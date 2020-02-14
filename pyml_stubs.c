@@ -174,7 +174,7 @@ static PyObject *(*Python_PyCFunction_NewEx)
 static void *(*Python27_PyCapsule_New)
     (void *, const char *, PyCapsule_Destructor);
 static void *(*Python27_PyCapsule_GetPointer)(PyObject *, const char *);
-static int (*Python27_PyCapsule_IsValid)(PyObject *, char *);
+static int (*Python27_PyCapsule_IsValid)(PyObject *, const char *);
 static void *(*Python2_PyCObject_FromVoidPtr)(void *, void (*)(void *));
 static void *(*Python2_PyCObject_AsVoidPtr)(PyObject *);
 
@@ -202,7 +202,7 @@ static int (*Python_PyObject_AsWriteBuffer)
 (PyObject *, void **, Py_ssize_t *);
 
 /* Length argument */
-static PyObject *(*Python_PyLong_FromString)(char *, char **, int);
+static PyObject *(*Python_PyLong_FromString)(const char *, const char **, int);
 
 /* Internal use only */
 static void (*Python_PyMem_Free)(void *);
@@ -653,7 +653,7 @@ py_load_library(value filename_ocaml, value debug_build_ocaml)
 {
     CAMLparam2(filename_ocaml, debug_build_ocaml);
     if (Is_block(filename_ocaml)) {
-        char *filename = String_val(Field(filename_ocaml, 0));
+        const char *filename = String_val(Field(filename_ocaml, 0));
         library = open_library(filename);
         if (!library) {
             failwith("Library not found");
@@ -800,7 +800,7 @@ CAMLprim value
 py_unsetenv(value name_ocaml)
 {
     CAMLparam1(name_ocaml);
-    char *name = String_val(name_ocaml);
+    const char *name = String_val(name_ocaml);
     if (unsetenv(name) == -1) {
         failwith(strerror(errno));
     }
@@ -1123,7 +1123,7 @@ PyErr_Fetch_wrapper(value unit)
 }
 
 CAMLprim value
-pyml_wrap_string_option(char *s)
+pyml_wrap_string_option(const char *s)
 {
     CAMLparam0();
     CAMLlocal1(result);
@@ -1164,7 +1164,7 @@ static wchar_t *
 pyml_unwrap_wide_string(value string_ocaml)
 {
     CAMLparam1(string_ocaml);
-    char *s = String_val(string_ocaml);
+    const char *s = String_val(string_ocaml);
     size_t n = mbstowcs(NULL, s, 0);
     if (n == (size_t) -1) {
         fprintf(stderr, "pyml_unwrap_wide_string failure.\n");
@@ -1250,25 +1250,24 @@ pyml_wrap_ucs4_option_and_free(int32_t *buffer, bool free)
     CAMLreturn(result);
 }
 
-#define StringAndSize_wrapper(func, byte_type)                                 \
-    CAMLprim value                                                             \
-    func##_wrapper(value arg_ocaml)                                            \
-    {                                                                          \
-        CAMLparam1(arg_ocaml);                                                 \
-        CAMLlocal2(result, string);                                            \
-        PyObject *arg = pyml_unwrap(arg_ocaml);                                \
-        byte_type *buffer;                                                     \
-        Py_ssize_t length;                                                     \
-        int return_value;                                                      \
-        return_value = Python_##func(arg, &buffer, &length);                   \
-        if (return_value == -1) {                                              \
-            CAMLreturn(Val_int(0));                                            \
-        }                                                                      \
-        string = caml_alloc_string(length);                                    \
-        memcpy(String_val(string), buffer, length);                            \
-        result = caml_alloc_tuple(1);                                          \
-        Store_field(result, 0, string);                                        \
-        CAMLreturn(result);                                                    \
+#define StringAndSize_wrapper(func, byte_type)                          \
+    CAMLprim value                                                      \
+    func##_wrapper(value arg_ocaml)                                     \
+    {                                                                   \
+        CAMLparam1(arg_ocaml);                                          \
+        CAMLlocal2(result, string);                                     \
+        PyObject *arg = pyml_unwrap(arg_ocaml);                         \
+        byte_type *buffer;                                              \
+        Py_ssize_t length;                                              \
+        int return_value;                                               \
+        return_value = Python_##func(arg, &buffer, &length);            \
+        if (return_value == -1) {                                       \
+            CAMLreturn(Val_int(0));                                     \
+        }                                                               \
+        string = caml_alloc_initialized_string(length, buffer);         \
+        result = caml_alloc_tuple(1);                                   \
+        Store_field(result, 0, string);                                 \
+        CAMLreturn(result);                                             \
     }
 
 StringAndSize_wrapper(PyString_AsStringAndSize, char);
@@ -1282,7 +1281,7 @@ open_file(value file, const char *mode)
     CAMLparam1(file);
     FILE *result;
     if (Tag_val(file) == 0) {
-        char *filename = String_val(Field(file, 0));
+        const char *filename = String_val(Field(file, 0));
         if (version_major >= 3) {
             result = Python__Py_fopen(filename, mode);
         }
@@ -1376,8 +1375,8 @@ PyLong_FromString_wrapper(value str_ocaml, value base_ocaml)
     CAMLparam2(str_ocaml, base_ocaml);
     CAMLlocal1(result);
     pyml_assert_initialized();
-    char *str = String_val(str_ocaml);
-    char *pend;
+    const char *str = String_val(str_ocaml);
+    const char *pend;
     int base = Int_val(base_ocaml);
     PyObject *l = Python_PyLong_FromString(str, &pend, base);
     ssize_t len = pend - str;
@@ -1397,7 +1396,7 @@ Python27_PyCapsule_IsValid_wrapper(value arg0_ocaml, value arg1_ocaml)
         failwith("PyCapsule_IsValid is only available in Python >2.7");
     }
     PyObject *arg0 = pyml_unwrap(arg0_ocaml);
-    char *arg1 = String_val(arg1_ocaml);
+    const char *arg1 = String_val(arg1_ocaml);
     int result = Python27_PyCapsule_IsValid(arg0, arg1);
     CAMLreturn(Val_int(result));
 }

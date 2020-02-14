@@ -1453,7 +1453,7 @@ let string_of_type_c ty =
   match ty with
     PyObject _ -> "PyObject *"
   | PyCompilerFlags -> "PyCompilerFlags *"
-  | String | StringOption -> "char *"
+  | String | StringOption -> "const char *"
   | WideString -> "wchar_t *"
   | Int -> "int"
   | Long | Int64 -> "long"
