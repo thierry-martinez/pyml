@@ -15,3 +15,4 @@ depends: [
   "stdcompat" {>= "9"}
 ]
 depopts: ["utop"]
+version: "20200220"
