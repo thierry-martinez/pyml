@@ -5,6 +5,9 @@ Next version
 
 - Fix: do not fail if GIL functions are unavailable
 
+- Fix: include `stdcompat.h` provided with stdcompat version 13 for the
+  prototype of `caml_alloc_initialized_string`.
+
 2020-01-15
 ==========
 

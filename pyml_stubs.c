@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
+#include <stdcompat.h>
 #include "pyml_stubs.h"
 
 static FILE *(*Python__Py_fopen)(const char *pathname, const char *mode);
