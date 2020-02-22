@@ -1,15 +1,15 @@
 [*] marks changes that break compatibility with previous versions.
 
-Next version
-============
+# Next version
 
 - Fix: do not fail if GIL functions are unavailable
 
 - Fix: include `stdcompat.h` provided with stdcompat version 13 for the
   prototype of `caml_alloc_initialized_string`.
+ 
+- Fix: reference to the native plugin (`.cmxs`) in META
 
-2020-01-15
-==========
+# 2020-01-15
 
 - Compatible with OCaml 4.10.0.
 
@@ -39,8 +39,8 @@ Next version
 - Fix dynamic loading of stubs.
   (Fixed by Stéphane Glondu)
 
-2019-06-26
-==========
+# 2019-06-26
+
 - Support for debug build of Python library
   (Suggested by Arlen Cox:
    https://github.com/thierry-martinez/pyml/issues/18)
@@ -57,8 +57,7 @@ Next version
   (Reported by Ilias Garnier:
    https://github.com/thierry-martinez/pyml/issues/30)
 
-2018-05-30
-==========
+# 2018-05-30
 
 - `Py.import` is an alias for `Py.Import.import_module`.
 - Use `*_opt` naming convention for the functions that return an option
