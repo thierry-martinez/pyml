@@ -1,6 +1,6 @@
 [*] marks changes that break compatibility with previous versions.
 
-# Next version
+# 2020-02-22
 
 - Fix: do not fail if GIL functions are unavailable
 
