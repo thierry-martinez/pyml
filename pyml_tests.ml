@@ -297,6 +297,34 @@ let () =
 
 let () =
   Pyml_tests_common.add_test
+    ~title:"Iterator.create"
+    (fun () ->
+      let iter_of_list l =
+        let current = ref l in
+        fun () ->
+          match !current with
+          | [] -> None
+          | head :: tail ->
+              current := tail;
+              Some (Py.Int.of_int head)
+      in
+      let m = Py.Import.add_module "test" in
+      let iter = Py.Iter.create (iter_of_list [3; 1; 4; 1; 5]) in
+      Py.Module.set m "ocaml_iterator" iter;
+      assert (Py.Run.simple_string "
+from test import ocaml_iterator
+res = 0
+for v in ocaml_iterator: res += v
+assert res == 14
+");
+
+      let iter = Py.Iter.create (iter_of_list [3; 1; 4; 1; 5]) in
+      let list = Py.Iter.to_list_map Py.String.to_string iter in
+      assert (list = ["a"; "b"; "c"]);
+      Pyml_tests_common.Passed)
+
+let () =
+  Pyml_tests_common.add_test
     ~title:"Dict.iter"
     (fun () ->
       let dict = Py.Dict.create () in

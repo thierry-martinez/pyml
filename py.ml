@@ -2117,7 +2117,10 @@ module Iter = struct
       match next () with
         None -> raise (Err (Err.StopIteration, ""))
       | Some item -> item in
-    let methods = [next_name, Callable.of_function next'] in
+    let iter_fn = Callable.of_function (function
+      | [||] -> failwith "__iter__ expects at least one argument"
+      | array -> array.(0)) in
+    let methods = [next_name, Callable.of_function next'; "__iter__", iter_fn] in
     Object.call_function_obj_args
       (Class.init ~methods "iterator") [| |]
 
