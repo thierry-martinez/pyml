@@ -957,10 +957,22 @@ module Iter: sig
 
   val of_seq: Object.t Stdcompat.Seq.t -> Object.t
   (** [of_seq s] returns an interator that iterates over the values of the
-      sequence s. *)
+      sequence [s]. *)
+
+  val of_seq_map: ('a -> Object.t) -> 'a Stdcompat.Seq.t -> Object.t
+  (** [of_seq_map f s] returns an interator that iterates over the results of
+      [f] applied to the values of the sequence [s].
+      [Py.Iter.of_seq_map f s] is equivalent to
+      [Py.Iter.of_seq (Seq.map f s)]. *)
 
   val to_seq: Object.t -> Object.t Stdcompat.Seq.t
   (** [to_seq i] returns the sequence of the values from the iteration [i].
+      The Python iteration is consumed while the sequence is browsed.
+      Values are memoized, so that the sequence can be browsed many times. *)
+
+  val to_seq_map: (Object.t -> 'a) -> Object.t -> 'a Stdcompat.Seq.t
+  (** [to_seq_map f i] returns the sequence of the results of [f] applied to the
+      values from the iteration [i].
       The Python iteration is consumed while the sequence is browsed.
       Values are memoized, so that the sequence can be browsed many times. *)
 
@@ -970,6 +982,23 @@ module Iter: sig
       The Python iteration is consumed while the sequence is browsed.
       Warning: values are not memoized, so that the sequence can be browsed
       only once. *)
+
+  val unsafe_to_seq_map: (Object.t -> 'a) -> Object.t -> 'a Stdcompat.Seq.t
+  (** [unsafe_to_seq_map f i] returns the sequence of the results of [f] applied
+      to the values from the iteration [i].
+      The Python iteration is consumed while the sequence is browsed.
+      Warning: values are not memoized, so that the sequence can be browsed
+      only once. *)
+
+  val of_list: Object.t list -> Object.t
+  (** [of_list l] returns an interator that iterates over the values of the
+      list [l]. *)
+
+  val of_list_map: ('a -> Object.t) -> 'a list -> Object.t
+  (** [of_list_map f l] returns an interator that iterates over the results of
+      [f] applied to the values of the list [l].
+      [Py.Iter.of_list_map f s] is equivalent to
+      [Py.Iter.of_list (List.map f s)] but is tail-recursive. *)
 
   val fold_left: ('a -> Object.t -> 'a) -> 'a -> Object.t -> 'a
   (** [fold_left f v i] returns [(f (...(f v i1)...) in)] where [i1], ..., [in]

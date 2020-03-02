@@ -2134,12 +2134,30 @@ module Iter = struct
           Some head in
     create next
 
+  let of_seq_map f s =
+    let s = ref s in
+    let next () =
+      match !s () with
+      | Seq.Nil -> None
+      | Seq.Cons (head, tail) ->
+          s := tail;
+          Some (f head) in
+    create next
+
   let to_seq i =
     let rec seq lazy_next () =
       match Lazy.force lazy_next with
       | None -> Seq.Nil
       | Some item ->
           Seq.Cons (item, seq (lazy (next i))) in
+    seq (lazy (next i))
+
+  let to_seq_map f i =
+    let rec seq lazy_next () =
+      match Lazy.force lazy_next with
+      | None -> Seq.Nil
+      | Some item ->
+          Seq.Cons (f item, seq (lazy (next i))) in
     seq (lazy (next i))
 
   let unsafe_to_seq i =
@@ -2149,6 +2167,34 @@ module Iter = struct
       | Some item ->
           Seq.Cons (item, seq) in
     seq
+
+  let unsafe_to_seq_map f i =
+    let rec seq () =
+      match next i with
+      | None -> Seq.Nil
+      | Some item ->
+          Seq.Cons (f item, seq) in
+    seq
+
+  let of_list l =
+    let l = ref l in
+    let next () =
+      match !l with
+      | [] -> None
+      | head :: tail ->
+          l := tail;
+          Some head in
+    create next
+
+  let of_list_map f l =
+    let l = ref l in
+    let next () =
+      match !l with
+      | [] -> None
+      | head :: tail ->
+          l := tail;
+          Some (f head) in
+    create next
 end
 
 module List = struct
