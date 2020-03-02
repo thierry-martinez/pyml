@@ -1,5 +1,10 @@
 [*] marks changes that break compatibility with previous versions.
 
+# Next version
+
+- Fix: Add an `__iter__` method to python iterators.
+  (Fixed by Laurent Mazare, https://github.com/thierry-martinez/pyml/pull/47)
+
 # 2020-02-22
 
 - Fix: do not fail if GIL functions are unavailable
