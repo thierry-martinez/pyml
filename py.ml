@@ -1989,7 +1989,10 @@ module Callable = struct
 end
 
 module Import = struct
+(* This function has been removed from Python 3.9, and was marked
+  "for internal use only" before.
   let cleanup = Pywrappers.pyimport_cleanup
+*)
 
   let add_module name = check_not_null (Pywrappers.pyimport_addmodule name)
 
