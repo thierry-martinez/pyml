@@ -856,9 +856,12 @@ end
 
 (** Importing Modules *)
 module Import: sig
+  (* This function has been removed from Python 3.9, and was marked
+  "for internal use only" before.
   val cleanup: unit -> unit
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/import.html#c.PyImport_Cleanup} PyImport_Cleanup} *)
+   *)
 
   val add_module: string -> Object.t
   (** Wrapper for

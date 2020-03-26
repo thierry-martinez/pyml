@@ -8,6 +8,11 @@
 - Add `Py.Seq.{of_seq_map, to_seq_map, unsafe_to_seq_map, of_list,
   of_list_map}` functions.
 
+- Remove `Py.Import.cleanup`, which has been removed from Python 3.9, and
+  was marked "for internal use only" before.
+  (Reported by Victor Stinner,
+   https://github.com/thierry-martinez/pyml/issues/49)
+
 # 2020-02-22
 
 - Fix: do not fail if GIL functions are unavailable
