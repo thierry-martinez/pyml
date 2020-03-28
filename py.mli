@@ -1022,6 +1022,19 @@ module Iter: sig
 
   val create: (unit -> Object.t option) -> Object.t
   (** [create next] returns an iterator that calls [next]. *)
+
+  val seq_iter: Object.t -> Object.t
+  (** Wrapper for
+      {{:https://docs.python.org/3/c-api/iterator.html#c.PySeqIter_New} PySeqIter_New} *)
+
+  val call_iter: Object.t -> Object.t -> Object.t
+  (** Wrapper for
+      {{:https://docs.python.org/3/c-api/iterator.html#c.PyCallIter_New} PyCallIter_New} *)
+
+  val create_call: (unit -> Object.t option) -> Object.t
+  (** [create_call next] returns an iterator that calls [next]. The difference
+      with [create] is that this uses [PyCallIter_New] rather than creating
+      an object and use the __next__ method. *)
 end
 
 (** Interface for Python values of type [List]. *)

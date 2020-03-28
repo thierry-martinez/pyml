@@ -2198,6 +2198,27 @@ module Iter = struct
           l := tail;
           Some (f head) in
     create next
+
+  let seq_iter seq =
+    check_not_null (Pywrappers.pyseqiter_new seq)
+
+  let call_iter call sentinel =
+    check_not_null (Pywrappers.pycalliter_new call sentinel)
+
+  (* As a sentinel we use a function so that there is no collision risk.
+     Only one such capsule is ever allocated.
+  *)
+  let sentinel = lazy (Callable.of_function_as_tuple (fun x -> x))
+
+  let create_call next =
+    let sentinel = Lazy.force sentinel in
+    let call =
+      Callable.of_function_as_tuple (fun _pyobject ->
+        match next () with
+        | None -> sentinel
+        | Some value -> value)
+    in
+    call_iter call sentinel
 end
 
 module List = struct
