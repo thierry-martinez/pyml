@@ -644,6 +644,7 @@ pyml_wrap_closure(value name, value docstring, value closure)
     obj = wrap_capsule(v, "ocaml-closure", camldestr_closure);
     ml_def = (PyMethodDef *) caml_aux(obj);
     PyObject *f = Python_PyCFunction_NewEx(ml_def, obj, NULL);
+    Py_DECREF(obj);
     CAMLreturn(pyml_wrap(f, true));
 }
 
