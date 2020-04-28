@@ -13,6 +13,9 @@
   (Reported by Victor Stinner,
    https://github.com/thierry-martinez/pyml/issues/49)
 
+- Fix: memory leak in pyml_wrap_closure
+  (Fixed by Laurent Mazare, https://github.com/thierry-martinez/pyml/pull/53)
+
 # 2020-02-22
 
 - Fix: do not fail if GIL functions are unavailable
