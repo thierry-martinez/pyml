@@ -2088,6 +2088,10 @@ module Module = struct
   let sys () = Import.import_module "sys"
 
   let builtins () = get (main ()) "__builtins__"
+
+  let set_docstring m doc =
+    Pywrappers.pymodule_setdocstring m doc
+    |> assert_int_success
 end
 
 module Class = struct

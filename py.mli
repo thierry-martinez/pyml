@@ -1253,6 +1253,10 @@ module Module: sig
   (** Returns the [__builtins__] module.
       We have
 [Py.Module.builtins () = Py.Module.find (Py.Module.main ()) "__builtins__"]. *)
+
+  val set_docstring: Object.t -> string -> unit
+  (** Wrapper for
+      {{:https://docs.python.org/3/c-api/module.html#c.PyModule_SetDocString} PyModule_SetDocString} *)
 end
 
 (** Interface for Python values of type [Number]. *)
