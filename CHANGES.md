@@ -13,13 +13,13 @@
   (Reported by Victor Stinner,
    https://github.com/thierry-martinez/pyml/issues/49)
 
-- Fix: memory leak in pyml_wrap_closure
+- Fix: memory leak in `pyml_wrap_closure`
   (Fixed by Laurent Mazare, https://github.com/thierry-martinez/pyml/pull/53)
 
 - Add `Py.Module.set_docstring`, for Python >=3.5.
   (Added by Laurent Mazare, https://github.com/thierry-martinez/pyml/pull/54)
 
-- Fix: install .cmx files
+- Fix: install `.cmx` files
   (Reported by Jonathan Laurent,
   https://github.com/thierry-martinez/pyml/issues/55)
 
