@@ -91,7 +91,7 @@ ifeq ($(OCAMLOPTEXE),)
 	CMOX := cmo
 	CMAX := cma
 	ALLOPT :=
-	TESTSOPT :=
+	TESTOPT :=
 	OCAMLPREFERREDLIBS := $(OCAMLBYTECODELIBS)
 else
 	OCAMLOPT := $(OCAMLOPTEXE)
@@ -99,7 +99,7 @@ else
 	CMOX := cmx
 	CMAX := cmxa
 	ALLOPT := all.native
-	TESTSOPT := tests.native
+	TESTOPT := test.native
 	OCAMLPREFERREDLIBS := $(OCAMLNATIVELIBS)
 endif
 
@@ -147,7 +147,7 @@ INSTALL_FILES := \
 all : all.bytecode $(ALLOPT)
 	@echo The py.ml library is compiled.
 	@echo Run \`make doc\' to build the documentation.
-	@echo Run \`make tests\' to check the test suite.
+	@echo Run \`make test\' to check the test suite.
 ifneq ($(HAVE_OCAMLFIND),no)
 	@echo Run \`make install\' to install the library via ocamlfind.
 endif
@@ -190,16 +190,16 @@ all.bytecode : pyml.cma numpy.cma
 .PHONY : all.native
 all.native : pyml.cmxa pyml.cmxs numpy.cmxa numpy.cmxs
 
-.PHONY : tests
-tests : tests.bytecode $(TESTSOPT)
+.PHONY : test
+test : test.bytecode $(TESTOPT)
 
-.PHONY : tests.bytecode
-tests.bytecode : pyml_tests.bytecode numpy_tests.bytecode
+.PHONY : test.bytecode
+test.bytecode : pyml_tests.bytecode numpy_tests.bytecode
 	./pyml_tests.bytecode
 	./numpy_tests.bytecode
 
-.PHONY : tests.native
-tests.native : pyml_tests.native numpy_tests.native
+.PHONY : test.native
+test.native : pyml_tests.native numpy_tests.native
 	./pyml_tests.native
 	./numpy_tests.native
 
