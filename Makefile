@@ -138,6 +138,7 @@ INSTALL_FILES := \
 	numpy.cmi \
 	pyml.cma pyml.cmxa pyml.cmxs pyml.a \
 	numpy.cma numpy.cmxa numpy.cmxs numpy.a \
+	$(MODULES:=.cmx) numpy.cmx \
 	libpyml_stubs.a dllpyml_stubs.so \
 	libnumpy_stubs.a dllnumpy_stubs.so \
 	META

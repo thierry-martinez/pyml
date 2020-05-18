@@ -1,6 +1,6 @@
 [*] marks changes that break compatibility with previous versions.
 
-# Next version
+# 2020-05-18
 
 - Fix: Add an `__iter__` method to python iterators.
   (Fixed by Laurent Mazare, https://github.com/thierry-martinez/pyml/pull/47)
@@ -18,6 +18,10 @@
 
 - Add `Py.Module.set_docstring`, for Python >=3.5.
   (Added by Laurent Mazare, https://github.com/thierry-martinez/pyml/pull/54)
+
+- Fix: install .cmx files
+  (Reported by Jonathan Laurent,
+  https://github.com/thierry-martinez/pyml/issues/55)
 
 # 2020-02-22
 
