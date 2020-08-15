@@ -21,7 +21,7 @@ external load_library: string option -> bool option -> unit = "py_load_library"
 external is_debug_build: unit -> bool = "py_is_debug_build"
 external unsetenv: string -> unit = "py_unsetenv"
 external finalize_library: unit -> unit = "py_finalize_library"
-external pywrap_closure: string option -> string -> closure -> pyobject
+external pywrap_closure: string option -> string -> closure -> bool -> pyobject
     = "pyml_wrap_closure"
 external pynull: unit -> pyobject = "PyNull_wrapper"
 external pynone: unit -> pyobject = "PyNone_wrapper"
@@ -1951,19 +1951,19 @@ module Callable = struct
         Err.set_error errtype msg;
         null
 
-  let of_function_as_tuple ?name ?(docstring = "Anonymous closure") f =
+  let of_function_as_tuple ?name ?(docstring = "Anonymous closure") ?(catch_exn = false) f =
     check_not_null (pywrap_closure name docstring
-      (WithoutKeywords (handle_errors f)))
+      (WithoutKeywords (handle_errors f)) catch_exn)
 
-  let of_function_as_tuple_and_dict ?name ?(docstring = "Anonymous closure") f =
+  let of_function_as_tuple_and_dict ?name ?(docstring = "Anonymous closure") ?(catch_exn = false) f =
     check_not_null (pywrap_closure name docstring
-      (WithKeywords (fun args -> handle_errors (f args))))
+      (WithKeywords (fun args -> handle_errors (f args))) catch_exn)
 
-  let of_function ?name ?docstring f =
-    of_function_as_tuple ?name ?docstring (fun args -> f (Tuple.to_array args))
+  let of_function ?name ?docstring ?catch_exn f =
+    of_function_as_tuple ?name ?docstring ?catch_exn (fun args -> f (Tuple.to_array args))
 
-  let of_function_with_keywords ?name ?docstring f =
-    of_function_as_tuple_and_dict ?name ?docstring
+  let of_function_with_keywords ?name ?docstring ?catch_exn f =
+    of_function_as_tuple_and_dict ?name ?docstring ?catch_exn
       (fun args dict -> f (Tuple.to_array args) dict)
 
   let to_function_as_tuple c =
@@ -2076,10 +2076,11 @@ module Module = struct
   let get_function_with_keywords_opt m name =
     option_map Callable.to_function_with_keywords (get_opt m name)
 
-  let set_function m name f = set m name (Callable.of_function f)
+  let set_function ?catch_exn m name f =
+    set m name (Callable.of_function ?catch_exn f)
 
-  let set_function_with_keywords m name f =
-    set m name (Callable.of_function_with_keywords f)
+  let set_function_with_keywords ?catch_exn m name f =
+    set m name (Callable.of_function_with_keywords ?catch_exn f)
 
   let remove = Object.del_attr_string
 

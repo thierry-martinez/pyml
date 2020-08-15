@@ -5,6 +5,7 @@
 #include <caml/callback.h>
 #include <caml/custom.h>
 #include <caml/alloc.h>
+#include <caml/printexc.h>
 #include <sys/param.h>
 #include <string.h>
 #include <stdbool.h>
@@ -453,7 +454,7 @@ wrap_capsule(void *ptr, char *type, void (*destr)(PyObject *))
 }
 
 static PyObject *
-pycall_callback(PyObject *obj, PyObject *args)
+pycall_callback_(PyObject *obj, PyObject *args, int catch_exn)
 {
     CAMLparam0();
     CAMLlocal3(ml_out, ml_func, ml_args);
@@ -465,14 +466,34 @@ pycall_callback(PyObject *obj, PyObject *args)
     }
     ml_func = *(value *) p;
     ml_args = pyml_wrap(args, false);
-    ml_out = caml_callback(ml_func, ml_args);
+    if (catch_exn) {
+      ml_out = caml_callback_exn(ml_func, ml_args);
+      if(Is_exception_result(ml_out)) {
+        char *msg = caml_format_exception(Extract_exception(ml_out));
+        Python_PyErr_SetString(Python_PyExc_RuntimeError, msg);
+        CAMLreturnT(PyObject *, NULL);
+      }
+    }
+    else {
+      ml_out = caml_callback(ml_func, ml_args);
+    }
     out = pyml_unwrap(ml_out);
     Py_XINCREF(out);
     CAMLreturnT(PyObject *, out);
 }
 
 static PyObject *
-pycall_callback_with_keywords(PyObject *obj, PyObject *args, PyObject *keywords)
+pycall_callback(PyObject *obj, PyObject *args) {
+  return pycall_callback_(obj, args, 0);
+}
+
+static PyObject *
+pycall_callback_exn(PyObject *obj, PyObject *args) {
+  return pycall_callback_(obj, args, 1);
+}
+
+static PyObject *
+pycall_callback_with_keywords_(PyObject *obj, PyObject *args, PyObject *keywords, int catch_exn)
 {
     CAMLparam0();
     CAMLlocal4(ml_out, ml_func, ml_args, ml_keywords);
@@ -485,10 +506,30 @@ pycall_callback_with_keywords(PyObject *obj, PyObject *args, PyObject *keywords)
     ml_func = *(value *) p;
     ml_args = pyml_wrap(args, false);
     ml_keywords = pyml_wrap(keywords, false);
-    ml_out = caml_callback2(ml_func, ml_args, ml_keywords);
+    if (catch_exn) {
+      ml_out = caml_callback2_exn(ml_func, ml_args, ml_keywords);
+      if(Is_exception_result(ml_out)) {
+        char *msg = caml_format_exception(Extract_exception(ml_out));
+        Python_PyErr_SetString(Python_PyExc_RuntimeError, msg);
+        CAMLreturnT(PyObject *, NULL);
+      }
+    }
+    else {
+      ml_out = caml_callback2(ml_func, ml_args, ml_keywords);
+    }
     out = pyml_unwrap(ml_out);
     Py_XINCREF(out);
     CAMLreturnT(PyObject *, out);
+}
+
+static PyObject *
+pycall_callback_with_keywords(PyObject *obj, PyObject *args, PyObject *keywords) {
+  return pycall_callback_with_keywords_(obj, args, keywords, 0);
+}
+
+static PyObject *
+pycall_callback_with_keywords_exn(PyObject *obj, PyObject *args, PyObject *keywords) {
+  return pycall_callback_with_keywords_(obj, args, keywords, 1);
 }
 
 static void
@@ -617,9 +658,9 @@ camldestr_closure(PyObject *v)
 }
 
 CAMLprim value
-pyml_wrap_closure(value name, value docstring, value closure)
+pyml_wrap_closure(value name, value docstring, value closure, value catch_exn)
 {
-    CAMLparam3(name, docstring, closure);
+    CAMLparam4(name, docstring, closure, catch_exn);
     pyml_assert_initialized();
     PyMethodDef ml;
     PyObject *obj;
@@ -630,11 +671,12 @@ pyml_wrap_closure(value name, value docstring, value closure)
     }
     if (Tag_val(closure) == 0) {
         ml.ml_flags = 1;
-        ml.ml_meth = pycall_callback;
+        ml.ml_meth = Int_val(catch_exn) ? pycall_callback_exn : pycall_callback;
     }
     else {
         ml.ml_flags = 3;
-        ml.ml_meth = (PyCFunction) pycall_callback_with_keywords;
+        ml.ml_meth = (PyCFunction)
+          (Int_val(catch_exn) ? pycall_callback_with_keywords_exn : pycall_callback_with_keywords);
     }
     ml.ml_doc = strdup(String_val(docstring));
     struct pyml_closure *v = malloc(sizeof(struct pyml_closure));
