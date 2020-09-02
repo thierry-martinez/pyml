@@ -121,16 +121,12 @@ OCAMLLIBFLAGSBYTECODE := -custom $(OCAMLLIBFLAGS)
 
 UNAME_ARCH := $(shell uname)
 
-ifeq ($(UNAME_ARCH),Linux)
-	PYML_ARCH := pyml_arch_linux.ml
-else ifeq ($(UNAME_ARCH),Darwin)
+ifeq ($(UNAME_ARCH),Darwin)
 	PYML_ARCH := pyml_arch_darwin.ml
 else ifeq ($(findstring CYGWIN,$(UNAME_ARCH)),CYGWIN)
 	PYML_ARCH := pyml_arch_cygwin.ml
-else ifeq ($(UNAME_ARCH),FreeBSD)
-	PYML_ARCH := pyml_arch_freebsd.ml
 else
-	$(error Unsupported OS $(UNAME_ARCH))
+	PYML_ARCH := pyml_arch_unix.ml
 endif
 
 INSTALL_FILES := \
