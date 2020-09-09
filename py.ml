@@ -458,9 +458,11 @@ let find_library ~verbose ~version_major ~version_minor ~debug_build
           failwith msg
       | filename :: others ->
           begin
+(*
             let pythonhome_set =
               not (Filename.is_implicit filename) &&
                 init_pythonhome verbose (parent_dir filename) in
+*)
             try
               if verbose then
                 begin
@@ -469,8 +471,10 @@ let find_library ~verbose ~version_major ~version_minor ~debug_build
                 end;
               load_library (Some filename) debug_build;
             with Failure msg ->
+(*
               if pythonhome_set then
                 uninit_pythonhome ();
+*)
               if verbose then
                 begin
                   Printf.eprintf "Failed: \"%s\".\n" msg;
@@ -490,6 +494,7 @@ let initialize_library ~verbose ~version_major ~version_minor
   end;
   find_library ~verbose ~version_major ~version_minor ~debug_build
     python_full_path;
+(*
   begin
     match python_full_path with
       None -> ()
@@ -502,6 +507,7 @@ let initialize_library ~verbose ~version_major ~version_minor
             dirname in
         ignore (init_pythonhome verbose pythonhome);
   end;
+*)
   set_program_name !program_name;
   begin
     match !python_home with
