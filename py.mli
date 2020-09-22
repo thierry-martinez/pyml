@@ -414,8 +414,8 @@ module Callable: sig
       Wrapper for
       {{: https://docs.python.org/3/c-api/object.html#c.PyCallable_Check} PyCallable_Check}. *)
 
-  val of_function_as_tuple: ?name:string -> ?docstring:string ->
-    ?catch_exn:bool -> (Object.t -> Object.t) -> Object.t
+  val of_function_as_tuple: ?name:string -> ?docstring:string -> (Object.t -> Object.t) ->
+    Object.t
   (** [of_function_as_tuple f] returns a Python callable object that calls the
       function [f].
       Arguments are passed as a tuple.
@@ -427,18 +427,17 @@ module Callable: sig
       interpreter. *)
 
   val of_function_as_tuple_and_dict: ?name:string -> ?docstring:string ->
-    ?catch_exn:bool -> (Object.t -> Object.t -> Object.t) -> Object.t
+    (Object.t -> Object.t -> Object.t) -> Object.t
   (** [of_function_as_tuple_and_dict f] returns a Python callable object that
       calls the function [f].
       Arguments are passed as a tuple and a dictionary of keywords. *)
 
-  val of_function: ?name:string -> ?docstring:string -> ?catch_exn:bool ->
-    (Object.t array -> Object.t) -> Object.t
+  val of_function: ?name:string -> ?docstring:string -> (Object.t array -> Object.t) -> Object.t
   (** Equivalent to {!of_function_as_tuple} but with an array of Python objects
       instead of a tuple for passing arguments. *)
 
   val of_function_with_keywords: ?name:string -> ?docstring:string ->
-    ?catch_exn:bool -> (Object.t array -> Object.t -> Object.t) -> Object.t
+    (Object.t array -> Object.t -> Object.t) -> Object.t
   (** Equivalent to {!of_function_as_tuple_and_dict} but with an array of
       Python objects instead of a tuple for passing arguments.
       The dictionary of keywords is passed as such as it is more efficient
@@ -1278,13 +1277,12 @@ module Module: sig
   val set: Object.t -> string -> Object.t -> unit
   (** Equivalent to {!Object.set_attr_string}. *)
 
-  val set_function: ?catch_exn:bool -> Object.t -> string ->
-    (Object.t array -> Object.t) -> unit
+  val set_function: Object.t -> string -> (Object.t array -> Object.t) -> unit
   (** [Py.Module.set_function m name f] is equivalent to
       [Py.Module.set m name (Py.Callable.of_function f)]. *)
 
-  val set_function_with_keywords: ?catch_exn:bool -> Object.t ->
-    string -> (Object.t array -> Object.t -> Object.t) -> unit
+  val set_function_with_keywords: Object.t -> string ->
+    (Object.t array -> Object.t -> Object.t) -> unit
   (** [Py.Module.set_function_with_keywords m name f] is equivalent to
       [Py.Module.set m name (Py.Callable.of_function_with_keywords f)]. *)
 

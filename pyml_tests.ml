@@ -619,31 +619,6 @@ let () =
 
 let () =
   Pyml_tests_common.add_test
-    ~title:"callable"
-    (fun () ->
-      let div_fn =
-        Py.Callable.of_function ~catch_exn:true (function
-          | [| num; den |] ->
-              Py.Int.of_int (Py.Int.to_int num / Py.Int.to_int den)
-          | _ -> assert false)
-      in
-      let div num den =
-        Py.Callable.to_function div_fn [| Py.Int.of_int num; Py.Int.of_int den |]
-        |> Py.Int.to_int
-      in
-      assert (div 3 2 = 1);
-      begin
-        try
-          let _inf = div 3 0 in
-          assert false
-        with Py.E (_, value) ->
-          Printf.printf "Caught python exception: %s\n%!" (Py.Object.to_string value);
-      end;
-      Pyml_tests_common.Passed
-    )
-
-let () =
-  Pyml_tests_common.add_test
     ~title:"Set"
     (fun () ->
       let set = Py.Set.create () in
