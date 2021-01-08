@@ -17,6 +17,8 @@
 
 static FILE *(*Python__Py_fopen)(const char *pathname, const char *mode);
 
+static FILE *(*Python__Py_wfopen)(const wchar_t *pathname, const char *mode);
+
 static void *xmalloc(size_t size)
 {
     void *p = malloc(size);
@@ -699,7 +701,8 @@ py_load_library(value filename_ocaml, value debug_build_ocaml)
     Python_PyLong_FromString = resolve("PyLong_FromString");
     Python_PyMem_Free = resolve("PyMem_Free");
     if (version_major >= 3) {
-        Python__Py_fopen = resolve("_Py_fopen");
+        Python__Py_wfopen = resolve_optional("_Py_wfopen"); /* Python >=3.10 */
+        Python__Py_fopen = resolve_optional("_Py_fopen");
     }
     else {
         Python2_PyCObject_FromVoidPtr = resolve("PyCObject_FromVoidPtr");
@@ -1163,17 +1166,23 @@ pyml_wrap_wide_string(wchar_t *ws)
 }
 
 static wchar_t *
-pyml_unwrap_wide_string(value string_ocaml)
+wide_string_of_string(const char *s)
 {
-    CAMLparam1(string_ocaml);
-    const char *s = String_val(string_ocaml);
     size_t n = mbstowcs(NULL, s, 0);
     if (n == (size_t) -1) {
-        fprintf(stderr, "pyml_unwrap_wide_string failure.\n");
+        fprintf(stderr, "wide_string_of_string failure.\n");
         exit(EXIT_FAILURE);
     }
     wchar_t *ws = xmalloc((n + 1) * sizeof (wchar_t));
     mbstowcs(ws, s, n);
+    return ws;
+}
+
+static wchar_t *
+pyml_unwrap_wide_string(value string_ocaml)
+{
+    CAMLparam1(string_ocaml);
+    wchar_t *ws = wide_string_of_string(String_val(string_ocaml));
     CAMLreturnT(wchar_t *, ws);
 }
 
@@ -1284,8 +1293,13 @@ open_file(value file, const char *mode)
     FILE *result;
     if (Tag_val(file) == 0) {
         const char *filename = String_val(Field(file, 0));
-        if (version_major >= 3) {
+        if (Python__Py_fopen != NULL) {
             result = Python__Py_fopen(filename, mode);
+        }
+        else if (Python__Py_wfopen != NULL) {
+            wchar_t *wide_filename = wide_string_of_string(filename);
+            result = Python__Py_wfopen(wide_filename, mode);
+            free(wide_filename);
         }
         else {
             result = fopen(filename, mode);
@@ -1301,17 +1315,7 @@ static void
 close_file(value file, FILE *file_struct)
 {
     CAMLparam1(file);
-    if (Tag_val(file) == 0) {
-        if (version_major >= 3) {
-            /* No _Py_fclose :( */
-        }
-        else {
-            fclose(file_struct);
-        }
-    }
-    else if (Tag_val(file) == 1) {
-        fclose(file_struct);
-    }
+    fclose(file_struct);
     CAMLreturn0;
 }
 

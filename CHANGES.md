@@ -2,10 +2,13 @@
 
 # Next version
 
-- `PyObject_AsCharBuffer`, `PyObject_AsReadBuffer`,
-  `PyObject_AsWriteBuffer` bindings are marked optional as they have
-  been removed in Python 3.10.
-  (Reported by Richard W.M. Jones)
+- Compatibility with Python 3.10 (reported by Richard W.M. Jones)
+
+    - `PyObject_AsCharBuffer`, `PyObject_AsReadBuffer`,
+      `PyObject_AsWriteBuffer` bindings are marked optional as they have
+      been removed in Python 3.10.
+
+    - `Py_fopen` is optional and `Py_wfopen` is used instead if available.
 
 # 2020-05-18
 
