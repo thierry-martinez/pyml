@@ -618,5 +618,26 @@ let () =
     )
 
 let () =
+  Pyml_tests_common.add_test
+    ~title:"Set"
+    (fun () ->
+      let set = Py.Set.create () in
+      for i = 0 to 9 do
+        Py.Set.add set (Py.Long.of_int i)
+      done;
+      assert (Py.Set.check set);
+      assert (Py.Set.size set = 10);
+      Py.Set.discard set (Py.Long.of_int 5);
+      assert (Py.Set.size set = 9);
+      let values = Py.Set.to_list_map Py.Long.to_int set in
+      assert (values = [0; 1; 2; 3; 4; 6; 7; 8; 9]);
+      let set' = Py.Set.copy set in
+      Py.Set.add set' (Py.Long.of_int 42);
+      Py.Set.add set' (Py.Long.of_int 42);
+      assert (Py.Set.size set = 9);
+      assert (Py.Set.size set' = 10);
+      Pyml_tests_common.Passed)
+
+let () =
   if not !Sys.interactive then
     Pyml_tests_common.main ()

@@ -873,7 +873,8 @@ enum pytype_labels {
     Tuple,
     Type,
     Unicode,
-    Iter
+    Iter,
+    Set
 };
 
 CAMLprim value
@@ -937,6 +938,9 @@ pytype(value object_ocaml)
     }
     else if (flags & Py_TPFLAGS_UNICODE_SUBCLASS) {
         result = Unicode;
+    }
+    else if (ob_type == Python_PySet_Type) {
+        result = Set;
     }
     else if (typeobj->tp_iternext != NULL &&
         typeobj->tp_iternext != &Python27__PyObject_NextNotImplemented) {
