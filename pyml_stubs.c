@@ -685,9 +685,9 @@ py_load_library(value filename_ocaml, value debug_build_ocaml)
         resolve("PyObject_CallMethodObjArgs");
     Python_PyErr_Fetch = resolve("PyErr_Fetch");
     Python_PyErr_NormalizeException = resolve("PyErr_NormalizeException");
-    Python_PyObject_AsCharBuffer = resolve("PyObject_AsCharBuffer");
-    Python_PyObject_AsReadBuffer = resolve("PyObject_AsReadBuffer");
-    Python_PyObject_AsWriteBuffer = resolve("PyObject_AsWriteBuffer");
+    Python_PyObject_AsCharBuffer = resolve_optional("PyObject_AsCharBuffer");
+    Python_PyObject_AsReadBuffer = resolve_optional("PyObject_AsReadBuffer");
+    Python_PyObject_AsWriteBuffer = resolve_optional("PyObject_AsWriteBuffer");
     if (version_major >= 3) {
         Python__Py_FalseStruct = resolve("_Py_FalseStruct");
         Python_PyString_AsStringAndSize = resolve("PyBytes_AsStringAndSize");

@@ -1,5 +1,12 @@
 [*] marks changes that break compatibility with previous versions.
 
+# Next version
+
+- `PyObject_AsCharBuffer`, `PyObject_AsReadBuffer`,
+  `PyObject_AsWriteBuffer` bindings are marked optional as they have
+  been removed in Python 3.10.
+  (Reported by Richard W.M. Jones)
+
 # 2020-05-18
 
 - Fix: Add an `__iter__` method to python iterators.
