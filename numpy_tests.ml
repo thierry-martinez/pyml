@@ -58,7 +58,7 @@ let () =
         Pyml_tests_common.Disabled "numpy is not available"
       else
         try
-          Numpy.to_bigarray Float64 C_layout Py.none;
+          ignore (Numpy.to_bigarray Float64 C_layout Py.none);
           assert false
         with Invalid_argument _ ->
           Pyml_tests_common.Passed)
