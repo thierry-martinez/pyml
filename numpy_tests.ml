@@ -52,5 +52,17 @@ callback(numpy.array([0,1,2,3]))
         end)
 
 let () =
+  Pyml_tests_common.add_test ~title:"to_bigarray none"
+    (fun () ->
+      if Py.Import.try_import_module "numpy" = None then
+        Pyml_tests_common.Disabled "numpy is not available"
+      else
+        try
+          Numpy.to_bigarray Float64 C_layout Py.none;
+          assert false
+        with Invalid_argument _ ->
+          Pyml_tests_common.Passed)
+
+let () =
   if not !Sys.interactive then
     Pyml_tests_common.main ()

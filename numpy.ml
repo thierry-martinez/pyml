@@ -69,6 +69,8 @@ let string_of_layout layout =
     "unknown layout"
 
 let to_bigarray kind layout t =
+  if t == Py.none then
+    invalid_arg "to_bigarray";
   let kind', layout', array = bigarray_of_pyarray (Py.Array.numpy_api ()) t in
   if kind <> kind' then
     failwith (Printf.sprintf

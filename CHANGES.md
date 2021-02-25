@@ -10,6 +10,17 @@
 
     - `Py_fopen` is optional and `Py_wfopen` is used instead if available.
 
+- More general handling of Unix architectures.
+  (Fixed by Pino Toscano, https://github.com/thierry-martinez/pyml/pull/57)
+
+- Add `Py.Set` module for Python sets.
+  (Added by Laurent Mazare, https://github.com/thierry-martinez/pyml/pull/58)
+
+- Fix: `Numpy.to_bigarray` raises an exception if source array is
+  `Py.none` instead of segfaulting.
+  (Reported by Jonathan Laurent,
+   https://github.com/thierry-martinez/pyml/issues/61)
+
 # 2020-05-18
 
 - Fix: Add an `__iter__` method to python iterators.
