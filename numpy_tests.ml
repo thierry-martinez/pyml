@@ -51,17 +51,35 @@ callback(numpy.array([0,1,2,3]))
           Pyml_tests_common.Passed
         end)
 
+let assert_invalid_argument f =
+  try
+    let () = f () in
+    assert false
+  with Invalid_argument _ ->
+    ()
+
 let () =
-  Pyml_tests_common.add_test ~title:"to_bigarray none"
+  Pyml_tests_common.add_test ~title:"to_bigarray invalid type"
     (fun () ->
       if Py.Import.try_import_module "numpy" = None then
         Pyml_tests_common.Disabled "numpy is not available"
       else
-        try
-          ignore (Numpy.to_bigarray Float64 C_layout Py.none);
-          assert false
-        with Invalid_argument _ ->
-          Pyml_tests_common.Passed)
+        begin
+          assert_invalid_argument (fun () ->
+            ignore (Numpy.to_bigarray Float64 C_layout Py.none));
+          assert_invalid_argument (fun () ->
+            ignore (Numpy.to_bigarray Float64 C_layout (Py.Int.of_int 0)));
+          let array =
+            Numpy.of_bigarray (Bigarray.genarray_of_array1 (
+              Bigarray.Array1.of_array (Bigarray.float64) (Bigarray.c_layout)
+                [| 1.; 2. |])) in
+          ignore (Numpy.to_bigarray Float64 C_layout array);
+          assert_invalid_argument (fun () ->
+            ignore (Numpy.to_bigarray Float32 C_layout array));
+          assert_invalid_argument (fun () ->
+            ignore (Numpy.to_bigarray Float64 Fortran_layout array));
+          Pyml_tests_common.Passed
+        end)
 
 let () =
   if not !Sys.interactive then

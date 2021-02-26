@@ -69,15 +69,15 @@ let string_of_layout layout =
     "unknown layout"
 
 let to_bigarray kind layout t =
-  if t == Py.none then
-    invalid_arg "to_bigarray";
+  if not (Py.Object.is_instance t (Py.Array.pyarray_type ())) then
+    invalid_arg "Numpy.to_bigarray";
   let kind', layout', array = bigarray_of_pyarray (Py.Array.numpy_api ()) t in
   if kind <> kind' then
-    failwith (Printf.sprintf
-      "Numpy array has elements of kind %s, but to_bigarray expected %s"
+    invalid_arg (Printf.sprintf
+      "Numpy.to_bigarray: Numpy array has elements of kind %s, but to_bigarray expected %s"
       (string_of_kind kind') (string_of_kind kind));
   if layout <> layout' then
-    failwith (Printf.sprintf
-      "Numpy array has %s layout, but to_bigarray expected %s"
+    invalid_arg (Printf.sprintf
+      "Numpy.to_bigarray: Numpy array has %s layout, but to_bigarray expected %s"
       (string_of_layout layout') (string_of_layout layout));
   array

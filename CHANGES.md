@@ -16,8 +16,8 @@
 - Add `Py.Set` module for Python sets.
   (Added by Laurent Mazare, https://github.com/thierry-martinez/pyml/pull/58)
 
-- Fix #61: `Numpy.to_bigarray` raises an exception if source array is
-  `Py.none` instead of segfaulting.
+- Fix #61: `Numpy.to_bigarray` raises an exception if source value is
+  not a Numpy array instead of segfaulting.
   (Reported by Jonathan Laurent,
    https://github.com/thierry-martinez/pyml/issues/61)
 
