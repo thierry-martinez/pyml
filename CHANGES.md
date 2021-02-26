@@ -16,10 +16,15 @@
 - Add `Py.Set` module for Python sets.
   (Added by Laurent Mazare, https://github.com/thierry-martinez/pyml/pull/58)
 
-- Fix: `Numpy.to_bigarray` raises an exception if source array is
+- Fix #61: `Numpy.to_bigarray` raises an exception if source array is
   `Py.none` instead of segfaulting.
   (Reported by Jonathan Laurent,
    https://github.com/thierry-martinez/pyml/issues/61)
+
+- Fix #56, #59: Add `python-config` heuristics to find Python library.
+  (Reported by Anders Thuné and Nils Becker,
+   https://github.com/thierry-martinez/pyml/issues/56
+   https://github.com/thierry-martinez/pyml/issues/59)
 
 # 2020-05-18
 
