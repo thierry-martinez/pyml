@@ -39,7 +39,13 @@ open_library(const char *filename)
     return LoadLibrary(filename);
 }
 
-void
+static char *
+get_library_error()
+{
+    return "Unable to load library";
+}
+
+static void
 close_library(library_t library)
 {
     if (!FreeLibrary(library)) {
@@ -88,6 +94,12 @@ static library_t
 open_library(const char *filename)
 {
     return dlopen(filename, RTLD_LAZY | RTLD_GLOBAL);
+}
+
+static char *
+get_library_error()
+{
+    return dlerror();
 }
 
 void
@@ -660,7 +672,7 @@ py_load_library(value filename_ocaml, value debug_build_ocaml)
         const char *filename = String_val(Field(filename_ocaml, 0));
         library = open_library(filename);
         if (!library) {
-            failwith("Library not found");
+            failwith(get_library_error());
         }
     }
     else {
