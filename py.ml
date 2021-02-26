@@ -2096,8 +2096,9 @@ module Import = struct
     with E (e, _msg)
         when
           let ty = Object.to_string e in
-          ty = "<class 'ModuleNotFoundError'>" ||
-            ty = "<type 'exceptions.ImportError'>" ->
+          ty = "<class 'ModuleNotFoundError'>" || (* Python >=3.6*)
+          ty = "<class 'ImportError'>" || (* Python <3.6 *)
+          ty = "<type 'exceptions.ImportError'>" (* Python 2 *) ->
       None
 
   let try_import_module = import_module_opt

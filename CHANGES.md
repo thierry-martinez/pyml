@@ -26,6 +26,9 @@
    https://github.com/thierry-martinez/pyml/issues/56
    https://github.com/thierry-martinez/pyml/issues/59)
 
+- Fix `import_module_opt` for Python <3.6
+  (Reported by opam CI.)
+
 # 2020-05-18
 
 - Fix: Add an `__iter__` method to python iterators.
