@@ -17,4 +17,4 @@ depends: [
   "conf-python-3-dev" {with-test}
 ]
 depopts: ["utop"]
-version: "20200518"
+version: "20210226"

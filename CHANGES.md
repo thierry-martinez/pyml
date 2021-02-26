@@ -1,6 +1,6 @@
 [*] marks changes that break compatibility with previous versions.
 
-# Next version
+# 2021-02-26
 
 - Compatibility with Python 3.10 (reported by Richard W.M. Jones)
 
