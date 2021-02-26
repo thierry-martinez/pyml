@@ -388,6 +388,29 @@ let libpython_from_pkg_config version_major version_minor =
       Some (concat_library_filenames library_paths [library_filename])
   | _ -> None
 
+let libpython_from_python_config version_major version_minor =
+  let command = Printf.sprintf "python%d-config --ldflags" version_major in
+  match run_command_opt command false with
+    Some (words :: _) ->
+      let word_list = String.split_on_char ' ' words in
+      let parse_word library_paths word =
+        if String.length word > 2 then
+          match String.sub word 0 2 with
+            "-L" ->
+              let word' =
+                Pyutils.substring_between word 2 (String.length word) in
+              word' :: library_paths
+          | _ -> library_paths
+        else library_paths in
+      let library_paths =
+        List.fold_left parse_word [] word_list in
+      let library_filenames =
+        List.map
+          (fun format -> Printf.sprintf format version_major version_minor)
+          Pyml_arch.library_patterns in
+      Some (concat_library_filenames library_paths library_filenames)
+  | _ -> None
+
 let libpython_from_pythonhome version_major version_minor python_full_path =
   let library_paths =
     match
@@ -408,22 +431,25 @@ let libpython_from_pythonhome version_major version_minor python_full_path =
   concat_library_filenames library_paths library_filenames
 
 let find_library_path version_major version_minor python_full_path =
-  match Option.bind python_full_path libpython_from_interpreter with
-    Some path -> [path]
-  | None ->
-      match libpython_from_ldconfig version_major version_minor with
-        Some path -> [path]
-      | None ->
-          match version_major, version_minor with
-            Some version_major, Some version_minor ->
-              begin
-                match libpython_from_pkg_config version_major version_minor with
-                  Some paths -> paths
-                | None ->
-                    libpython_from_pythonhome version_major version_minor
-                      python_full_path
-              end
-          | _ -> failwith "Cannot infer Python version"
+  let heuristics = [
+    (fun () ->
+      Option.bind python_full_path (fun path ->
+        Option.map (fun path -> [path]) (libpython_from_interpreter path)));
+    (fun () ->
+      Option.map (fun path -> [path])
+        (libpython_from_ldconfig version_major version_minor));
+    (fun () ->
+      Option.bind version_major (fun version_major ->
+        Option.bind version_minor (fun version_minor ->
+          libpython_from_pkg_config version_major version_minor)));
+    (fun () ->
+      Option.bind version_major (fun version_major ->
+        Option.bind version_minor (fun version_minor ->
+          libpython_from_python_config version_major version_minor)));
+  ] in
+  match List.find_map (fun f -> f ()) heuristics with
+  | None -> failwith "Cannot find Python library"
+  | Some paths -> paths
 
 let python_version_from_interpreter interpreter =
   let version_line =
