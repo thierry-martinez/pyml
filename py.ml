@@ -446,6 +446,11 @@ let find_library_path version_major version_minor python_full_path =
       Option.bind version_major (fun version_major ->
         Option.bind version_minor (fun version_minor ->
           libpython_from_python_config version_major version_minor)));
+    (fun () ->
+      Option.bind version_major (fun version_major ->
+        Option.bind version_minor (fun version_minor ->
+          Some (libpython_from_pythonhome version_major version_minor
+            python_full_path))));
   ] in
   match List.find_map (fun f -> f ()) heuristics with
   | None -> failwith "Cannot find Python library"
