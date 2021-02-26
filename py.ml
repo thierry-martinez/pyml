@@ -389,9 +389,10 @@ let libpython_from_pkg_config version_major version_minor =
   | _ -> None
 
 let libpython_from_python_config version_major version_minor =
-  let command = Printf.sprintf "python%d-config --ldflags" version_major in
+  let command =
+    Printf.sprintf "python%d.%d-config --ldflags" version_major version_minor in
   match run_command_opt command false with
-    Some (words :: _) ->
+  | Some (words :: _) ->
       let word_list = String.split_on_char ' ' words in
       let parse_word library_paths word =
         if String.length word > 2 then
