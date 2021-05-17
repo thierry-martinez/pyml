@@ -2162,11 +2162,6 @@ let import = Import.import_module
 
 let import_opt = Import.import_module_opt
 
-let option_map f o =
-  match o with
-  | None -> None
-  | Some x -> Some (f x)
-
 module Module = struct
   let check o = Type.get o = Type.Module
 
@@ -2190,13 +2185,13 @@ module Module = struct
 
   let get_function m name = Callable.to_function (get m name)
 
-  let get_function_opt m name = option_map Callable.to_function (get_opt m name)
+  let get_function_opt m name = Option.map Callable.to_function (get_opt m name)
 
   let get_function_with_keywords m name =
     Callable.to_function_with_keywords (get m name)
 
   let get_function_with_keywords_opt m name =
-    option_map Callable.to_function_with_keywords (get_opt m name)
+    Option.map Callable.to_function_with_keywords (get_opt m name)
 
   let set_function m name f = set m name (Callable.of_function f)
 
