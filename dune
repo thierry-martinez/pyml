@@ -1,20 +1,20 @@
 (library
-  (name pyml)
-  (modules numpy py pycaml pyml_arch pytypes pywrappers)
+  (public_name pyml)
+  (modules numpy py pyops pycaml pyml_arch pytypes pywrappers)
   (c_names numpy_stubs pyml_stubs)
   (wrapped false)
-  (libraries bigarray stdcompat pyutils))
+  (libraries bigarray stdcompat pyml.pyutils))
+
+(library
+  (name pyutils)
+  (public_name pyml.pyutils)
+  (modules pyutils)
+  (libraries stdcompat))
 
 (executables
   (names generate)
   (modules generate)
-  (libraries stdcompat pyutils))
-
-(library
-  (name pyutils)
-  (modules pyutils)
-  (wrapped false)
-  (libraries stdcompat unix))
+  (libraries stdcompat pyml.pyutils))
 
 (rule
   (targets pywrappers.ml pyml.h pyml_dlsyms.inc pyml_wrappers.inc)
@@ -26,18 +26,22 @@
   (deps (:pyml_arch pyml_arch_%{ocaml-config:system}.ml))
   (action (copy %{pyml_arch} pyml_arch.ml)))
 
+(rule
+  (targets pyml_arch_linux.ml)
+  (deps pyml_arch_unix.ml)
+  (action (copy pyml_arch_unix.ml pyml_arch_linux.ml)))
+
 (library
   (name pyml_tests_common)
   (modules pyml_tests_common)
-  (wrapped false)
   (libraries pyml stdcompat))
 
 (test
   (name numpy_tests)
   (modules numpy_tests)
-  (libraries pyml pyml_tests_common stdcompat pyutils))
+  (libraries pyml pyml_tests_common stdcompat))
 
 (test
   (name pyml_tests)
   (modules pyml_tests)
-  (libraries pyml pyml_tests_common stdcompat pyutils))
+  (libraries pyml pyml_tests_common stdcompat))
