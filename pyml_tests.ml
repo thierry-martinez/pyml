@@ -164,6 +164,32 @@ except Exception as err:
 
 let () =
   Pyml_tests_common.add_test
+    ~title:"ocaml exception with traceback"
+    (fun () ->
+      let m = Py.Import.add_module "test" in
+      let traceback = [
+        {Py.Traceback.filename = "file1.ml"; function_name = "func1"; line_number = 1};
+        {Py.Traceback.filename = "file2.ml"; function_name = "func2"; line_number = 2}
+      ] in
+      let mywrap _ =
+        raise (Py.Err_with_traceback (Py.Err.Exception, "Great", traceback)) in
+      Py.Module.set_function m "mywrap" mywrap;
+      assert (Py.Run.simple_string "
+from test import mywrap
+import traceback
+try:
+    mywrap()
+    raise Exception('No exception raised')
+except Exception as err:
+    filenames = [f.filename for f in traceback.extract_tb(err.__traceback__)]
+    assert filenames == ['<string>', 'file2.ml', 'file1.ml']
+    assert str(err) == \"Great\"
+");
+      Pyml_tests_common.Passed
+    )
+
+let () =
+  Pyml_tests_common.add_test
     ~title:"ocaml other exception"
     (fun () ->
       let m = Py.Import.add_module "test" in

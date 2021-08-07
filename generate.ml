@@ -143,8 +143,10 @@ let wrappers =
      arguments = Fun [];
      result = Unit;
      optional = false; };
+   (* PyErr_Restore steals the references.
+      https://docs.python.org/3/c-api/exceptions.html#c.PyErr_Restore *)
    { symbol = "PyErr_Restore";
-     arguments = Fun [PyObject false; PyObject false; PyObject false];
+     arguments = Fun [PyObject true; PyObject true; PyObject true];
      result = Unit;
      optional = false; };
    { symbol = "PyErr_PrintEx";
