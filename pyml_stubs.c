@@ -222,6 +222,11 @@ static PyObject *(*Python_PyLong_FromString)(const char *, const char **, int);
 /* Internal use only */
 static void (*Python_PyMem_Free)(void *);
 
+/* Generate traceback objects. */
+static PyObject *(*Python_PyThreadState_Get)();
+static PyObject *(*Python_PyFrame_New)(PyObject*, PyObject*, PyObject*, PyObject*);
+static PyObject *(*Python_PyCode_NewEmpty)(const char*, const char*, int);
+
 static enum UCS { UCS_NONE, UCS2, UCS4 } ucs;
 
 /* Single instance of () */
@@ -712,6 +717,9 @@ py_load_library(value filename_ocaml, value debug_build_ocaml)
     }
     Python_PyLong_FromString = resolve("PyLong_FromString");
     Python_PyMem_Free = resolve("PyMem_Free");
+    Python_PyThreadState_Get = resolve("PyThreadState_Get");
+    Python_PyFrame_New = resolve("PyFrame_New");
+    Python_PyCode_NewEmpty = resolve("PyCode_NewEmpty");
     if (version_major >= 3) {
         Python__Py_wfopen = resolve_optional("_Py_wfopen"); /* Python >=3.10 */
         Python__Py_fopen = resolve_optional("_Py_fopen");
@@ -1421,6 +1429,24 @@ Python27_PyCapsule_IsValid_wrapper(value arg0_ocaml, value arg1_ocaml)
     const char *arg1 = String_val(arg1_ocaml);
     int result = Python27_PyCapsule_IsValid(arg0, arg1);
     CAMLreturn(Val_int(result));
+}
+
+CAMLprim value
+pyml_pyframe_new(value filename_ocaml, value funcname_ocaml, value lineno_ocaml) {
+    CAMLparam3(filename_ocaml, funcname_ocaml, lineno_ocaml);
+    const char *filename = String_val(filename_ocaml);
+    const char *funcname = String_val(funcname_ocaml);
+    int lineno = Int_val(lineno_ocaml);
+    PyObject *code = Python_PyCode_NewEmpty(filename, funcname, lineno);
+    PyObject *globals = Python_PyDict_New();
+    PyObject *result = Python_PyFrame_New(
+        Python_PyThreadState_Get(),
+        code,
+        globals,
+        NULL);
+    Py_DECREF(code);
+    Py_DECREF(globals);
+    CAMLreturn(pyml_wrap(result, true));
 }
 
 #include "pyml_wrappers.inc"

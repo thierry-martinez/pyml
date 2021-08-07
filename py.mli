@@ -861,8 +861,23 @@ module Err: sig
       instead. *)
 end
 
+module Traceback : sig
+  type frame =
+    { filename : string
+    ; function_name : string
+    ; line_number : int
+    }
+
+  val create_frame : frame -> Object.t
+
+  type t = frame list
+end
+
 exception Err of Err.t * string
 (** Represents an exception to be set with {!Err.set_error} in a callback. *)
+
+exception Err_with_traceback of Err.t * string * Traceback.t
+(** Represents an exception with traceback information to be set with {!Err.restore}. *)
 
 module Eval: sig
   val call_object: Object.t -> Object.t -> Object.t
