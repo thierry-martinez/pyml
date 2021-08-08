@@ -2059,8 +2059,15 @@ module Callable = struct
         Err.set_error errtype msg;
         null
     | Err_with_traceback (errtype, msg, traceback) ->
-        let traceback = Traceback.create traceback in
-        Err.restore (Err.of_error errtype) (String.of_string msg) traceback;
+        let () =
+          (* Traceback objects can only be created since Python 3.7. *)
+          if !version_major_value <= 2 || (!version_major_value == 3 && !version_minor_value < 7)
+          then
+            Err.set_error errtype msg
+          else
+            let traceback = Traceback.create traceback in
+            Err.restore (Err.of_error errtype) (String.of_string msg) traceback;
+        in
         null
 
   let of_function_as_tuple ?name ?(docstring = "Anonymous closure") f =

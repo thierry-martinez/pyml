@@ -176,13 +176,15 @@ let () =
       Py.Module.set_function m "mywrap" mywrap;
       assert (Py.Run.simple_string "
 from test import mywrap
+import sys
 import traceback
 try:
     mywrap()
     raise Exception('No exception raised')
 except Exception as err:
-    filenames = [f.filename for f in traceback.extract_tb(err.__traceback__)]
-    assert filenames == ['<string>', 'file2.ml', 'file1.ml']
+    if sys.version_info.major == 3 and sys.version_info.minor >= 7:
+        filenames = [f.filename for f in traceback.extract_tb(err.__traceback__)]
+        assert filenames == ['<string>', 'file2.ml', 'file1.ml']
     assert str(err) == \"Great\"
 ");
       Pyml_tests_common.Passed
