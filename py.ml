@@ -34,6 +34,8 @@ external pyobject_callmethodobjargs: pyobject -> pyobject -> pyobject array
   -> pyobject = "PyObject_CallMethodObjArgs_wrapper"
 external pyerr_fetch_internal: unit -> pyobject * pyobject * pyobject
     = "PyErr_Fetch_wrapper"
+external pyerr_restore_internal: pyobject -> pyobject -> pyobject -> unit
+    = "PyErr_Restore_wrapper"
 external pystring_asstringandsize: pyobject -> string option
     = "PyString_AsStringAndSize_wrapper"
 external pyobject_ascharbuffer: pyobject -> string option
@@ -1309,7 +1311,7 @@ module Err = struct
   let print_ex i =
     Pywrappers.pyerr_printex i
 
-  let restore = Pywrappers.pyerr_restore
+  let restore = pyerr_restore_internal
 
   let restore_tuple (ptype, pvalue, ptraceback) =
     restore ptype pvalue ptraceback

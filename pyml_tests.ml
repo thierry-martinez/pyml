@@ -192,6 +192,26 @@ except Exception as err:
 
 let () =
   Pyml_tests_common.add_test
+    ~title:"restore with null"
+    (fun () ->
+      try
+        let _ = Py.Run.eval ~start:Py.File "
+raise Exception('Great')
+" in
+        Pyml_tests_common.Failed "uncaught exception"
+      with Py.E (_, value) -> begin
+        assert (Py.Object.to_string value = "Great");
+        match Py.Err.fetched () with
+        | None -> Pyml_tests_common.Failed "unexpected none"
+        | Some (err, _args, _traceback) ->
+            (* Test that using [Py.Err.restore] on null works fine. *)
+            Py.Err.restore err Py.null Py.null;
+            Py.Err.clear ();
+            Pyml_tests_common.Passed
+    end)
+
+let () =
+  Pyml_tests_common.add_test
     ~title:"ocaml other exception"
     (fun () ->
       let m = Py.Import.add_module "test" in

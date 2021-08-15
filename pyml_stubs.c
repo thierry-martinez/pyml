@@ -200,6 +200,7 @@ static PyObject *(*Python_PyObject_CallMethodObjArgs)(
 
 /* Wrapped by PyErr_Fetch_wrapper */
 static void (*Python_PyErr_Fetch)(PyObject **, PyObject **, PyObject **);
+static void (*Python_PyErr_Restore)(PyObject *, PyObject *, PyObject *);
 static void (*Python_PyErr_NormalizeException)
 (PyObject **, PyObject **, PyObject **);
 
@@ -703,6 +704,7 @@ py_load_library(value filename_ocaml, value debug_build_ocaml)
     Python_PyObject_CallMethodObjArgs =
         resolve("PyObject_CallMethodObjArgs");
     Python_PyErr_Fetch = resolve("PyErr_Fetch");
+    Python_PyErr_Restore = resolve("PyErr_Restore");
     Python_PyErr_NormalizeException = resolve("PyErr_NormalizeException");
     Python_PyObject_AsCharBuffer = resolve_optional("PyObject_AsCharBuffer");
     Python_PyObject_AsReadBuffer = resolve_optional("PyObject_AsReadBuffer");
@@ -1150,6 +1152,26 @@ PyErr_Fetch_wrapper(value unit)
     Store_field(result, 2, pyml_wrap(excTraceback, false));
     CAMLreturn(result);
 }
+
+// PyErr_Restore steals the references.
+// https://docs.python.org/3/c-api/exceptions.html#c.PyErr_Restore
+// However the objects can be null, so we do not want to run Py_INCREF if
+// this is the case as this would trigger some segfaults.
+CAMLprim value
+PyErr_Restore_wrapper(value arg0_ocaml, value arg1_ocaml, value arg2_ocaml)
+{
+    CAMLparam3(arg0_ocaml, arg1_ocaml, arg2_ocaml);
+    pyml_assert_initialized();
+    PyObject *arg0 = pyml_unwrap(arg0_ocaml);
+    if (arg0) Py_INCREF(arg0);
+    PyObject *arg1 = pyml_unwrap(arg1_ocaml);
+    if (arg1) Py_INCREF(arg1);
+    PyObject *arg2 = pyml_unwrap(arg2_ocaml);
+    if (arg2) Py_INCREF(arg2);
+    Python_PyErr_Restore(arg0, arg1, arg2);
+    CAMLreturn(Val_unit);
+}
+
 
 CAMLprim value
 pyml_wrap_string_option(const char *s)
