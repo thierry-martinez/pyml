@@ -164,6 +164,54 @@ except Exception as err:
 
 let () =
   Pyml_tests_common.add_test
+    ~title:"ocaml exception with traceback"
+    (fun () ->
+      let m = Py.Import.add_module "test" in
+      let traceback = [
+        {Py.Traceback.filename = "file1.ml"; function_name = "func1"; line_number = 1};
+        {Py.Traceback.filename = "file2.ml"; function_name = "func2"; line_number = 2}
+      ] in
+      let mywrap _ =
+        raise (Py.Err_with_traceback (Py.Err.Exception, "Great", traceback)) in
+      Py.Module.set_function m "mywrap" mywrap;
+      assert (Py.Run.simple_string "
+from test import mywrap
+import sys
+import traceback
+try:
+    mywrap()
+    raise Exception('No exception raised')
+except Exception as err:
+    if sys.version_info.major == 3 and sys.version_info.minor >= 7:
+        filenames = [f.filename for f in traceback.extract_tb(err.__traceback__)]
+        assert filenames == ['<string>', 'file2.ml', 'file1.ml']
+    assert str(err) == \"Great\"
+");
+      Pyml_tests_common.Passed
+    )
+
+let () =
+  Pyml_tests_common.add_test
+    ~title:"restore with null"
+    (fun () ->
+      try
+        let _ = Py.Run.eval ~start:Py.File "
+raise Exception('Great')
+" in
+        Pyml_tests_common.Failed "uncaught exception"
+      with Py.E (_, value) -> begin
+        assert (Py.Object.to_string value = "Great");
+        match Py.Err.fetched () with
+        | None -> Pyml_tests_common.Failed "unexpected none"
+        | Some (err, _args, _traceback) ->
+            (* Test that using [Py.Err.restore] on null works fine. *)
+            Py.Err.restore err Py.null Py.null;
+            Py.Err.clear ();
+            Pyml_tests_common.Passed
+    end)
+
+let () =
+  Pyml_tests_common.add_test
     ~title:"ocaml other exception"
     (fun () ->
       let m = Py.Import.add_module "test" in

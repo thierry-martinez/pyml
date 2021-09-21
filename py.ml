@@ -34,6 +34,8 @@ external pyobject_callmethodobjargs: pyobject -> pyobject -> pyobject array
   -> pyobject = "PyObject_CallMethodObjArgs_wrapper"
 external pyerr_fetch_internal: unit -> pyobject * pyobject * pyobject
     = "PyErr_Fetch_wrapper"
+external pyerr_restore_internal: pyobject -> pyobject -> pyobject -> unit
+    = "PyErr_Restore_wrapper"
 external pystring_asstringandsize: pyobject -> string option
     = "PyString_AsStringAndSize_wrapper"
 external pyobject_ascharbuffer: pyobject -> string option
@@ -48,6 +50,8 @@ external pycapsule_isvalid: Pytypes.pyobject -> string -> int
       = "Python27_PyCapsule_IsValid_wrapper"
 external pycapsule_check: Pytypes.pyobject -> int
       = "pyml_capsule_check"
+external pyframe_new : string -> string -> int -> Pytypes.pyobject
+      = "pyml_pyframe_new"
 
 external ucs: unit -> ucs = "py_get_UCS"
 (* Avoid warning 32. *)
@@ -1307,7 +1311,7 @@ module Err = struct
   let print_ex i =
     Pywrappers.pyerr_printex i
 
-  let restore = Pywrappers.pyerr_restore
+  let restore = pyerr_restore_internal
 
   let restore_tuple (ptype, pvalue, ptraceback) =
     restore ptype pvalue ptraceback
@@ -1328,41 +1332,41 @@ module Err = struct
 
   let set_object = Pywrappers.pyerr_setobject
 
+  let of_error = function
+      Exception -> Pywrappers.pyexc_exception ()
+    | StandardError ->
+        if !version_major_value <= 2 then
+          Pywrappers.Python2.pyexc_standarderror ()
+        else
+          Pywrappers.pyexc_exception ()
+    | ArithmeticError -> Pywrappers.pyexc_arithmeticerror ()
+    | LookupError -> Pywrappers.pyexc_lookuperror ()
+    | AssertionError -> Pywrappers.pyexc_assertionerror ()
+    | AttributeError -> Pywrappers.pyexc_attributeerror ()
+    | EOFError -> Pywrappers.pyexc_eoferror ()
+    | EnvironmentError -> Pywrappers.pyexc_environmenterror ()
+    | FloatingPointError -> Pywrappers.pyexc_floatingpointerror ()
+    | IOError -> Pywrappers.pyexc_ioerror ()
+    | ImportError -> Pywrappers.pyexc_importerror ()
+    | IndexError -> Pywrappers.pyexc_indexerror ()
+    | KeyError -> Pywrappers.pyexc_keyerror ()
+    | KeyboardInterrupt -> Pywrappers.pyexc_keyboardinterrupt ()
+    | MemoryError -> Pywrappers.pyexc_memoryerror ()
+    | NameError -> Pywrappers.pyexc_nameerror ()
+    | NotImplementedError -> Pywrappers.pyexc_notimplementederror ()
+    | OSError -> Pywrappers.pyexc_oserror ()
+    | OverflowError -> Pywrappers.pyexc_overflowerror ()
+    | ReferenceError -> Pywrappers.pyexc_referenceerror ()
+    | RuntimeError -> Pywrappers.pyexc_runtimeerror ()
+    | SyntaxError -> Pywrappers.pyexc_syntaxerror ()
+    | SystemExit -> Pywrappers.pyexc_systemerror ()
+    | TypeError -> Pywrappers.pyexc_typeerror ()
+    | ValueError -> Pywrappers.pyexc_valueerror ()
+    | ZeroDivisionError -> Pywrappers.pyexc_zerodivisionerror ()
+    | StopIteration -> Pywrappers.pyexc_stopiteration ()
+
   let set_error error msg =
-    let exc =
-      match error with
-        Exception -> Pywrappers.pyexc_exception ()
-      | StandardError ->
-          if !version_major_value <= 2 then
-            Pywrappers.Python2.pyexc_standarderror ()
-          else
-            Pywrappers.pyexc_exception ()
-      | ArithmeticError -> Pywrappers.pyexc_arithmeticerror ()
-      | LookupError -> Pywrappers.pyexc_lookuperror ()
-      | AssertionError -> Pywrappers.pyexc_assertionerror ()
-      | AttributeError -> Pywrappers.pyexc_attributeerror ()
-      | EOFError -> Pywrappers.pyexc_eoferror ()
-      | EnvironmentError -> Pywrappers.pyexc_environmenterror ()
-      | FloatingPointError -> Pywrappers.pyexc_floatingpointerror ()
-      | IOError -> Pywrappers.pyexc_ioerror ()
-      | ImportError -> Pywrappers.pyexc_importerror ()
-      | IndexError -> Pywrappers.pyexc_indexerror ()
-      | KeyError -> Pywrappers.pyexc_keyerror ()
-      | KeyboardInterrupt -> Pywrappers.pyexc_keyboardinterrupt ()
-      | MemoryError -> Pywrappers.pyexc_memoryerror ()
-      | NameError -> Pywrappers.pyexc_nameerror ()
-      | NotImplementedError -> Pywrappers.pyexc_notimplementederror ()
-      | OSError -> Pywrappers.pyexc_oserror ()
-      | OverflowError -> Pywrappers.pyexc_overflowerror ()
-      | ReferenceError -> Pywrappers.pyexc_referenceerror ()
-      | RuntimeError -> Pywrappers.pyexc_runtimeerror ()
-      | SyntaxError -> Pywrappers.pyexc_syntaxerror ()
-      | SystemExit -> Pywrappers.pyexc_systemerror ()
-      | TypeError -> Pywrappers.pyexc_typeerror ()
-      | ValueError -> Pywrappers.pyexc_valueerror ()
-      | ZeroDivisionError -> Pywrappers.pyexc_zerodivisionerror ()
-      | StopIteration -> Pywrappers.pyexc_stopiteration () in
-    set_object exc (String.of_string msg)
+    set_object (of_error error) (String.of_string msg)
 end
 
 exception Err of Err.t * string
@@ -2017,6 +2021,33 @@ module Set = struct
   let of_list = of_list_map id
 end
 
+module Traceback = struct
+  type frame =
+    { filename : string
+    ; function_name : string
+    ; line_number : int
+    }
+
+  let create_frame { filename; function_name; line_number } =
+    check_not_null (pyframe_new filename function_name line_number)
+
+  type t = frame list
+
+  let create t =
+    let types_module = check_not_null (Pywrappers.pyimport_importmodule "types") in
+    let tb_type = Object.find_attr_string types_module "TracebackType" in
+    List.fold_left
+      (fun acc frame ->
+        let args =
+          Tuple.of_array [| acc; create_frame frame; Int.of_int 0; Int.of_int frame.line_number |]
+        in
+        Eval.call_object tb_type args)
+      none
+      t
+end
+
+exception Err_with_traceback of Err.t * string * Traceback.t
+
 module Callable = struct
   let check v = Pywrappers.pycallable_check v <> 0
 
@@ -2025,8 +2056,20 @@ module Callable = struct
       E (errtype, errvalue) ->
         Err.set_object errtype errvalue;
         null
-    | Err (errtype, msg) ->
+    | Err (errtype, msg)
+    | Err_with_traceback (errtype, msg, []) ->
         Err.set_error errtype msg;
+        null
+    | Err_with_traceback (errtype, msg, traceback) ->
+        let () =
+          (* Traceback objects can only be created since Python 3.7. *)
+          if !version_major_value <= 2 || (!version_major_value == 3 && !version_minor_value < 7)
+          then
+            Err.set_error errtype msg
+          else
+            let traceback = Traceback.create traceback in
+            Err.restore (Err.of_error errtype) (String.of_string msg) traceback;
+        in
         null
 
   let of_function_as_tuple ?name ?(docstring = "Anonymous closure") f =

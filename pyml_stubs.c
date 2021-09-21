@@ -200,6 +200,7 @@ static PyObject *(*Python_PyObject_CallMethodObjArgs)(
 
 /* Wrapped by PyErr_Fetch_wrapper */
 static void (*Python_PyErr_Fetch)(PyObject **, PyObject **, PyObject **);
+static void (*Python_PyErr_Restore)(PyObject *, PyObject *, PyObject *);
 static void (*Python_PyErr_NormalizeException)
 (PyObject **, PyObject **, PyObject **);
 
@@ -221,6 +222,11 @@ static PyObject *(*Python_PyLong_FromString)(const char *, const char **, int);
 
 /* Internal use only */
 static void (*Python_PyMem_Free)(void *);
+
+/* Generate traceback objects. */
+static PyObject *(*Python_PyThreadState_Get)();
+static PyObject *(*Python_PyFrame_New)(PyObject*, PyObject*, PyObject*, PyObject*);
+static PyObject *(*Python_PyCode_NewEmpty)(const char*, const char*, int);
 
 static enum UCS { UCS_NONE, UCS2, UCS4 } ucs;
 
@@ -698,6 +704,7 @@ py_load_library(value filename_ocaml, value debug_build_ocaml)
     Python_PyObject_CallMethodObjArgs =
         resolve("PyObject_CallMethodObjArgs");
     Python_PyErr_Fetch = resolve("PyErr_Fetch");
+    Python_PyErr_Restore = resolve("PyErr_Restore");
     Python_PyErr_NormalizeException = resolve("PyErr_NormalizeException");
     Python_PyObject_AsCharBuffer = resolve_optional("PyObject_AsCharBuffer");
     Python_PyObject_AsReadBuffer = resolve_optional("PyObject_AsReadBuffer");
@@ -712,6 +719,9 @@ py_load_library(value filename_ocaml, value debug_build_ocaml)
     }
     Python_PyLong_FromString = resolve("PyLong_FromString");
     Python_PyMem_Free = resolve("PyMem_Free");
+    Python_PyThreadState_Get = resolve("PyThreadState_Get");
+    Python_PyFrame_New = resolve("PyFrame_New");
+    Python_PyCode_NewEmpty = resolve("PyCode_NewEmpty");
     if (version_major >= 3) {
         Python__Py_wfopen = resolve_optional("_Py_wfopen"); /* Python >=3.10 */
         Python__Py_fopen = resolve_optional("_Py_fopen");
@@ -1143,6 +1153,26 @@ PyErr_Fetch_wrapper(value unit)
     CAMLreturn(result);
 }
 
+// PyErr_Restore steals the references.
+// https://docs.python.org/3/c-api/exceptions.html#c.PyErr_Restore
+// However the objects can be null, so we do not want to run Py_INCREF if
+// this is the case as this would trigger some segfaults.
+CAMLprim value
+PyErr_Restore_wrapper(value arg0_ocaml, value arg1_ocaml, value arg2_ocaml)
+{
+    CAMLparam3(arg0_ocaml, arg1_ocaml, arg2_ocaml);
+    pyml_assert_initialized();
+    PyObject *arg0 = pyml_unwrap(arg0_ocaml);
+    if (arg0) Py_INCREF(arg0);
+    PyObject *arg1 = pyml_unwrap(arg1_ocaml);
+    if (arg1) Py_INCREF(arg1);
+    PyObject *arg2 = pyml_unwrap(arg2_ocaml);
+    if (arg2) Py_INCREF(arg2);
+    Python_PyErr_Restore(arg0, arg1, arg2);
+    CAMLreturn(Val_unit);
+}
+
+
 CAMLprim value
 pyml_wrap_string_option(const char *s)
 {
@@ -1421,6 +1451,24 @@ Python27_PyCapsule_IsValid_wrapper(value arg0_ocaml, value arg1_ocaml)
     const char *arg1 = String_val(arg1_ocaml);
     int result = Python27_PyCapsule_IsValid(arg0, arg1);
     CAMLreturn(Val_int(result));
+}
+
+CAMLprim value
+pyml_pyframe_new(value filename_ocaml, value funcname_ocaml, value lineno_ocaml) {
+    CAMLparam3(filename_ocaml, funcname_ocaml, lineno_ocaml);
+    const char *filename = String_val(filename_ocaml);
+    const char *funcname = String_val(funcname_ocaml);
+    int lineno = Int_val(lineno_ocaml);
+    PyObject *code = Python_PyCode_NewEmpty(filename, funcname, lineno);
+    PyObject *globals = Python_PyDict_New();
+    PyObject *result = Python_PyFrame_New(
+        Python_PyThreadState_Get(),
+        code,
+        globals,
+        NULL);
+    Py_DECREF(code);
+    Py_DECREF(globals);
+    CAMLreturn(pyml_wrap(result, true));
 }
 
 #include "pyml_wrappers.inc"
