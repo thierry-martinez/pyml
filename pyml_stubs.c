@@ -1385,7 +1385,7 @@ get_pyarray_type(value numpy_api_ocaml)
     PyObject *c_api = pyml_unwrap(numpy_api_ocaml);
     void **PyArray_API = pyml_get_pyarray_api(c_api);
     PyObject *result = PyArray_API[2];
-    CAMLreturn(pyml_wrap(result, true));
+    CAMLreturn(pyml_wrap(result, false));
 }
 
 CAMLprim value
