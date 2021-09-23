@@ -1,5 +1,18 @@
 [*] marks changes that break compatibility with previous versions.
 
+# 2021-09-23
+
+- Use `dune` as default build system (dunification done by Laurent Mazare,
+  https://github.com/thierry-martinez/pyml/pull/28)
+
+- Support for raising exceptions with traceback from OCaml
+  (implemented by Laurent Mazare,
+  https://github.com/thierry-martinez/pyml/pull/65)
+
+- Fix soundness bug with numpy
+  (reported by Richard Alligier,
+  https://github.com/thierry-martinez/pyml/pull/65)
+
 # 2021-02-26
 
 - Compatibility with Python 3.10 (reported by Richard W.M. Jones)
