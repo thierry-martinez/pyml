@@ -31,6 +31,26 @@
   (deps pyml_arch_unix.ml)
   (action (copy pyml_arch_unix.ml pyml_arch_linux.ml)))
 
+(rule
+  (targets pyml_arch_elf.ml)
+  (deps pyml_arch_unix.ml)
+  (action (copy pyml_arch_unix.ml pyml_arch_elf.ml)))
+
+(rule
+  (targets pyml_arch_linux_elf.ml)
+  (deps pyml_arch_unix.ml)
+  (action (copy pyml_arch_unix.ml pyml_arch_linux_elf.ml)))
+
+(rule
+  (targets pyml_arch_linux_eabihf.ml)
+  (deps pyml_arch_unix.ml)
+  (action (copy pyml_arch_unix.ml pyml_arch_linux_eabihf.ml)))
+
+(rule
+  (targets pyml_arch_macosx.ml)
+  (deps pyml_arch_darwin.ml)
+  (action (copy pyml_arch_darwin.ml pyml_arch_macosx.ml)))
+
 (library
   (name pyml_tests_common)
   (modules pyml_tests_common)
