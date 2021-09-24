@@ -1,20 +1,14 @@
 (library
   (public_name pyml)
-  (modules numpy py pyops pycaml pyml_arch pytypes pywrappers)
+  (modules numpy py pyops pycaml pyml_arch pytypes pywrappers pyutils)
   (c_names numpy_stubs pyml_stubs)
   (wrapped false)
-  (libraries bigarray stdcompat pyml.pyutils))
-
-(library
-  (name pyutils)
-  (public_name pyml.pyutils)
-  (modules pyutils)
-  (libraries stdcompat))
+  (libraries bigarray stdcompat))
 
 (executables
   (names generate)
   (modules generate)
-  (libraries stdcompat pyml.pyutils))
+  (libraries stdcompat))
 
 (rule
   (targets pywrappers.ml pyml.h pyml_dlsyms.inc pyml_wrappers.inc)
