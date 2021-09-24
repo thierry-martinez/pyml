@@ -1400,6 +1400,9 @@ pyarray_of_floatarray_wrapper(
         (PyTypeObject *, int, npy_intp *, int, npy_intp *, void *, int, int,
          PyObject *) = PyArray_API[93];
     npy_intp length = Wosize_val(array_ocaml);
+    #ifndef ARCH_SIXTYFOUR
+      length /= 2;
+    #endif
     void *data = (double *) array_ocaml;
     PyTypeObject (*PyArray_SubType) =
         (PyTypeObject *) pyml_unwrap(array_type_ocaml);

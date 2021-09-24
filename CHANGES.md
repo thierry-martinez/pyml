@@ -2,8 +2,8 @@
 
 # 2021-09-24
 
-- Use `dune` as default build system (dunification done by Laurent Mazare,
-  https://github.com/thierry-martinez/pyml/pull/28)
+- Use `dune` as default build system
+  (dunification done by Laurent Mazare, https://github.com/thierry-martinez/pyml/pull/28)
 
   This should in particular fix build problems of reverse dependencies
   with the byte-code compiler
@@ -12,15 +12,18 @@
     - Handle more platforms with dune
       (reported by Olaf Hering, https://github.com/thierry-martinez/pyml/issues/68)
 
-    - pyutils is no longer used by generate and is shipped with pyml package
+    - `pyutils` is no longer used by generate and is shipped with `pyml` package
       as it was the case with Makefile-based build system
       (reported by Olaf Hering, https://github.com/thierry-martinez/pyml/issues/69)
 
 - Support for raising exceptions with traceback from OCaml
   (implemented by Laurent Mazare, https://github.com/thierry-martinez/pyml/pull/65)
 
-- Fix soundness bug with numpy
+- Fix soundness bug with `numpy`
   (reported by Richard Alligier, https://github.com/thierry-martinez/pyml/pull/65)
+
+- Fix `Py.Array.numpy` arrays on 32-bit platforms
+  (reported by Olaf Hering, https://github.com/thierry-martinez/pyml/pull/70)
 
 # 2021-02-26
 
