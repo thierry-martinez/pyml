@@ -84,7 +84,7 @@ callback(numpy.array([0,1,2,3]))
         end)
 
 let assert_almost_eq ?(eps = 1e-7) f1 f2 =
-  if Float.abs (f1 -. f2) > eps then
+  if Stdcompat.Float.abs (f1 -. f2) > eps then
     failwith (Printf.sprintf "%f <> %f" f1 f2)
 
 let () =
