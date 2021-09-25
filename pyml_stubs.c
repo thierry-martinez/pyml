@@ -1307,6 +1307,10 @@ pyml_wrap_ucs4_option_and_free(int32_t *buffer, bool free)
     CAMLreturn(result);
 }
 
+/* Prototype for caml_alloc_initialized_string missing in stdcompat.h <17 */
+extern value
+caml_alloc_initialized_string(mlsize_t len, const char *p);
+
 #define StringAndSize_wrapper(func, byte_type)                          \
     CAMLprim value                                                      \
     func##_wrapper(value arg_ocaml)                                     \
