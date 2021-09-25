@@ -25,6 +25,8 @@
 - Fix `Py.Array.numpy` arrays on 32-bit platforms
   (reported by Olaf Hering, https://github.com/thierry-martinez/pyml/pull/70)
 
+- Fix soundness bug on strings with OCaml <4.06 (reported by OCaml CI)
+
 # 2021-02-26
 
 - Compatibility with Python 3.10 (reported by Richard W.M. Jones)
