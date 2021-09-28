@@ -16,34 +16,24 @@
   (action (run %{gen})))
 
 (rule
-  (targets pyml_arch.ml)
-  (deps (:pyml_arch pyml_arch_%{ocaml-config:system}.ml))
-  (action (copy %{pyml_arch} pyml_arch.ml)))
+  (target pyml_arch.ml)
+  (deps pyml_arch%{ocaml-config:ext_dll}.ml)
+  (action (copy %{deps} %{target})))
 
 (rule
-  (targets pyml_arch_linux.ml)
+  (target pyml_arch.so.ml)
   (deps pyml_arch_unix.ml)
-  (action (copy pyml_arch_unix.ml pyml_arch_linux.ml)))
+  (action (copy %{deps} %{target})))
 
 (rule
-  (targets pyml_arch_elf.ml)
-  (deps pyml_arch_unix.ml)
-  (action (copy pyml_arch_unix.ml pyml_arch_elf.ml)))
-
-(rule
-  (targets pyml_arch_linux_elf.ml)
-  (deps pyml_arch_unix.ml)
-  (action (copy pyml_arch_unix.ml pyml_arch_linux_elf.ml)))
-
-(rule
-  (targets pyml_arch_linux_eabihf.ml)
-  (deps pyml_arch_unix.ml)
-  (action (copy pyml_arch_unix.ml pyml_arch_linux_eabihf.ml)))
-
-(rule
-  (targets pyml_arch_macosx.ml)
+  (target pyml_arch.dylib.ml)
   (deps pyml_arch_darwin.ml)
-  (action (copy pyml_arch_darwin.ml pyml_arch_macosx.ml)))
+  (action (copy %{deps} %{target})))
+
+(rule
+  (target pyml_arch.dll.ml)
+  (deps pyml_arch_cygwin.ml)
+  (action (copy %{deps} %{target})))
 
 (library
   (name pyml_tests_common)
