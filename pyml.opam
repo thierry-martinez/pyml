@@ -12,7 +12,7 @@ depends: [
   "ocaml" {>= "3.12.1"}
   "dune" {build & >= "2.5.0"}
   "ocamlfind" {build}
-  "stdcompat" {>= "13"}
+  "stdcompat" {>= "17"}
   "conf-python-3-dev" {with-test}
 ]
 depopts: ["utop"]
