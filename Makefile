@@ -356,3 +356,9 @@ endif
 #	$(OCAMLMKTOP) -o $@ -thread -linkpkg -package utop -dontlink compiler-libs $^
 	ocamlfind ocamlc -thread -linkpkg -linkall -predicates create_toploop \
 		-package compiler-libs.toplevel,utop,stdcompat $^ -o $@
+
+pyops.ml: pyops.ml.new
+	cp $< $@
+
+pyops.mli: pyops.mli.new
+	cp $< $@
