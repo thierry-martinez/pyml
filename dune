@@ -63,13 +63,13 @@
   (action (copy %{deps} %{target})))
 
 (rule
-  (enabled_if (< %{ocaml_version} 4.05))
+  (enabled_if (< %{ocaml_version} 4.06))
   (target pyops.mli)
   (deps pyops.mli.405)
   (action (copy %{deps} %{target})))
 
 (rule
-  (enabled_if (< %{ocaml_version} 4.05))
+  (enabled_if (< %{ocaml_version} 4.06))
   (target pyops.ml)
   (deps pyops.ml.405)
   (action (copy %{deps} %{target})))
