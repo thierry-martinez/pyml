@@ -16,6 +16,7 @@ depends: [
   "conf-python-3-dev" {with-test}
   "odoc" {with-doc}
 ]
+depopts: ["utop"]
 build: [
   ["dune" "subst"] {dev}
   [

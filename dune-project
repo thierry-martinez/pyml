@@ -29,4 +29,5 @@
   (ocamlfind :build)
   (stdcompat
    (>= 17))
-  (conf-python-3-dev :with-test)))
+  (conf-python-3-dev :with-test))
+ (depopts utop))
