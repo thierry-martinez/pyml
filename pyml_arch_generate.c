@@ -9,7 +9,7 @@
 #endif
 
 int
-main(int argc, char* argv)
+main(int argc, char* argv[])
 {
   FILE *f = fopen("pyml_arch.ml", "w");
   fprintf(f, "\
