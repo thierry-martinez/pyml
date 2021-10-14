@@ -4,7 +4,7 @@
   #define PLATFORM_NAME "Mac"
 #elif __linux__
   #define PLATFORM_NAME "Linux"
-#elif WIN32
+#elif defined(WIN32) || defined(_WIN32)
   #define PLATFORM_NAME "Windows"
 #else
   #error "Unknown platform"
