@@ -6,6 +6,8 @@
   #define PLATFORM_NAME "Linux"
 #elif WIN32
   #define PLATFORM_NAME "Windows"
+#else
+  #error "Unknown platform"
 #endif
 
 int
