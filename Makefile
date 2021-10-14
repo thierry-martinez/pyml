@@ -66,7 +66,7 @@ $(error There is no OCaml compiler available in path)
 	OCAMLDEP := ocamldep
 	OCAMLDOC := ocamldoc
 	STDCOMPAT := .
-        OCAMLCFLAGS :=
+        OCAMLCFLAGS := -I$(STDCOMPAT)
         OCAMLLDFLAGS :=
 	OCAMLBYTECODELIBS := unix.cma stdcompat.cma
 	OCAMLBYTECODELIBSNUMPY := unix.cma stdcompat.cma bigarray.cma
