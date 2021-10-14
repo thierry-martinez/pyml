@@ -283,7 +283,7 @@ numpy_tests.bytecode : py.cmi pyml.cma numpy.cma \
 		numpy.cma pyml_tests_common.cmo numpy_tests.cmo -o $@
 
 pyml_arch_generate.exe : pyml_arch_generate.c
-	$(C_COMPILER) $(CPPFLAGS) $(CFLAGS) $< -o $@
+	$(C_COMPILER) $< -o $@
 
 pyml_arch.ml : pyml_arch_generate.exe
 	./pyml_arch_generate.exe
