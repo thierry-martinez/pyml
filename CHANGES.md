@@ -1,5 +1,12 @@
 [*] marks changes that break compatibility with previous versions.
 
+# 2021-10-14
+
+- More portable architecture detection
+  (inspired by the discussion https://discuss.ocaml.org/t/a-zoo-of-values-for-system/8525
+   initiated by Olaf Hering, with helpful comments from Daniel Bünzli,
+   @EduardoRFS, David Allsopp, kit-ty-kate and jbeckford)
+
 # 2021-09-24
 
 - Use `dune` as default build system

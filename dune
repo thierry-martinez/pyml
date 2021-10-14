@@ -16,24 +16,14 @@
   (action (run %{gen})))
 
 (rule
+  (target pyml_arch_generate.exe)
+  (deps pyml_arch_generate.c)
+  (action (run %{ocaml-config:c_compiler} -o pyml_arch_generate.exe pyml_arch_generate.c)))
+
+(rule
   (target pyml_arch.ml)
-  (deps pyml_arch%{ocaml-config:ext_dll}.ml)
-  (action (copy %{deps} %{target})))
-
-(rule
-  (target pyml_arch.so.ml)
-  (deps pyml_arch_unix.ml)
-  (action (copy %{deps} %{target})))
-
-(rule
-  (target pyml_arch.dylib.ml)
-  (deps pyml_arch_darwin.ml)
-  (action (copy %{deps} %{target})))
-
-(rule
-  (target pyml_arch.dll.ml)
-  (deps pyml_arch_cygwin.ml)
-  (action (copy %{deps} %{target})))
+  (deps (:generate pyml_arch_generate.exe))
+  (action (run %{generate})))
 
 (library
   (name pyml_tests_common)

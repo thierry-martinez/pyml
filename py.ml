@@ -354,6 +354,11 @@ let concat_library_filenames library_paths library_filenames =
     List.map (fun path -> Filename.concat path filename) library_paths in
   List.concat (List.map expand_filepaths library_filenames)
 
+let library_suffix =
+  match Pyml_arch.os with
+  | Macos -> ".dylib"
+  | _ -> ".so"
+
 let libpython_from_pkg_config version_major version_minor =
   let command =
     Printf.sprintf "pkg-config --libs python-%d.%d" version_major
@@ -379,7 +384,7 @@ let libpython_from_pkg_config version_major version_minor =
               if library_filename <> None then
                 unable_to_parse ();
               let library_filename =
-                Printf.sprintf "lib%s%s" word' Pyml_arch.library_suffix in
+                Printf.sprintf "lib%s%s" word' library_suffix in
               (library_paths, Some library_filename)
           | _ -> (library_paths, library_filename)
         else (library_paths, library_filename) in
@@ -391,6 +396,12 @@ let libpython_from_pkg_config version_major version_minor =
         | Some library_filename -> library_filename in
       Some (concat_library_filenames library_paths [library_filename])
   | _ -> None
+
+let library_patterns : (int -> int -> string, unit, string) format list =
+  match Pyml_arch.os with
+  | Windows -> ["python%d%dm.dll"; "python%d%d.dll"]
+  | Macos -> ["libpython%d.%dm.dylib"; "libpython%d.%d.dylib"]
+  | Linux -> ["libpython%d.%dm.so"; "libpython%d.%d.so"]
 
 let libpython_from_python_config version_major version_minor =
   let command =
@@ -412,7 +423,7 @@ let libpython_from_python_config version_major version_minor =
       let library_filenames =
         List.map
           (fun format -> Printf.sprintf format version_major version_minor)
-          Pyml_arch.library_patterns in
+          library_patterns in
       Some (concat_library_filenames library_paths library_filenames)
   | _ -> None
 
@@ -432,7 +443,7 @@ let libpython_from_pythonhome version_major version_minor python_full_path =
   let library_filenames =
     List.map
       (fun format -> Printf.sprintf format version_major version_minor)
-      Pyml_arch.library_patterns in
+      library_patterns in
   concat_library_filenames library_paths library_filenames
 
 let find_library_path version_major version_minor python_full_path =
@@ -553,9 +564,21 @@ let initialize_library ~verbose ~version_major ~version_minor
 
 let get_version = Pywrappers.py_getversion
 
+let which_command =
+  match Pyml_arch.os with
+  | Windows -> "where"
+  | _ -> "command -v"
+
 let which program =
-  let exe = Pyml_arch.ensure_executable_suffix program in
-  let command = Printf.sprintf "%s \"%s\"" Pyml_arch.which exe in
+  let exe =
+    match Pyml_arch.os with
+    | Windows ->
+        if Filename.check_suffix program ".exe" then
+          program
+        else
+          program ^ ".exe"
+    | _ -> program in
+  let command = Printf.sprintf "%s \"%s\"" which_command exe in
   match run_command_opt command false with
     Some (path :: _) -> Some path
   | _ -> None
@@ -596,6 +619,11 @@ let version_mismatch interpreter found expected =
 let build_version_string major minor =
   Printf.sprintf "%d.%d" major minor
 
+let path_separator =
+  match Pyml_arch.os with
+  | Windows -> ";"
+  | _ -> ":"
+
 let initialize ?library_name ?interpreter ?version ?minor ?(verbose = false)
     ?debug_build () =
   if !initialized then
@@ -624,7 +652,7 @@ let initialize ?library_name ?interpreter ?version ?minor ?(verbose = false)
               None -> new_pythonpaths
             | Some former_pythonpath' ->
                 former_pythonpath' :: new_pythonpaths in
-          let pythonpath = String.concat Pyml_arch.path_separator all_paths in
+          let pythonpath = String.concat path_separator all_paths in
           if verbose then
             begin
               Printf.eprintf "Temporary set PYTHONPATH=\"%s\".\n" pythonpath;
