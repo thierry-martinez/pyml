@@ -4,6 +4,8 @@ INSTALL := install
 INSTALL_PROGRAM := $(INSTALL)
 bindir := $(PREFIX)/bin
 
+C_COMPILER := $(shell ocamlc -config | grep '^c_compiler:' | cut -d ' ' -f 2)
+
 HAVE_OCAMLFIND := $(shell \
 	if $(OCAMLFIND) query -help >/dev/null 2>&1; then \
 		echo yes; \
@@ -281,7 +283,7 @@ numpy_tests.bytecode : py.cmi pyml.cma numpy.cma \
 		numpy.cma pyml_tests_common.cmo numpy_tests.cmo -o $@
 
 pyml_arch_generate.exe : pyml_arch_generate.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) $< -o $@
+	$(C_COMPILER) $(CPPFLAGS) $(CFLAGS) $< -o $@
 
 pyml_arch.ml : pyml_arch_generate.exe
 	./pyml_arch_generate.exe
