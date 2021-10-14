@@ -66,8 +66,8 @@ $(error There is no OCaml compiler available in path)
 	OCAMLDEP := ocamldep
 	OCAMLDOC := ocamldoc
 	STDCOMPAT := .
-        OCAMLCFLAGS := -I$(STDCOMPAT)
-        OCAMLLDFLAGS :=
+        OCAMLCFLAGS := -I $(STDCOMPAT)
+        OCAMLLDFLAGS := -I $(STDCOMPAT)
 	OCAMLBYTECODELIBS := unix.cma stdcompat.cma
 	OCAMLBYTECODELIBSNUMPY := unix.cma stdcompat.cma bigarray.cma
 	OCAMLNATIVELIBS := unix.cmxa stdcompat.cmxa
@@ -300,7 +300,7 @@ pyml_arch.cmo pyml_arch.cmx : pyml_arch.cmi
 	$(OCAMLOPT) $(OCAMLCFLAGS) -c $< -o $@
 
 %.o : %.c
-	$(OCAMLC) -package stdcompat -c $< -o $@
+	$(OCAMLC) $(OCAMLCFLAGS) -c $< -o $@
 
 pyml_stubs.o : pyml_wrappers.inc
 
