@@ -13,7 +13,7 @@ main(int argc, char* argv[])
 {
   FILE *f = fopen("pyml_arch.ml", "w");
   fprintf(f, "\
-type t = Linux | Windows | Macos\n\n\
+type t = Linux | Windows | Mac\n\n\
 let os = %s\n\n\
 ", PLATFORM_NAME);
   #if WIN32

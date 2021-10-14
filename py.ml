@@ -356,7 +356,7 @@ let concat_library_filenames library_paths library_filenames =
 
 let library_suffix =
   match Pyml_arch.os with
-  | Macos -> ".dylib"
+  | Mac -> ".dylib"
   | _ -> ".so"
 
 let libpython_from_pkg_config version_major version_minor =
@@ -400,7 +400,7 @@ let libpython_from_pkg_config version_major version_minor =
 let library_patterns : (int -> int -> string, unit, string) format list =
   match Pyml_arch.os with
   | Windows -> ["python%d%dm.dll"; "python%d%d.dll"]
-  | Macos -> ["libpython%d.%dm.dylib"; "libpython%d.%d.dylib"]
+  | Mac -> ["libpython%d.%dm.dylib"; "libpython%d.%d.dylib"]
   | Linux -> ["libpython%d.%dm.so"; "libpython%d.%d.so"]
 
 let libpython_from_python_config version_major version_minor =
