@@ -534,7 +534,7 @@ camlwrap_capsule(value val, void *aux_str, int size)
 {
     value *v = (value *) malloc(SIZEOF_VALUE + size);
     *v = val;
-    memcpy((void *)v + SIZEOF_VALUE, aux_str, size);
+    memcpy((char *)v + SIZEOF_VALUE, aux_str, size);
     caml_register_global_root(v);
     return wrap_capsule(v, "ocaml-capsule", camldestr_capsule);
 }
@@ -543,7 +543,7 @@ static void *
 caml_aux(PyObject *obj)
 {
     value *v = (value *) unwrap_capsule(obj, "ocaml-closure");
-    return (void *) v + SIZEOF_VALUE;
+    return (char *) v + SIZEOF_VALUE;
 }
 
 void
