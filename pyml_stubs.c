@@ -83,7 +83,7 @@ file_of_file_descr(value file_descr, const char *mode)
 {
     CAMLparam1(file_descr);
     int fd = win_CRT_fd_of_filedescr(file_descr);
-    FILE *result = _fdopen(dup(fd), mode);
+    FILE *result = _fdopen(_dup(fd), mode);
     CAMLreturnT(FILE *, result);
 }
 #else

@@ -1,6 +1,7 @@
 #ifndef _PYML_STUBS_H_
 #define _PYML_STUBS_H_
 #include <stdbool.h>
+#include <stdint.h>
 
 /* The following definitions are extracted and simplified from
 #include <Python.h>
@@ -11,6 +12,8 @@
 #if defined(_MSC_VER)
 #include <BaseTsd.h>
 typedef SSIZE_T ssize_t;
+#else
+#include <unistd.h>
 #endif
 
 typedef ssize_t Py_ssize_t;
