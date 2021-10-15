@@ -529,7 +529,9 @@ camldestr_capsule(PyObject *v)
 static PyObject *
 camlwrap_capsule(value val, void *aux_str, int size)
 {
-    value *v = (value *) malloc(sizeof(value) + size);
+    /* Should be sizeof(void *) but size of void * is unknown in
+       Visual Studio. */
+    value *v = (value *) malloc(sizeof(char *) + size);
     *v = val;
     memcpy((void *)v + sizeof(value), aux_str, size);
     caml_register_global_root(v);
