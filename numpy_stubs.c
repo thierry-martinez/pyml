@@ -111,7 +111,7 @@ bigarray_of_pyarray_wrapper(
       (PyArrayObject_fields *) pyobjectdescr(array);
     int nd = fields->nd;
     npy_intp *shape = fields->dimensions;
-    long *dims = malloc(nd * sizeof(long));
+    intnat *dims = malloc(nd * sizeof(intnat));
     int i;
     for (i = 0; i < nd; i++) {
         dims[i] = shape[i];
