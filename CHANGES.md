@@ -1,11 +1,15 @@
 [*] marks changes that break compatibility with previous versions.
 
-# 2021-10-14
+# 2021-10-15
 
 - More portable architecture detection
   (inspired by the discussion https://discuss.ocaml.org/t/a-zoo-of-values-for-system/8525
    initiated by Olaf Hering, with helpful comments from Daniel Bünzli,
    @EduardoRFS, David Allsopp, kit-ty-kate and jbeckford)
+
+- Better compatibility with Windows
+
+- Correct version detection for Python 3.10
 
 # 2021-09-24
 
