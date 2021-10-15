@@ -362,7 +362,7 @@ let concat_library_filenames library_paths library_filenames =
 
 let library_suffix =
   match Pyml_arch.os with
-  | Mac -> ".dylib"
+  | Pyml_arch.Mac -> ".dylib"
   | _ -> ".so"
 
 let libpython_from_pkg_config version_major version_minor =
@@ -405,9 +405,9 @@ let libpython_from_pkg_config version_major version_minor =
 
 let library_patterns : (int -> int -> string, unit, string) format list =
   match Pyml_arch.os with
-  | Windows -> ["python%d%dm.dll"; "python%d%d.dll"]
-  | Mac -> ["libpython%d.%dm.dylib"; "libpython%d.%d.dylib"]
-  | Linux -> ["libpython%d.%dm.so"; "libpython%d.%d.so"]
+  | Pyml_arch.Windows -> ["python%d%dm.dll"; "python%d%d.dll"]
+  | Pyml_arch.Mac -> ["libpython%d.%dm.dylib"; "libpython%d.%d.dylib"]
+  | Pyml_arch.Linux -> ["libpython%d.%dm.so"; "libpython%d.%d.so"]
 
 let libpython_from_python_config version_major version_minor =
   let command =
@@ -572,13 +572,13 @@ let get_version = Pywrappers.py_getversion
 
 let which_command =
   match Pyml_arch.os with
-  | Windows -> "where"
+  | Pyml_arch.Windows -> "where"
   | _ -> "command -v"
 
 let which program =
   let exe =
     match Pyml_arch.os with
-    | Windows ->
+    | Pyml_arch.Windows ->
         if Filename.check_suffix program ".exe" then
           program
         else
@@ -627,7 +627,7 @@ let build_version_string major minor =
 
 let path_separator =
   match Pyml_arch.os with
-  | Windows -> ";"
+  | Pyml_arch.Windows -> ";"
   | _ -> ":"
 
 let initialize ?library_name ?interpreter ?version ?minor ?(verbose = false)
