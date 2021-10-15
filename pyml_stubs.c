@@ -774,14 +774,19 @@ py_load_library(value filename_ocaml, value debug_build_ocaml)
         if (!debug_build_py) {
             failwith("PyEval_CallObjectWithKeywords");
         }
-        if (version_major >= 3) {
-            debug_build = Python_PyLong_AsLong(debug_build_py);
+        if (debug_build_py == Python__Py_NoneStruct) {
+            debug_build = 0;
         }
         else {
-            debug_build = Python2_PyInt_AsLong(debug_build_py);
-        }
-        if (debug_build == -1) {
-            failwith("AsLong");
+            if (version_major >= 3) {
+                debug_build = Python_PyLong_AsLong(debug_build_py);
+            }
+            else {
+                debug_build = Python2_PyInt_AsLong(debug_build_py);
+            }
+            if (debug_build ==  -1) {
+                failwith("Cannot check for debug build");
+            }
         }
     }
     tuple_empty = Python_PyTuple_New(0);
