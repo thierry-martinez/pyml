@@ -5,6 +5,7 @@ INSTALL_PROGRAM := $(INSTALL)
 bindir := $(PREFIX)/bin
 
 C_COMPILER := $(shell ocamlc -config | grep '^c_compiler:' | cut -d ' ' -f 2)
+EXT_DLL := $(shell ocamlc -config | grep '^ext_dll:' | cut -d ' ' -f 2)
 
 HAVE_OCAMLFIND := $(shell \
 	if $(OCAMLFIND) query -help >/dev/null 2>&1; then \
@@ -124,11 +125,11 @@ OCAMLLIBFLAGSBYTECODE := -custom $(OCAMLLIBFLAGS)
 INSTALL_FILES := \
 	py.mli numpy.mli $(MODULES:=.cmi) $(MODULES:=.cmx) \
 	numpy.cmi \
-	pyml.cma pyml.cmxa pyml.cmxs pyml.a \
-	numpy.cma numpy.cmxa numpy.cmxs numpy.a \
+	pyml.cma pyml.cmxa pyml.cmxs pyml$(EXT_DLL) \
+	numpy.cma numpy.cmxa numpy.cmxs numpy$(EXT_DLL) \
 	$(MODULES:=.cmx) numpy.cmx \
-	libpyml_stubs.a dllpyml_stubs.so \
-	libnumpy_stubs.a dllnumpy_stubs.so \
+	libpyml_stubs$(EXT_DLL) dllpyml_stubs.so \
+	libnumpy_stubs$(EXT_DLL) dllnumpy_stubs.so \
 	META
 
 .PHONY : all
@@ -210,15 +211,15 @@ uninstall :
 clean :
 	for module in $(MODULES) numpy generate pyml_tests_common pyml_tests \
 		numpy_tests; do \
-		rm -f $$module.cmi $$module.cmo $$module.cmx $$module.a \
+		rm -f $$module.cmi $$module.cmo $$module.cmx $$module$(EXT_DLL) \
 			$$module.o; \
 	done
-	rm -f pyml.cma pyml.cmxa pyml.cmxs pyml.a
-	rm -f numpy.cma numpy.cmxa numpy.cmxs numpy.a
+	rm -f pyml.cma pyml.cmxa pyml.cmxs pyml$(EXT_DLL)
+	rm -f numpy.cma numpy.cmxa numpy.cmxs numpy$(EXT_DLL)
 	rm -f pywrappers.mli pywrappers.ml pyml_dlsyms.inc pyml_wrappers.inc
 	rm -f pyml.h
-	rm -f pyml_stubs.o dllpyml_stubs.so libpyml_stubs.a
-	rm -f numpy_stubs.o dllnumpy_stubs.so libnumpy_stubs.a
+	rm -f pyml_stubs.o dllpyml_stubs.so libpyml_stubs$(EXT_DLL)
+	rm -f numpy_stubs.o dllnumpy_stubs.so libnumpy_stubs$(EXT_DLL)
 	rm -f pyml_arch_generate.exe pyml_arch.ml
 	rm -f generate pyml_tests.native pyml_tests.bytecode
 	rm -f numpy_tests.native numpy_tests.bytecode
@@ -304,25 +305,25 @@ pyml_arch.cmo pyml_arch.cmx : pyml_arch.cmi
 
 pyml_stubs.o : pyml_wrappers.inc
 
-pyml.cma : $(MODULES:=.cmo) libpyml_stubs.a
+pyml.cma : $(MODULES:=.cmo) libpyml_stubs$(EXT_DLL)
 	$(OCAMLC) $(OCAMLLIBFLAGSBYTECODE) -a -dllib -lpyml_stubs $(MODULES:=.cmo) -o $@
 
-pyml.cmxa : $(MODULES:=.cmx) libpyml_stubs.a
+pyml.cmxa : $(MODULES:=.cmx) libpyml_stubs$(EXT_DLL)
 	$(OCAMLOPT) $(OCAMLLIBFLAGSNATIVE) -a $(MODULES:=.cmx) -o $@
 
-pyml.cmxs : $(MODULES:=.cmx) libpyml_stubs.a
+pyml.cmxs : $(MODULES:=.cmx) libpyml_stubs$(EXT_DLL)
 	$(OCAMLOPT) $(OCAMLLIBFLAGSNATIVE) -shared $(MODULES:=.cmx) -o $@
 
-lib%.a : %.o
+lib%$(EXT_DLL) : %.o
 	$(OCAMLMKLIB) -o $(basename $<) $<
 
-numpy.cma : numpy.cmo libnumpy_stubs.a
+numpy.cma : numpy.cmo libnumpy_stubs$(EXT_DLL)
 	$(OCAMLC) $(OCAMLLIBNUMPYFLAGS) -a -dllib -lnumpy_stubs numpy.cmo -o $@
 
-numpy.cmxa : numpy.cmx libnumpy_stubs.a
+numpy.cmxa : numpy.cmx libnumpy_stubs$(EXT_DLL)
 	$(OCAMLOPT) $(OCAMLLIBNUMPYFLAGS) -a numpy.cmx -o $@
 
-numpy.cmxs : numpy.cmx libnumpy_stubs.a
+numpy.cmxs : numpy.cmx libnumpy_stubs$(EXT_DLL)
 	$(OCAMLOPT) $(OCAMLLIBNUMPYFLAGS) -shared numpy.cmx -o $@
 
 pytop.cmo : pytop.ml pymltop_libdir.cmi
