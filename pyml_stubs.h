@@ -1,7 +1,6 @@
 #ifndef _PYML_STUBS_H_
 #define _PYML_STUBS_H_
 #include <stdbool.h>
-#include <unistd.h>
 
 /* The following definitions are extracted and simplified from
 #include <Python.h>
