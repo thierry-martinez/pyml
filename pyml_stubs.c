@@ -68,9 +68,12 @@ int
 unsetenv(const char *name)
 {
     size_t len = strlen(name);
-    char string[len + 2];
+    char *string = xmalloc(len + 2);
+    int result;
     snprintf(string, len + 2, "%s=", name);
-    return _putenv(string);
+    result = _putenv(string);
+    free(string);
+    return result;
 }
 
 extern int win_CRT_fd_of_filedescr(value handle);
@@ -528,7 +531,7 @@ camlwrap_capsule(value val, void *aux_str, int size)
 {
     value *v = (value *) malloc(sizeof(value) + size);
     *v = val;
-    memcpy((void *)v + sizeof(value), aux_str, size);
+    memcpy((char *)v + sizeof(value), aux_str, size);
     caml_register_global_root(v);
     return wrap_capsule(v, "ocaml-capsule", camldestr_capsule);
 }
@@ -537,7 +540,7 @@ static void *
 caml_aux(PyObject *obj)
 {
     value *v = (value *) unwrap_capsule(obj, "ocaml-closure");
-    return (void *) v + sizeof(value);
+    return (char *) v + sizeof(value);
 }
 
 void
