@@ -6,6 +6,13 @@
 #include <Python.h>
 */
 
+/* ssize_t is POSIX and not defined with Visual Studio */
+/* See for instance https://github.com/vlm/asn1c/issues/159 */
+#if defined(_MSC_VER)
+#include <BaseTsd.h>
+typedef SSIZE_T ssize_t;
+#endif
+
 typedef ssize_t Py_ssize_t;
 
 #define _PyObject_HEAD_EXTRA
