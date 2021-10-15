@@ -22,3 +22,6 @@ _build
 /numpy_tests.bytecode
 /pyml_tests.native
 /numpy_tests.native
+/pyops.ml
+/pyops.mli
+/pyml_arch_generate.exe
