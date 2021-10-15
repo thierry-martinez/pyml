@@ -68,9 +68,12 @@ int
 unsetenv(const char *name)
 {
     size_t len = strlen(name);
-    char string[len + 2];
+    char *string = xmalloc(len + 2);
+    int result;
     snprintf(string, len + 2, "%s=", name);
-    return _putenv(string);
+    result = _putenv(string);
+    free(string);
+    return result;
 }
 
 extern int win_CRT_fd_of_filedescr(value handle);
