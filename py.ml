@@ -108,9 +108,15 @@ let extract_version version_line =
 
 let extract_version_major_minor version =
   try
-    if String.length version >= 3 && (version.[1] = '.') then
+    if String.length version >= 3 && version.[1] = '.' then
       let major = int_of_string (String.sub version 0 1) in
-      let minor = int_of_string (String.sub version 2 1) in
+      let minor =
+        if String.length version = 3 || version.[3] = '.' then
+          int_of_string (String.sub version 2 1)
+        else if String.length version >= 5 && version.[4] = '.' then
+          int_of_string (String.sub version 2 2)
+        else
+          raise Exit in
       (major, minor)
     else
       raise Exit
