@@ -780,9 +780,6 @@ py_load_library(value filename_ocaml, value debug_build_ocaml)
         else {
             debug_build = Python2_PyInt_AsLong(debug_build_py);
         }
-        if (debug_build == -1) {
-            failwith("AsLong");
-        }
     }
     tuple_empty = Python_PyTuple_New(0);
     CAMLreturn(Val_unit);
