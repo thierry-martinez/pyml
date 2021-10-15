@@ -4,7 +4,7 @@ INSTALL := install
 INSTALL_PROGRAM := $(INSTALL)
 bindir := $(PREFIX)/bin
 
-C_COMPILER := $(shell ocamlc -config | grep '^c_compiler:' | cut -d ' ' -f 2)
+C_COMPILER := $(shell ocamlc -config | grep '^native_c_compiler:' | cut -d ' ' -f 2)
 EXT_LIB := $(shell ocamlc -config | grep '^ext_lib:' | cut -d ' ' -f 2)
 
 HAVE_OCAMLFIND := $(shell \

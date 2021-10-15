@@ -18,7 +18,7 @@
 (rule
   (target pyml_arch_generate.exe)
   (deps pyml_arch_generate.c)
-  (action (run %{ocaml-config:c_compiler} -o pyml_arch_generate.exe pyml_arch_generate.c)))
+  (action (run %{ocaml-config:native_c_compiler} -o pyml_arch_generate.exe pyml_arch_generate.c)))
 
 (rule
   (target pyml_arch.ml)
