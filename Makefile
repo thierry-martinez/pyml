@@ -300,7 +300,7 @@ pyml_arch.cmo pyml_arch.cmx : pyml_arch.cmi
 	$(OCAMLOPT) $(OCAMLCFLAGS) -c $< -o $@
 
 %.o : %.c
-	$(OCAMLC) -package stdcompat -c $< -o $@
+	$(OCAMLC) $(OCAMLCFLAGS) -c $< -o $@
 
 pyml_stubs.o : pyml_wrappers.inc
 
