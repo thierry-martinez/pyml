@@ -220,7 +220,7 @@ clean :
 	rm -f pyml.h
 	rm -f pyml_stubs.o dllpyml_stubs.so libpyml_stubs$(EXT_LIB)
 	rm -f numpy_stubs.o dllnumpy_stubs.so libnumpy_stubs$(EXT_LIB)
-	rm -f pyml_arch_generate.exe pyml_arch.ml
+	rm -f pyml_arch.ml
 	rm -f generate pyml_tests.native pyml_tests.bytecode
 	rm -f numpy_tests.native numpy_tests.bytecode
 	rm -f .depend
@@ -283,11 +283,8 @@ numpy_tests.bytecode : py.cmi pyml.cma numpy.cma \
 	$(OCAMLC) $(OCAMLLDFLAGS) $(OCAMLBYTECODELIBSNUMPY) pyml.cma \
 		numpy.cma pyml_tests_common.cmo numpy_tests.cmo -o $@
 
-pyml_arch_generate.exe : pyml_arch_generate.c
-	$(C_COMPILER) $< -o $@
-
-pyml_arch.ml : pyml_arch_generate.exe
-	./pyml_arch_generate.exe
+pyml_arch.ml : pyml_arch.ml.pp
+	$(C_COMPILER) -E -x c $< >$@
 
 pyml_arch.cmo pyml_arch.cmx : pyml_arch.cmi
 

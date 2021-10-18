@@ -16,14 +16,10 @@
   (action (run %{gen})))
 
 (rule
-  (target pyml_arch_generate.exe)
-  (deps pyml_arch_generate.c)
-  (action (run %{ocaml-config:native_c_compiler} -o pyml_arch_generate.exe pyml_arch_generate.c)))
-
-(rule
   (target pyml_arch.ml)
-  (deps (:generate pyml_arch_generate.exe))
-  (action (run %{generate})))
+  (deps pyml_arch.ml.pp)
+  (action (with-stdout-to %{target}
+    (run %{ocaml-config:native_c_compiler} -E -x c %{deps}))))
 
 (library
   (name pyml_tests_common)

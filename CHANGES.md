@@ -1,5 +1,12 @@
 [*] marks changes that break compatibility with previous versions.
 
+# Development version
+
+- Fix bug in Windows
+
+- Cross-compiling friendly architecture detection
+  (suggested by @EduardoRFS, https://discuss.ocaml.org/t/a-zoo-of-values-for-system/8525/20)
+
 # 2021-10-15
 
 - More portable architecture detection

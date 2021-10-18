@@ -9,7 +9,7 @@ homepage: "http://github.com/thierry-martinez/pyml"
 doc: "http://github.com/thierry-martinez/pyml"
 bug-reports: "http://github.com/thierry-martinez/pyml/issues"
 depends: [
-  "dune" {>= "2.9"}
+  "dune" {>= "2.8"}
   "ocaml" {>= "3.12.1"}
   "ocamlfind" {build}
   "stdcompat" {>= "17"}
@@ -26,11 +26,9 @@ build: [
     name
     "-j"
     jobs
-    "--promote-install-files=false"
     "@install"
     "@runtest" {with-test}
     "@doc" {with-doc}
   ]
-  ["dune" "install" "-p" name "--create-install-files" name]
 ]
 dev-repo: "git+https://github.com/thierry-martinez/pyml.git"
