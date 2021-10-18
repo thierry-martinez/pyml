@@ -284,7 +284,7 @@ numpy_tests.bytecode : py.cmi pyml.cma numpy.cma \
 		numpy.cma pyml_tests_common.cmo numpy_tests.cmo -o $@
 
 pyml_arch.ml : pyml_arch.ml.pp
-	$(C_COMPILER) -E -x c $< >$@
+	$(C_COMPILER) -E -xc $< >$@
 
 pyml_arch.cmo pyml_arch.cmx : pyml_arch.cmi
 

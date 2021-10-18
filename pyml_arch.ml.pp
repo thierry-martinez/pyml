@@ -13,7 +13,7 @@ type t = Linux | Windows | Mac
 
 let os = PLATFORM_NAME
 
-#if WIN_HANDLE_FD
+#ifdef WIN_HANDLE_FD
   external fd_of_int : int -> Unix.file_descr = "win_handle_fd"
 #else
   external fd_of_int : int -> Unix.file_descr = "%identity"
