@@ -17,9 +17,9 @@
 
 (rule
   (target pyml_arch.ml.sharp)
-  (deps pyml_arch.ml.pp)
+  (deps pyml_arch.ml.c)
   (action (with-stdout-to %{target}
-    (run %{ocaml-config:native_c_compiler} -E -x c %{deps}))))
+    (run %{ocaml-config:native_c_compiler} -E %{deps}))))
 
 (rule
   (target pyml_arch.ml)

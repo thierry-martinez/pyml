@@ -283,8 +283,8 @@ numpy_tests.bytecode : py.cmi pyml.cma numpy.cma \
 	$(OCAMLC) $(OCAMLLDFLAGS) $(OCAMLBYTECODELIBSNUMPY) pyml.cma \
 		numpy.cma pyml_tests_common.cmo numpy_tests.cmo -o $@
 
-pyml_arch.ml : pyml_arch.ml.pp
-	$(C_COMPILER) -E -xc $< | sed '/^#/d' >$@
+pyml_arch.ml : pyml_arch.ml.c
+	$(C_COMPILER) -E $< | sed '/^#/d' >$@
 
 pyml_arch.cmo pyml_arch.cmx : pyml_arch.cmi
 
