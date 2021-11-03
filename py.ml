@@ -1417,9 +1417,13 @@ module Object = struct
     assert_int_success (Pywrappers.pyobject_delitemstring obj item)
 
   let get_attr obj attr =
+    if is_null obj then
+      failwith "get_attr called on null";
     option (Pywrappers.pyobject_getattr obj attr)
 
   let get_attr_string obj attr =
+    if is_null obj then
+      failwith "get_attr_string called on null";
     option (Pywrappers.pyobject_getattrstring obj attr)
 
   let find_attr obj attr = Pyutils.option_unwrap (get_attr obj attr)
@@ -1462,7 +1466,10 @@ module Object = struct
 
   let not obj = bool_of_int (Pywrappers.pyobject_istrue obj)
 
-  let is_instance obj cls = bool_of_int (Pywrappers.pyobject_isinstance obj cls)
+  let is_instance obj cls =
+    if is_null obj then
+      failwith "is_instance called on null";
+    bool_of_int (Pywrappers.pyobject_isinstance obj cls)
 
   let is_subclass cls1 cls2 =
     bool_of_int (Pywrappers.pyobject_issubclass cls1 cls2)
