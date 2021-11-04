@@ -7,6 +7,9 @@
 - Cross-compiling friendly architecture detection
   (suggested by @EduardoRFS, https://discuss.ocaml.org/t/a-zoo-of-values-for-system/8525/20)
 
+- Null checks for many functions raising OCaml exceptions, instead of segmentation fault
+  (initial implementation by Laurent Mazare, https://github.com/thierry-martinez/pyml/pull/72)
+
 # 2021-10-15
 
 - More portable architecture detection

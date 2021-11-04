@@ -849,11 +849,20 @@ let option result =
   else
     Some result
 
+let assert_not_null function_name obj =
+  if is_null obj then
+    invalid_arg (function_name ^ ": unallowed null argument")
+
 module Eval = struct
   let call_object_with_keywords func arg keyword =
+    assert_not_null "call_object_with_keywords(!, _, _)" func;
+    assert_not_null "call_object_with_keywords(_, !, _)" arg;
+    assert_not_null "call_object_with_keywords(_, _, !)" keyword;
     check_not_null (Pywrappers.pyeval_callobjectwithkeywords func arg keyword)
 
   let call_object func arg =
+    assert_not_null "call_object_with_keywords(!, _)" func;
+    assert_not_null "call_object_with_keywords(_, !)" arg;
     call_object_with_keywords func arg null
 
   let get_builtins () = check_not_null (Pywrappers.pyeval_getbuiltins ())
@@ -867,6 +876,7 @@ let object_repr obj = check_not_null (Pywrappers.pyobject_repr obj)
 
 module String_ = struct
   let as_UTF8_string s =
+    assert_not_null "as_UTF8_string" s;
     let f =
       match ucs () with
         UCS2 -> Pywrappers.UCS2.pyunicodeucs2_asutf8string
@@ -901,7 +911,9 @@ module Tuple_ = struct
   let init size f =
     let result = create size in
     for index = 0 to size - 1 do
-      set_item result index (f index)
+      let v = f index in
+      assert_not_null "init" v;
+      set_item result index v
     done;
     result
 
@@ -917,6 +929,8 @@ module Dict_ = struct
     check_not_null (Pywrappers.pydict_new ())
 
   let set_item dict key value =
+    assert_not_null "set_item(!, _)" dict;
+    assert_not_null "set_item(_, !)" key;
     assert_int_success (Pywrappers.pydict_setitem dict key value)
 
   let of_bindings_map fkey fvalue list =
@@ -968,6 +982,8 @@ module Type = struct
   external get: pyobject -> t = "pytype"
 
   let is_subtype a b =
+    assert_not_null "of_tuple5(!, _)" a;
+    assert_not_null "of_tuple5(_, !)" b;
     bool_of_int (Pywrappers.pytype_issubtype a b)
 
   let name t =
@@ -1079,11 +1095,18 @@ end
 
 module Method = struct
   let create func self cl =
+    assert_not_null "create(!, _, _)" func;
+    assert_not_null "create(_, !, _)" self;
+    assert_not_null "create(_, _, !)" cl;
     check_not_null (Pywrappers.pymethod_new func self cl)
 
-  let get_function m = check_not_null (Pywrappers.pymethod_function m)
+  let get_function m =
+    assert_not_null "get_function" m;
+    check_not_null (Pywrappers.pymethod_function m)
 
-  let self m = option (Pywrappers.pymethod_self m)
+  let self m =
+    assert_not_null "self" m;
+    option (Pywrappers.pymethod_self m)
 end
 
 module Bool = struct
@@ -1211,6 +1234,7 @@ module String__ = struct
     check_not_null (f int_array size')
 
   let to_unicode s =
+    assert_not_null "to_unicode" s;
     let f =
       match ucs () with
         UCS2 -> Pywrappers.UCS2.pyunicodeucs2_asunicode
@@ -1411,19 +1435,20 @@ module Object = struct
   type t = Pytypes.pyobject
 
   let del_item obj item =
+    assert_not_null "del_item(!, _)" obj;
+    assert_not_null "del_item(_, !)" item;
     assert_int_success (Pywrappers.pyobject_delitem obj item)
 
   let del_item_string obj item =
     assert_int_success (Pywrappers.pyobject_delitemstring obj item)
 
   let get_attr obj attr =
-    if is_null obj then
-      failwith "get_attr called on null";
+    assert_not_null "get_attr(!, _)" obj;
+    assert_not_null "get_attr(_, !)" attr;
     option (Pywrappers.pyobject_getattr obj attr)
 
   let get_attr_string obj attr =
-    if is_null obj then
-      failwith "get_attr_string called on null";
+    assert_not_null "get_attr_string" obj;
     option (Pywrappers.pyobject_getattrstring obj attr)
 
   let find_attr obj attr = Pyutils.option_unwrap (get_attr obj attr)
@@ -1449,29 +1474,41 @@ module Object = struct
   let find_string_opt = get_item_string
 
   let get_iter obj =
+    assert_not_null "get_iter" obj;
     check_not_null (Pywrappers.pyobject_getiter obj)
 
   let get_type obj =
+    assert_not_null "get_type" obj;
     check_not_null (Pywrappers.pyobject_type obj)
 
   let has_attr obj attr =
+    assert_not_null "has_attr(!, _)" obj;
+    assert_not_null "has_attr(_, !)" attr;
     bool_of_int (Pywrappers.pyobject_hasattr obj attr)
 
   let has_attr_string obj attr =
+    assert_not_null "has_attr_string" obj;
     bool_of_int (Pywrappers.pyobject_hasattrstring obj attr)
 
-  let hash obj = check_int64 (Pywrappers.pyobject_hash obj)
+  let hash obj =
+    assert_not_null "hash" obj;
+    check_int64 (Pywrappers.pyobject_hash obj)
 
-  let is_true obj = bool_of_int (Pywrappers.pyobject_istrue obj)
+  let is_true obj =
+    assert_not_null "is_true" obj;
+    bool_of_int (Pywrappers.pyobject_istrue obj)
 
-  let not obj = bool_of_int (Pywrappers.pyobject_istrue obj)
+  let not obj =
+    assert_not_null "not" obj;
+    bool_of_int (Pywrappers.pyobject_istrue obj)
 
   let is_instance obj cls =
-    if is_null obj then
-      failwith "is_instance called on null";
+    assert_not_null "is_instance" obj;
     bool_of_int (Pywrappers.pyobject_isinstance obj cls)
 
   let is_subclass cls1 cls2 =
+    assert_not_null "is_subclass(!, _)" cls1;
+    assert_not_null "is_subclass(_, !)" cls2;
     bool_of_int (Pywrappers.pyobject_issubclass cls1 cls2)
 
   let print obj out_channel =
@@ -1488,9 +1525,12 @@ module Object = struct
     bool_of_int (Pywrappers.pyobject_richcomparebool a b cmp)
 
   let set_attr obj attr value =
+    assert_not_null "set_attr(!, _, _)" obj;
+    assert_not_null "set_attr(_, !, _)" attr;
     assert_int_success (Pywrappers.pyobject_setattr obj attr value)
 
   let set_attr_string obj attr value =
+    assert_not_null "set_attr_string" obj;
     assert_int_success (Pywrappers.pyobject_setattrstring obj attr value)
 
   let del_attr obj attr = set_attr obj attr null
@@ -1539,15 +1579,21 @@ module Object = struct
     Format.pp_print_string fmt (robust_to_string true v)
 
   let call_method_obj_args obj name args =
+    assert_not_null "call_method_obj_args(!, _, _)" obj;
+    assert_not_null "call_method_obj_args(_, !, _)" name;
     check_not_null (pyobject_callmethodobjargs obj name args)
 
   let call_method obj name args =
     call_method_obj_args obj (String.of_string name) args
 
   let call callable args kw =
+    assert_not_null "call(!, _, _)" callable;
+    assert_not_null "call(_, !, _)" args;
+    assert_not_null "call(_, _, !)" kw;
     check_not_null (Pywrappers.pyobject_call callable args kw)
 
   let size obj =
+    assert_not_null "size" obj;
     check_int (Pywrappers.pyobject_size obj)
 end
 
@@ -1619,87 +1665,147 @@ end
 module Number = struct
   let absolute v = check_not_null (Pywrappers.pynumber_absolute v)
 
-  let add v0 v1 = check_not_null (Pywrappers.pynumber_add v0 v1)
+  let add v0 v1 =
+    assert_not_null "add(!, _)" v0;
+    assert_not_null "add(_, !)" v1;
+    check_not_null (Pywrappers.pynumber_add v0 v1)
 
-  let number_and v0 v1 = check_not_null (Pywrappers.pynumber_and v0 v1)
+  let number_and v0 v1 =
+    assert_not_null "number_and(!, _)" v0;
+    assert_not_null "number_and(_, !)" v1;
+    check_not_null (Pywrappers.pynumber_and v0 v1)
 
   let _check v = Pywrappers.pynumber_check v <> 0
 
-  let divmod v0 v1 = check_not_null (Pywrappers.pynumber_divmod v0 v1)
+  let divmod v0 v1 =
+    assert_not_null "divmod(!, _)" v0;
+    assert_not_null "divmod(_, !)" v1;
+    check_not_null (Pywrappers.pynumber_divmod v0 v1)
 
   let float v = check_not_null (Pywrappers.pynumber_float v)
 
   let floor_divide v0 v1 =
+    assert_not_null "floor_divide(!, _)" v0;
+    assert_not_null "floor_divide(_, !)" v1;
     check_not_null (Pywrappers.pynumber_floordivide v0 v1)
 
-  let in_place_add v0 v1 = check_not_null (Pywrappers.pynumber_inplaceadd v0 v1)
+  let in_place_add v0 v1 =
+    assert_not_null "in_place_add(!, _)" v0;
+    assert_not_null "in_place_add(_, !)" v1;
+    check_not_null (Pywrappers.pynumber_inplaceadd v0 v1)
 
-  let in_place_and v0 v1 = check_not_null (Pywrappers.pynumber_inplaceand v0 v1)
+  let in_place_and v0 v1 =
+    assert_not_null "in_place_and(!, _)" v0;
+    assert_not_null "in_place_and(_, !)" v1;
+    check_not_null (Pywrappers.pynumber_inplaceand v0 v1)
 
   let in_place_floor_divide v0 v1 =
+    assert_not_null "in_place_floor_divide(!, _)" v0;
+    assert_not_null "in_place_floor_divide(_, !)" v1;
     check_not_null (Pywrappers.pynumber_inplacefloordivide v0 v1)
 
   let in_place_lshift v0 v1 =
+    assert_not_null "in_place_lshift(!, _)" v0;
+    assert_not_null "in_place_lshift(_, !)" v1;
     check_not_null (Pywrappers.pynumber_inplacelshift v0 v1)
 
   let in_place_multiply v0 v1 =
+    assert_not_null "in_place_multiply(!, _)" v0;
+    assert_not_null "in_place_multiply(_, !)" v1;
     check_not_null (Pywrappers.pynumber_inplacemultiply v0 v1)
 
   let in_place_or v0 v1 =
+    assert_not_null "in_place_or(!, _)" v0;
+    assert_not_null "in_place_or(_, !)" v1;
     check_not_null (Pywrappers.pynumber_inplaceor v0 v1)
 
   let in_place_power ?(modulo = none) v0 v1 =
+    assert_not_null "in_place_power(?modulo:!, _, _)" modulo;
+    assert_not_null "in_place_power(?modulo:_, !, _)" v0;
+    assert_not_null "in_place_power(?modulo:_, _, _)" v1;
     check_not_null (Pywrappers.pynumber_inplacepower v0 v1 modulo)
 
   let in_place_remainder v0 v1 =
+    assert_not_null "in_place_remainder(!, _)" v0;
+    assert_not_null "in_place_remainder(_, !)" v1;
     check_not_null (Pywrappers.pynumber_inplaceremainder v0 v1)
 
   let in_place_rshift v0 v1 =
+    assert_not_null "in_place_rshift(!, _)" v0;
+    assert_not_null "in_place_rshift(_, !)" v1;
     check_not_null (Pywrappers.pynumber_inplacershift v0 v1)
 
   let in_place_subtract v0 v1 =
+    assert_not_null "in_place_substract(!, _)" v0;
+    assert_not_null "in_place_substract(_, !)" v1;
     check_not_null (Pywrappers.pynumber_inplacesubtract v0 v1)
 
   let in_place_true_divide v0 v1 =
+    assert_not_null "in_place_true_divide(!, _)" v0;
+    assert_not_null "in_place_true_divide(_, !)" v1;
     check_not_null (Pywrappers.pynumber_inplacetruedivide v0 v1)
 
   let in_place_xor v0 v1 =
+    assert_not_null "in_place_xor(!, _)" v0;
+    assert_not_null "in_place_xor(_, !)" v1;
     check_not_null (Pywrappers.pynumber_inplacexor v0 v1)
 
   let invert v =
+    assert_not_null "invert" v;
     check_not_null (Pywrappers.pynumber_invert v)
 
   let lshift v0 v1 =
+    assert_not_null "in_place_xor(!, _)" v0;
+    assert_not_null "in_place_xor(_, !)" v1;
     check_not_null (Pywrappers.pynumber_lshift v0 v1)
 
   let multiply v0 v1 =
+    assert_not_null "in_place_xor(!, _)" v0;
+    assert_not_null "in_place_xor(_, !)" v1;
     check_not_null (Pywrappers.pynumber_multiply v0 v1)
 
   let negative v =
+    assert_not_null "negative" v;
     check_not_null (Pywrappers.pynumber_negative v)
 
   let number_or v0 v1 =
+    assert_not_null "in_place_xor(!, _)" v0;
+    assert_not_null "in_place_xor(_, !)" v1;
     check_not_null (Pywrappers.pynumber_or v0 v1)
 
   let positive v =
+    assert_not_null "positive" v;
     check_not_null (Pywrappers.pynumber_positive v)
 
   let power ?(modulo = none) v0 v1 =
+    assert_not_null "in_place_power(?modulo:!, _, _)" modulo;
+    assert_not_null "in_place_power(?modulo:_, !, _)" v0;
+    assert_not_null "in_place_power(?modulo:_, _, _)" v1;
     check_not_null (Pywrappers.pynumber_power v0 v1 modulo)
 
   let remainder v0 v1 =
+    assert_not_null "remainder(!, _)" v0;
+    assert_not_null "remainder(_, !)" v1;
     check_not_null (Pywrappers.pynumber_remainder v0 v1)
 
   let rshift v0 v1 =
+    assert_not_null "rshift(!, _)" v0;
+    assert_not_null "rshift(_, !)" v1;
     check_not_null (Pywrappers.pynumber_rshift v0 v1)
 
   let subtract v0 v1 =
+    assert_not_null "substract(!, _)" v0;
+    assert_not_null "substract(_, !)" v1;
     check_not_null (Pywrappers.pynumber_subtract v0 v1)
 
   let true_divide v0 v1 =
+    assert_not_null "true_divide_xor(!, _)" v0;
+    assert_not_null "true_divide_xor(_, !)" v1;
     check_not_null (Pywrappers.pynumber_truedivide v0 v1)
 
   let number_xor v0 v1 =
+    assert_not_null "number_xor(!, _)" v0;
+    assert_not_null "number_xor(_, !)" v1;
     check_not_null (Pywrappers.pynumber_xor v0 v1)
 
   let check v =
@@ -1746,7 +1852,9 @@ end
 module Iter_ = struct
   let check o = Type.get o = Type.Iter
 
-  let next i = option (Pywrappers.pyiter_next i)
+  let next i =
+    assert_not_null "next" i;
+    option (Pywrappers.pyiter_next i)
 
   let rec iter f i =
     match next i with
@@ -1805,11 +1913,15 @@ module Sequence = struct
 
   let concat s s' = check_not_null (Pywrappers.pysequence_concat s s')
 
-  let contains s value = bool_of_int (Pywrappers.pysequence_contains s value)
+  let contains s value =
+    assert_not_null "contains(!, _)" s;
+    assert_not_null "contains(_, !)" value;
+    bool_of_int (Pywrappers.pysequence_contains s value)
 
   let count s value = check_int (Pywrappers.pysequence_count s value)
 
   let del_item s index =
+    assert_not_null "del_item" s;
     assert_int_success (Pywrappers.pysequence_delitem s index)
 
   let fast s msg = check_not_null (Pywrappers.pysequence_fast s msg)
@@ -1844,7 +1956,9 @@ module Sequence = struct
   let set_slice s i0 i1 value =
     assert_int_success (Pywrappers.pysequence_setslice s i0 i1 value)
 
-  let size s = check_int (Pywrappers.pysequence_size s)
+  let size s =
+    assert_not_null "size" s;
+    check_int (Pywrappers.pysequence_size s)
 
   let tuple sequence = check_not_null (Pywrappers.pysequence_tuple sequence)
 
@@ -1909,11 +2023,14 @@ module Tuple = struct
 
   let of_seq s = of_array (Array.of_seq s)
 
-  let of_tuple1 v0 = init 1 (function _ -> v0)
+  let of_tuple1 v0 =
+    init 1 (function _ -> v0)
 
-  let of_tuple2 (v0, v1) = init 2 (function 0 -> v0 | _ -> v1)
+  let of_tuple2 (v0, v1) =
+    init 2 (function 0 -> v0 | _ -> v1)
 
-  let of_tuple3 (v0, v1, v2) = init 3 (function 0 -> v0 | 1 -> v1 | _ -> v2)
+  let of_tuple3 (v0, v1, v2) =
+    init 3 (function 0 -> v0 | 1 -> v1 | _ -> v2)
 
   let of_tuple4 (v0, v1, v2, v3) =
     init 4 (function 0 -> v0 | 1 -> v1 | 2 -> v2 | _ -> v3)
@@ -1946,17 +2063,24 @@ module Dict = struct
 
   let check o = Type.get o = Type.Dict
 
-  let clear = Pywrappers.pydict_clear
+  let clear o =
+    assert_not_null "clear" o;
+    Pywrappers.pydict_clear o
 
   let copy v = check_not_null (Pywrappers.pydict_copy v)
 
   let del_item dict item =
+    assert_not_null "del_item(!, _)" dict;
+    assert_not_null "del_item(_, !)" item;
     assert_int_success (Pywrappers.pydict_delitem dict item)
 
   let del_item_string dict name =
+    assert_not_null "del_item_string" dict;
     assert_int_success (Pywrappers.pydict_delitemstring dict name)
 
   let get_item dict key =
+    assert_not_null "get_item(!, _)" dict;
+    assert_not_null "get_item(_, !)" key;
     option (Pywrappers.pydict_getitem dict key)
 
   let find dict key = Pyutils.option_unwrap (get_item dict key)
@@ -1964,6 +2088,7 @@ module Dict = struct
   let find_opt = get_item
 
   let get_item_string dict name =
+    assert_not_null "get_item_string" dict;
     option (Pywrappers.pydict_getitemstring dict name)
 
   let find_string dict key = Pyutils.option_unwrap (get_item_string dict key)
@@ -1975,6 +2100,7 @@ module Dict = struct
   let items dict = check_not_null (Pywrappers.pydict_items dict)
 
   let set_item_string dict name value =
+    assert_not_null "set_item_string" dict;
     assert_int_success (Pywrappers.pydict_setitemstring dict name value)
 
   let size dict =
@@ -2019,35 +2145,50 @@ module Dict = struct
 
   let to_bindings_string = to_bindings_map String.to_string id
 
-  let singleton key value = of_bindings [(key, value)]
+  let singleton key value =
+    assert_not_null "singleton(!, _)" key;
+    assert_not_null "singleton(_, !)" value;
+    of_bindings [(key, value)]
 
-  let singleton_string key value = of_bindings_string [(key, value)]
+  let singleton_string key value =
+    assert_not_null "singleton_string" value;
+    of_bindings_string [(key, value)]
 end
 
 module Set = struct
   let check o = Type.get o = Type.Set
 
-  let clear = Pywrappers.pyset_clear
+  let clear o =
+    assert_not_null "clear" o;
+    Pywrappers.pyset_clear o
 
   let copy v = check_not_null (Pywrappers.pyset_new v)
 
   let create () = check_not_null (Pywrappers.pyset_new null)
 
   let size set =
+    assert_not_null "size" set;
     let sz = Pywrappers.pyset_size set in
     assert_int_success sz;
     sz
 
   let add set value =
+    assert_not_null "add(!, _)" set;
+    assert_not_null "add(_, !)" value;
     assert_int_success (Pywrappers.pyset_add set value)
 
   let contains set value =
+    assert_not_null "contains(!, _)" set;
+    assert_not_null "contains(_, !)" value;
     bool_of_int (Pywrappers.pyset_contains set value)
 
   let discard set value =
+    assert_not_null "discard(!, _)" set;
+    assert_not_null "discard(_, !)" value;
     assert_int_success (Pywrappers.pyset_discard set value)
 
   let to_list_map f set =
+    assert_not_null "to_list_map" set;
     Iter_.to_list_map f (Object.get_iter set)
 
   let to_list = to_list_map id
@@ -2159,9 +2300,11 @@ module Import = struct
   let add_module name = check_not_null (Pywrappers.pyimport_addmodule name)
 
   let exec_code_module name obj =
+    assert_not_null "exec_code_module" obj;
     check_not_null (Pywrappers.pyimport_execcodemodule name obj)
 
   let exec_code_module_ex name obj pathname =
+    assert_not_null "exec_code_module_ex" obj;
     check_not_null (Pywrappers.pyimport_execcodemoduleex name obj pathname)
 
   let get_magic_number = Pywrappers.pyimport_getmagicnumber
@@ -2210,12 +2353,15 @@ module Module = struct
     check_not_null (Pywrappers.pymodule_new name)
 
   let get_dict m =
+    assert_not_null "get_dict" m;
     check_not_null (Pywrappers.pymodule_getdict m)
 
   let get_filename m =
+    assert_not_null "get_filename" m;
     check_some (Pywrappers.pymodule_getfilename m)
 
   let get_name m =
+    assert_not_null "get_name" m;
     check_some (Pywrappers.pymodule_getname m)
 
   let get = Object.find_attr_string
@@ -2285,7 +2431,8 @@ module Iter = struct
     let iter_fn = Callable.of_function (function
       | [||] -> failwith "__iter__ expects at least one argument"
       | array -> array.(0)) in
-    let methods = [next_name, Callable.of_function next'; "__iter__", iter_fn] in
+    let methods =
+      [next_name, Callable.of_function next'; "__iter__", iter_fn] in
     Object.call_function_obj_args
       (Class.init ~methods "iterator") [| |]
 
@@ -2365,6 +2512,8 @@ module Iter = struct
     check_not_null (Pywrappers.pyseqiter_new seq)
 
   let call_iter call sentinel =
+    assert_not_null "call_iter(!, _)" call;
+    assert_not_null "call_iter(_, !)" sentinel;
     check_not_null (Pywrappers.pycalliter_new call sentinel)
 
   (* As a sentinel we use a function so that there is no collision risk.
@@ -2390,7 +2539,9 @@ module List = struct
 
   let create size = check_not_null (Pywrappers.pylist_new size)
 
-  let size list = check_int (Pywrappers.pylist_size list)
+  let size list =
+    assert_not_null "size" list;
+    check_int (Pywrappers.pylist_size list)
 
   let length = size
 
@@ -2417,7 +2568,9 @@ module List = struct
 
   let of_sequence = Sequence.list
 
-  let singleton v = init 1 (fun _ -> v)
+  let singleton v =
+    assert_not_null "singleton" v;
+    init 1 (fun _ -> v)
 
   let of_seq s = of_array (Array.of_seq s)
 end
