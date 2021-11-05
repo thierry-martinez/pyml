@@ -168,8 +168,12 @@ let () =
     (fun () ->
       let m = Py.Import.add_module "test" in
       let traceback = [
-        {Py.Traceback.filename = "file1.ml"; function_name = "func1"; line_number = 1};
-        {Py.Traceback.filename = "file2.ml"; function_name = "func2"; line_number = 2}
+        { Py.Traceback.filename = "file1.ml";
+          function_name = "func1";
+          line_number = 1};
+        { Py.Traceback.filename = "file2.ml";
+          function_name = "func2";
+          line_number = 2}
       ] in
       let mywrap _ =
         raise (Py.Err_with_traceback (Py.Err.Exception, "Great", traceback)) in
