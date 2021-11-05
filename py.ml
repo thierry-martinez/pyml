@@ -857,12 +857,9 @@ module Eval = struct
   let call_object_with_keywords func arg keyword =
     assert_not_null "call_object_with_keywords(!, _, _)" func;
     assert_not_null "call_object_with_keywords(_, !, _)" arg;
-    assert_not_null "call_object_with_keywords(_, _, !)" keyword;
     check_not_null (Pywrappers.pyeval_callobjectwithkeywords func arg keyword)
 
   let call_object func arg =
-    assert_not_null "call_object_with_keywords(!, _)" func;
-    assert_not_null "call_object_with_keywords(_, !)" arg;
     call_object_with_keywords func arg null
 
   let get_builtins () = check_not_null (Pywrappers.pyeval_getbuiltins ())
