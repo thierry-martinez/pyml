@@ -1817,7 +1817,7 @@ module Tuple: sig
   (** The empty tuple [()].
       This value is guaranteed to be the unique value associated to [()]. *)
 
-    val is_empty: Object.t -> bool
+  val is_empty: Object.t -> bool
   (** [Py.is_empty v] is true if and only if [v] is [()].
       Since [Py.Tuple.empty] is guaranteed to be the unique value associated to
       [()], [Py.is_empty v] is equivalent to [v == Py.empty]. *)
