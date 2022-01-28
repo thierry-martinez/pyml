@@ -15,7 +15,7 @@
 
 static FILE *(*Python__Py_fopen)(const char *pathname, const char *mode);
 
-static FILE *(*Python__Py_wfopen)(const wchar_t *pathname, const char *mode);
+static FILE *(*Python__Py_wfopen)(const wchar_t *pathname, const wchar_t *mode);
 
 static void *xmalloc(size_t size)
 {
@@ -1226,7 +1226,7 @@ wide_string_of_string(const char *s)
         exit(EXIT_FAILURE);
     }
     wchar_t *ws = xmalloc((n + 1) * sizeof (wchar_t));
-    mbstowcs(ws, s, n);
+    mbstowcs(ws, s, n + 1);
     return ws;
 }
 
@@ -1350,7 +1350,9 @@ open_file(value file, const char *mode)
         }
         else if (Python__Py_wfopen != NULL) {
             wchar_t *wide_filename = wide_string_of_string(filename);
-            result = Python__Py_wfopen(wide_filename, mode);
+            wchar_t *wide_mode = wide_string_of_string(mode);
+            result = Python__Py_wfopen(wide_filename, wide_mode);
+            free(wide_mode);
             free(wide_filename);
         }
         else {
