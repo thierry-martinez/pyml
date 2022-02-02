@@ -691,5 +691,15 @@ let () =
       Pyml_tests_common.Passed)
 
 let () =
+  Pyml_tests_common.add_test
+    ~title:"serialize"
+    (fun () ->
+      let value = Py.String.of_string "hello" in
+      let pickled = Marshal.to_string value [] in
+      let unpickled = Marshal.from_string pickled 0 in
+      assert (Py.String.to_string unpickled = "hello");
+      Pyml_tests_common.Passed)
+
+let () =
   if not !Sys.interactive then
     Pyml_tests_common.main ()

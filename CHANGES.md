@@ -10,6 +10,12 @@
 - Null checks for many functions raising OCaml exceptions, instead of segmentation fault
   (initial implementation by Laurent Mazare, https://github.com/thierry-martinez/pyml/pull/72)
 
+- Fix wide character conversion bugs leading to segmentation fault in Py_wfopen
+  (fixed by Jerry James, https://github.com/thierry-martinez/pyml/pull/75)
+
+- Py.Object.t can now be serialized (with Marshal or output_value), using Python
+  pickle module
+
 # 2021-10-15
 
 - More portable architecture detection

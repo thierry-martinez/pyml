@@ -5,6 +5,7 @@
 #include <caml/callback.h>
 #include <caml/custom.h>
 #include <caml/alloc.h>
+#include <caml/intext.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -302,10 +303,89 @@ pyhash( value v )
     }
 }
 
+void
+pyml_assert_initialized()
+{
+    if (!version_major) {
+        failwith("Run 'Py.initialize ()' first");
+    }
+}
+
+static void
+pyserialize(value v, uintnat *bsize_32, uintnat *bsize_64)
+{
+    pyml_assert_initialized();
+    PyObject *value = getcustom(v);
+    PyObject *pickle = Python_PyImport_ImportModule("pickle");
+    if (pickle == NULL) {
+      failwith("Cannot import pickle");
+    }
+    PyObject *dumps = Python_PyObject_GetAttrString(pickle, "dumps");
+    if (dumps == NULL) {
+      failwith("pickle.dumps unavailable");
+    }
+    PyObject *args = Python_PyTuple_New(1);
+    Python_PyTuple_SetItem(args, 0, value);
+    PyObject *bytes = Python_PyEval_CallObjectWithKeywords(dumps, args, NULL);
+    if (bytes == NULL) {
+      failwith("pickle.dumps failed");
+    }
+    Py_ssize_t size;
+    char *contents;
+    if (version_major >= 3) {
+      size = Python3_PyBytes_Size(bytes);
+      contents = (char *) Python3_PyBytes_AsString(bytes);
+    }
+    else {
+      size = Python2_PyString_Size(bytes);
+      contents = (char *) Python2_PyString_AsString(bytes);
+    }
+    caml_serialize_int_8(size);
+    caml_serialize_block_1(contents, size);
+    *bsize_32 = 4;
+    *bsize_64 = 8;
+    Py_DECREF(bytes);
+    Py_DECREF(args);
+    Py_DECREF(dumps);
+    Py_DECREF(pickle);
+}
+
 static uintnat
 pydeserialize(void *dst)
 {
-    return 0L;
+    pyml_assert_initialized();
+    Py_ssize_t size = caml_deserialize_uint_8();
+    PyObject *bytes;
+    char *contents;
+    if (version_major >= 3) {
+      bytes = Python3_PyBytes_FromStringAndSize(NULL, size);
+      contents = (char *) Python3_PyBytes_AsString(bytes);
+    }
+    else {
+      bytes = Python2_PyString_FromStringAndSize(NULL, size);
+      contents = (char *) Python2_PyString_AsString(bytes);
+    }
+    caml_deserialize_block_1(contents, size);
+    PyObject *pickle = Python_PyImport_ImportModule("pickle");
+    if (pickle == NULL) {
+      failwith("Cannot import pickle");
+    }
+    PyObject *loads = Python_PyObject_GetAttrString(pickle, "loads");
+    if (loads == NULL) {
+      failwith("pickle.loads unavailable");
+    }
+    PyObject *args = Python_PyTuple_New(1);
+    Python_PyTuple_SetItem(args, 0, bytes);
+    PyObject *value = Python_PyEval_CallObjectWithKeywords(loads, args, NULL);
+    if (value == NULL) {
+      failwith("pickle.loads failed");
+    }
+    *((PyObject **) dst) = value;
+    Py_DECREF(bytes);
+    Py_DECREF(args);
+    Py_DECREF(loads);
+    Py_DECREF(pickle);
+    return sizeof(PyObject *);
 }
 
 struct custom_operations pyops =
@@ -314,7 +394,7 @@ struct custom_operations pyops =
     pydecref,
     pycompare,
     pyhash,
-    custom_serialize_default,
+    pyserialize,
     pydeserialize
 };
 
@@ -541,14 +621,6 @@ caml_aux(PyObject *obj)
 {
     value *v = (value *) unwrap_capsule(obj, "ocaml-closure");
     return (char *) v + sizeof(value);
-}
-
-void
-pyml_assert_initialized()
-{
-    if (!version_major) {
-        failwith("Run 'Py.initialize ()' first");
-    }
 }
 
 void
@@ -790,6 +862,7 @@ py_load_library(value filename_ocaml, value debug_build_ocaml)
         }
     }
     tuple_empty = Python_PyTuple_New(0);
+    register_custom_operations(&pyops);
     CAMLreturn(Val_unit);
 }
 
