@@ -718,6 +718,7 @@ let on_finalize f = on_finalize_list := f :: !on_finalize_list
 let finalize () =
   assert_initialized ();
   List.iter (fun f -> f ()) !on_finalize_list;
+  Gc.full_major ();
   finalize_library ();
   uninit_pythonhome ();
   uninit_pythonpath ();

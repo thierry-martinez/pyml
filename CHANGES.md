@@ -13,8 +13,13 @@
 - Fix wide character conversion bugs leading to segmentation fault in Py_wfopen
   (fixed by Jerry James, https://github.com/thierry-martinez/pyml/pull/75)
 
-- Py.Object.t can now be serialized (with Marshal or output_value), using Python
+- `Py.Object.t` can now be serialized (with Marshal or output_value), using Python
   pickle module
+
+- `Gc.full_major ()` before unloading `libpython` in `Py.finalize`, to prevent
+  segfaulting on finalizing dangling references to Python values after the library
+  had been unloaded
+  (reported by Denis Efremov on coccinelle mailing list)
 
 # 2021-10-15
 
