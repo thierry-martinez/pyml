@@ -7,6 +7,12 @@ type pyobject = Pytypes.pyobject
 
 type input = Pytypes.input = Single | File | Eval
 
+let string_of_input input =
+  match input with
+  | File -> "exec"
+  | Eval -> "eval"
+  | Single -> "single"
+
 type 'a file = 'a Pytypes.file = Filename of string | Channel of 'a
 
 type compare = Pytypes.compare = LT | LE | EQ | NE | GT | GE
@@ -2289,6 +2295,15 @@ module Callable = struct
       f (Tuple.of_array args) (Dict.of_bindings_string keywords)
 end
 
+type optimize = Default | Debug | Normal | RemoveDocstrings
+
+let int_of_optimize opt =
+  match opt with
+  | Default -> -1
+  | Debug -> 0
+  | Normal -> 1
+  | RemoveDocstrings -> 2
+
 module Import = struct
 (* This function has been removed from Python 3.9, and was marked
   "for internal use only" before.
@@ -2297,6 +2312,30 @@ module Import = struct
 
   let add_module name = check_not_null (Pywrappers.pyimport_addmodule name)
 
+  let main () = add_module "__main__"
+
+  let builtins () = Object.find_attr_string (main ()) "__builtins__"
+
+  let compile ~source ~filename ?(dont_inherit = false)
+      ?(optimize = Default) mode =
+    let compile =
+      Callable.to_function_with_keywords
+        (Object.find_attr_string (builtins ()) "compile") in
+    let source = String.of_string source in
+    let filename = String.of_string filename in
+    let mode = String.of_string (string_of_input mode) in
+    let dont_inherit = Bool.of_bool dont_inherit in
+    let args = ["dont_inherit", dont_inherit] in
+    let args =
+      if !version_minor_value <= 2 then
+        args
+      else
+        begin
+          let optimize = Int.of_int (int_of_optimize optimize) in
+          ["optimize", optimize]
+        end in
+    compile [| source; filename; mode |] args
+
   let exec_code_module name obj =
     assert_not_null "exec_code_module" obj;
     check_not_null (Pywrappers.pyimport_execcodemodule name obj)
@@ -2304,6 +2343,11 @@ module Import = struct
   let exec_code_module_ex name obj pathname =
     assert_not_null "exec_code_module_ex" obj;
     check_not_null (Pywrappers.pyimport_execcodemoduleex name obj pathname)
+
+  let exec_code_module_from_string ~name ?(filename = name)
+        ?dont_inherit ?optimize source =
+    let obj = compile ~source ~filename ?dont_inherit ?optimize File in
+    exec_code_module name obj
 
   let get_magic_number = Pywrappers.pyimport_getmagicnumber
 
@@ -2385,11 +2429,13 @@ module Module = struct
 
   let remove = Object.del_attr_string
 
-  let main () = Import.add_module "__main__"
+  let main = Import.main
 
   let sys () = Import.import_module "sys"
 
   let builtins () = get (main ()) "__builtins__"
+
+  let compile = Import.compile
 
   let set_docstring m doc =
     Pywrappers.pymodule_setdocstring m doc
@@ -2816,23 +2862,17 @@ let set_argv argv =
 
 let last_value () = Module.get (Module.builtins ()) "_"
 
-let compile ~source ~filename ?(dont_inherit = false)
-    ?(optimize = `Default) mode =
-  let compile =
-    Module.get_function_with_keywords (Module.builtins ()) "compile" in
-  let source = String.of_string source in
-  let filename = String.of_string filename in
+let compile ~source ~filename ?dont_inherit ?optimize mode =
   let mode =
-    String.of_string @@ match mode with
-    | `Exec -> "exec"
-    | `Eval -> "eval"
-    | `Single -> "single" in
+    match mode with
+    | `Exec -> File
+    | `Eval -> Eval
+    | `Single -> Single in
   let optimize =
-    Int.of_int @@ match optimize with
-    | `Default -> -1
-    | `Debug -> 0
-    | `Normal -> 1
-    | `RemoveDocstrings -> 2 in
-  let dont_inherit = Bool.of_bool dont_inherit in
-  compile [| source; filename; mode |]
-    ["dont_inherit", dont_inherit; "optimize", optimize]
+    Stdcompat.Option.map (function
+        | `Default -> Default
+        | `Debug -> Debug
+        | `Normal -> Normal
+        | `RemoveDocstrings -> RemoveDocstrings)
+      optimize in
+  Module.compile ~source ~filename ?dont_inherit ?optimize mode

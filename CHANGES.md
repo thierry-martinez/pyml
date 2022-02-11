@@ -2,6 +2,11 @@
 
 # Development version
 
+- New function `Py.Import.exec_code_module_from_string`
+  (suggested by Francois Berenger, https://github.com/thierry-martinez/pyml/issues/78)
+
+- New function `Py.Module.compile` provides a better API than `Py.compile`.
+
 - Fix bug in Windows
 
 - Cross-compiling friendly architecture detection

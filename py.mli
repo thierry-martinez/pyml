@@ -916,6 +916,9 @@ module Float: sig
       {{:https://docs.python.org/3/c-api/float.html#c.PyFloat_FromDouble} PyFloat_FromDouble}. *)
 end
 
+type optimize = Default | Debug | Normal | RemoveDocstrings
+
+val int_of_optimize : optimize -> int
 
 (** Importing Modules *)
 module Import: sig
@@ -931,14 +934,23 @@ module Import: sig
       {{:https://docs.python.org/3/c-api/import.html#c.PyImport_AddModule} PyImport_AddModule} *)
 
   val exec_code_module: string -> Object.t -> Object.t
-  (** [exec_code_module name bytecode] imports the module [name] compiled in [bytecode].
-      [bytecode] can be obtained with {!val:Py.compile}.
+  (** [exec_code_module name bytecode] imports the module [name] compiled in
+      [bytecode]. [bytecode] can be obtained with {!val:Py.Module.compile}
+      (you may also consider {!val:Py.Import.exec_code_module_from_string}.
       Wrapper for
       {{:https://docs.python.org/3/c-api/import.html#c.PyImport_ExecCodeModule} PyImport_ExecCodeModule} *)
 
   val exec_code_module_ex: string -> Object.t -> string -> Object.t
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/import.html#c.PyImport_ExecCodeModuleEx} PyImport_ExecCodeModuleEx} *)
+
+  val exec_code_module_from_string : name:string -> ?filename:string ->
+      ?dont_inherit:bool -> ?optimize:optimize -> string -> Object.t
+  (** [exec_code_module ~name ?filename ?dont_inherit ?optimize source_code]
+      compiles [source_code] and imports the resulting bytecode as
+      module [name]. [filename] is equal to [name] by default and is used
+      in error messages. [dont_inherit] and [optimize] are passed to
+      {!val:Py.Module.compile} for compiling [source_code]. *)
 
   val get_magic_number: unit -> int64
   (** Wrapper for
@@ -1242,6 +1254,10 @@ module Method: sig
       {{:https://docs.python.org/3/c-api/method.html#c.PyMethod_Self} PyMethod_Self} *)
 end
 
+type input = Pytypes.input = Single | File | Eval
+
+val string_of_input : input -> string
+
 (** Interface for Python values of type [Module]. *)
 module Module: sig
   val check: Object.t -> bool
@@ -1320,6 +1336,14 @@ module Module: sig
   val set_docstring: Object.t -> string -> unit
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/module.html#c.PyModule_SetDocString} PyModule_SetDocString} *)
+
+  val compile : source:string -> filename:string -> ?dont_inherit:bool ->
+      ?optimize:optimize -> input -> Object.t
+  (** [compile ~source ~filename ?dont_inherit ?optimize mode] returns
+    the bytecode obtained by compiling ~source. It is a wrapper for
+    the built-in function
+    {{:https://docs.python.org/3/library/functions.html#compile} compile()}.
+ {{:https://github.com/thierry-martinez/pyml/issues/25} GitHub issue #25}*)
 end
 
 (** Interface for Python values of type [Number]. *)
@@ -1495,8 +1519,6 @@ module Number: sig
   val ( lsr ): Object.t -> Object.t -> Object.t
   (** Synomym of {!rshift} *)
 end
-
-type input = Pytypes.input = Single | File | Eval
 
 (** Interface for Python values of type [Run]. *)
 module Run: sig
@@ -2144,8 +2166,4 @@ val exception_printer: exn -> string option
 val compile: source:string -> filename:string -> ?dont_inherit:bool ->
   ?optimize:[`Default | `Debug | `Normal | `RemoveDocstrings ] ->
   [`Exec | `Eval | `Single] -> Object.t
-(** [compile ~source ~filename ?dont_inherit ?optimize mode] returns
-    the bytecode obtained by compiling ~source. It is a wrapper for
-    the built-in function
-    {{:https://docs.python.org/3/library/functions.html#compile} compile()}.
- {{:https://github.com/thierry-martinez/pyml/issues/25} GitHub issue #25}*)
+(** Old interface for {!val:Py.Module.compile}. *)
