@@ -229,7 +229,7 @@ let libpython_from_interpreter python_full_path =
   let lines = ldd python_full_path in
   let is_libpython line =
     let basename = Filename.basename line in
-    Pyutils.has_prefix "libpython" basename in
+    Stdcompat.String.starts_with ~prefix:"libpython" basename in
   List.find_opt is_libpython lines
 
 let libpython_from_ldconfig major minor =
@@ -242,7 +242,7 @@ let libpython_from_ldconfig major minor =
         Printf.sprintf "libpython%d.%d" major' minor' in
   let is_libpython line =
     let basename = Filename.basename line in
-    Pyutils.has_prefix prefix basename in
+    Stdcompat.String.starts_with ~prefix:prefix basename in
   List.find_opt is_libpython lines
 
 let parse_python_list list =
@@ -1080,7 +1080,7 @@ module Mapping = struct
     option (Pywrappers.pymapping_getitemstring mapping key)
 
   let find_string mapping key =
-    Pyutils.option_unwrap (get_item_string mapping key)
+    Stdcompat.Option.get (get_item_string mapping key)
 
   let find_string_opt = get_item_string
 
@@ -1455,25 +1455,25 @@ module Object = struct
     assert_not_null "get_attr_string" obj;
     option (Pywrappers.pyobject_getattrstring obj attr)
 
-  let find_attr obj attr = Pyutils.option_unwrap (get_attr obj attr)
+  let find_attr obj attr = Stdcompat.Option.get (get_attr obj attr)
 
   let find_attr_opt = get_attr
 
   let find_attr_string obj attr =
-    Pyutils.option_unwrap (get_attr_string obj attr)
+    Stdcompat.Option.get (get_attr_string obj attr)
 
   let find_attr_string_opt = get_attr_string
 
   let get_item obj key =
     option (Pywrappers.pyobject_getitem obj key)
 
-  let find obj attr = Pyutils.option_unwrap (get_item obj attr)
+  let find obj attr = Stdcompat.Option.get (get_item obj attr)
 
   let find_opt = get_item
 
   let get_item_string obj key = get_item obj (String.of_string key)
 
-  let find_string obj attr = Pyutils.option_unwrap (get_item_string obj attr)
+  let find_string obj attr = Stdcompat.Option.get (get_item_string obj attr)
 
   let find_string_opt = get_item_string
 
@@ -2087,7 +2087,7 @@ module Dict = struct
     assert_not_null "get_item(_, !)" key;
     option (Pywrappers.pydict_getitem dict key)
 
-  let find dict key = Pyutils.option_unwrap (get_item dict key)
+  let find dict key = Stdcompat.Option.get (get_item dict key)
 
   let find_opt = get_item
 
@@ -2095,7 +2095,7 @@ module Dict = struct
     assert_not_null "get_item_string" dict;
     option (Pywrappers.pydict_getitemstring dict name)
 
-  let find_string dict key = Pyutils.option_unwrap (get_item_string dict key)
+  let find_string dict key = Stdcompat.Option.get (get_item_string dict key)
 
   let find_string_opt = get_item_string
 
