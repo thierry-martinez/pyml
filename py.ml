@@ -1593,7 +1593,6 @@ module Object = struct
   let call callable args kw =
     assert_not_null "call(!, _, _)" callable;
     assert_not_null "call(_, !, _)" args;
-    assert_not_null "call(_, _, !)" kw;
     check_not_null (Pywrappers.pyobject_call callable args kw)
 
   let size obj =
@@ -2227,7 +2226,7 @@ module Traceback = struct
         let args =
           Tuple.of_array [| acc; create_frame frame; Int.of_int 0; Int.of_int frame.line_number |]
         in
-        Eval.call_object tb_type args)
+        Object.call tb_type args null)
       none
       t
 end
@@ -2277,13 +2276,13 @@ module Callable = struct
     if not (check c) then
       Type.mismatch "Callable" c;
     function args ->
-      Eval.call_object c args
+      Object.call c args null
 
   let to_function_as_tuple_and_dict c =
     if not (check c) then
       Type.mismatch "Callable" c;
     fun args keywords ->
-      Eval.call_object_with_keywords c args keywords
+      Object.call c args keywords
 
   let to_function c =
     let f = to_function_as_tuple c in

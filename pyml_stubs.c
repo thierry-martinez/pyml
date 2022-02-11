@@ -236,6 +236,7 @@ static enum UCS { UCS_NONE, UCS2, UCS4 } ucs;
 static PyObject *tuple_empty;
 
 #include "pyml.h"
+#include <stdio.h>
 
 static void *getcustom( value v )
 {
@@ -326,7 +327,7 @@ pyserialize(value v, uintnat *bsize_32, uintnat *bsize_64)
     }
     PyObject *args = Python_PyTuple_New(1);
     Python_PyTuple_SetItem(args, 0, value);
-    PyObject *bytes = Python_PyEval_CallObjectWithKeywords(dumps, args, NULL);
+    PyObject *bytes = Python_PyObject_Call(dumps, args, NULL);
     if (bytes == NULL) {
       failwith("pickle.dumps failed");
     }
@@ -376,7 +377,7 @@ pydeserialize(void *dst)
     }
     PyObject *args = Python_PyTuple_New(1);
     Python_PyTuple_SetItem(args, 0, bytes);
-    PyObject *value = Python_PyEval_CallObjectWithKeywords(loads, args, NULL);
+    PyObject *value = Python_PyObject_Call(loads, args, NULL);
     if (value == NULL) {
       failwith("pickle.loads failed");
     }
@@ -841,10 +842,9 @@ py_load_library(value filename_ocaml, value debug_build_ocaml)
         if (Python_PyTuple_SetItem(args, 0, py_debug)) {
             failwith("PyTuple_SetItem");
         }
-        debug_build_py =
-            Python_PyEval_CallObjectWithKeywords(get_config_var, args, NULL);
+        debug_build_py = Python_PyObject_Call(get_config_var, args, NULL);
         if (!debug_build_py) {
-            failwith("PyEval_CallObjectWithKeywords");
+            failwith("PyObject_Call");
         }
         if (debug_build_py == Python__Py_NoneStruct) {
             debug_build = 0;
