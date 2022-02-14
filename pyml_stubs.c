@@ -312,6 +312,21 @@ pyml_assert_initialized()
     }
 }
 
+/** Creates a Python tuple initialized with a single element given by the
+    argument. The reference to the argument is stolen. */
+static PyObject *
+singleton(PyObject *value)
+{
+    PyObject *result = Python_PyTuple_New(1);
+    if (!result) {
+      failwith("PyTuple_New");
+    }
+    if (Python_PyTuple_SetItem(result, 0, value)) {
+      failwith("PyTuple_SetItem");
+    }
+    return result;
+}
+
 static void
 pyserialize(value v, uintnat *bsize_32, uintnat *bsize_64)
 {
@@ -325,8 +340,7 @@ pyserialize(value v, uintnat *bsize_32, uintnat *bsize_64)
     if (dumps == NULL) {
       failwith("pickle.dumps unavailable");
     }
-    PyObject *args = Python_PyTuple_New(1);
-    Python_PyTuple_SetItem(args, 0, value);
+    PyObject *args = singleton(value);
     PyObject *bytes = Python_PyObject_Call(dumps, args, NULL);
     if (bytes == NULL) {
       failwith("pickle.dumps failed");
@@ -345,7 +359,7 @@ pyserialize(value v, uintnat *bsize_32, uintnat *bsize_64)
     caml_serialize_block_1(contents, size);
     *bsize_32 = 4;
     *bsize_64 = 8;
-    Py_DECREF(bytes);
+    /*Py_DECREF(bytes);*/ /* reference stolen by args */
     Py_DECREF(args);
     Py_DECREF(dumps);
     Py_DECREF(pickle);
@@ -367,6 +381,7 @@ pydeserialize(void *dst)
       contents = (char *) Python2_PyString_AsString(bytes);
     }
     caml_deserialize_block_1(contents, size);
+    int i;
     PyObject *pickle = Python_PyImport_ImportModule("pickle");
     if (pickle == NULL) {
       failwith("Cannot import pickle");
@@ -375,14 +390,13 @@ pydeserialize(void *dst)
     if (loads == NULL) {
       failwith("pickle.loads unavailable");
     }
-    PyObject *args = Python_PyTuple_New(1);
-    Python_PyTuple_SetItem(args, 0, bytes);
+    PyObject *args = singleton(bytes);
     PyObject *value = Python_PyObject_Call(loads, args, NULL);
     if (value == NULL) {
       failwith("pickle.loads failed");
     }
     *((PyObject **) dst) = value;
-    Py_DECREF(bytes);
+    /*Py_DECREF(bytes);*/ /* reference stolen by args */
     Py_DECREF(args);
     Py_DECREF(loads);
     Py_DECREF(pickle);
@@ -835,14 +849,11 @@ py_load_library(value filename_ocaml, value debug_build_ocaml)
         if (!py_debug) {
             failwith("py_debug");
         }
-        args = Python_PyTuple_New(1);
-        if (!args) {
-            failwith("PyTuple_New");
-        }
-        if (Python_PyTuple_SetItem(args, 0, py_debug)) {
-            failwith("PyTuple_SetItem");
-        }
+        args = singleton(py_debug);
         debug_build_py = Python_PyObject_Call(get_config_var, args, NULL);
+        Py_DECREF(args);
+        Py_DECREF(get_config_var);
+        Py_DECREF(sysconfig);
         if (!debug_build_py) {
             failwith("PyObject_Call");
         }
