@@ -1070,7 +1070,10 @@ module Capsule = struct
         v in
       (wrap, unwrap)
 
-  let type_of x = fst (unsafe_unwrap_value x)
+  let type_of x =
+    if pycapsule_check x = 0 then
+      Type.mismatch "capsule" x;
+    fst (unsafe_unwrap_value x)
 end
 
 module Mapping = struct
