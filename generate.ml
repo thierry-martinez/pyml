@@ -1572,7 +1572,7 @@ let coercion_of_c ty =
   | WideString -> Printf.sprintf "    CAMLreturn(pyml_wrap_wide_string(result));"
   | Int | Long | Size | Compare ->
       Printf.sprintf "    CAMLreturn(Val_int(result));"
-  | Int64 -> Printf.sprintf "    CAMLreturn(copy_int64(result));"
+  | Int64 -> Printf.sprintf "    CAMLreturn(caml_copy_int64(result));"
   | IntPtr -> Printf.sprintf "    CAMLreturn(pyml_wrap_intref(result));"
   | PyCompilerFlags ->
       Printf.sprintf "    CAMLreturn(pyml_wrap_compilerflags(result));"

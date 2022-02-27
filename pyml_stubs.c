@@ -22,7 +22,7 @@ static void *xmalloc(size_t size)
 {
     void *p = malloc(size);
     if (!p) {
-        failwith("Virtual memory exhausted\n");
+        caml_failwith("Virtual memory exhausted\n");
     }
     return p;
 }
@@ -308,7 +308,7 @@ void
 pyml_assert_initialized()
 {
     if (!version_major) {
-        failwith("Run 'Py.initialize ()' first");
+        caml_failwith("Run 'Py.initialize ()' first");
     }
 }
 
@@ -319,10 +319,10 @@ singleton(PyObject *value)
 {
     PyObject *result = Python_PyTuple_New(1);
     if (!result) {
-      failwith("PyTuple_New");
+      caml_failwith("PyTuple_New");
     }
     if (Python_PyTuple_SetItem(result, 0, value)) {
-      failwith("PyTuple_SetItem");
+      caml_failwith("PyTuple_SetItem");
     }
     return result;
 }
@@ -334,16 +334,16 @@ pyserialize(value v, uintnat *bsize_32, uintnat *bsize_64)
     PyObject *value = getcustom(v);
     PyObject *pickle = Python_PyImport_ImportModule("pickle");
     if (pickle == NULL) {
-      failwith("Cannot import pickle");
+      caml_failwith("Cannot import pickle");
     }
     PyObject *dumps = Python_PyObject_GetAttrString(pickle, "dumps");
     if (dumps == NULL) {
-      failwith("pickle.dumps unavailable");
+      caml_failwith("pickle.dumps unavailable");
     }
     PyObject *args = singleton(value);
     PyObject *bytes = Python_PyObject_Call(dumps, args, NULL);
     if (bytes == NULL) {
-      failwith("pickle.dumps failed");
+      caml_failwith("pickle.dumps failed");
     }
     Py_ssize_t size;
     char *contents;
@@ -381,19 +381,18 @@ pydeserialize(void *dst)
       contents = (char *) Python2_PyString_AsString(bytes);
     }
     caml_deserialize_block_1(contents, size);
-    int i;
     PyObject *pickle = Python_PyImport_ImportModule("pickle");
     if (pickle == NULL) {
-      failwith("Cannot import pickle");
+      caml_failwith("Cannot import pickle");
     }
     PyObject *loads = Python_PyObject_GetAttrString(pickle, "loads");
     if (loads == NULL) {
-      failwith("pickle.loads unavailable");
+      caml_failwith("pickle.loads unavailable");
     }
     PyObject *args = singleton(bytes);
     PyObject *value = Python_PyObject_Call(loads, args, NULL);
     if (value == NULL) {
-      failwith("pickle.loads failed");
+      caml_failwith("pickle.loads failed");
     }
     *((PyObject **) dst) = value;
     /*Py_DECREF(bytes);*/ /* reference stolen by args */
@@ -430,7 +429,7 @@ resolve(const char *symbol)
         ssize_t size = snprintf(NULL, 0, fmt, symbol);
         char *msg = xmalloc(size + 1);
         snprintf(msg, size + 1, fmt, symbol);
-        failwith(msg);
+        caml_failwith(msg);
     }
     return result;
 }
@@ -643,7 +642,7 @@ pyml_assert_python2()
 {
     if (version_major != 2) {
         pyml_assert_initialized();
-        failwith("Python 2 needed");
+        caml_failwith("Python 2 needed");
     }
 }
 
@@ -652,7 +651,7 @@ pyml_assert_ucs2()
 {
     if (ucs != UCS2) {
         pyml_assert_initialized();
-        failwith("Python with UCS2 needed");
+        caml_failwith("Python with UCS2 needed");
     }
 }
 
@@ -661,7 +660,7 @@ pyml_assert_ucs4()
 {
     if (ucs != UCS4) {
         pyml_assert_initialized();
-        failwith("Python with UCS4 needed");
+        caml_failwith("Python with UCS4 needed");
     }
 }
 
@@ -670,7 +669,7 @@ pyml_assert_python3()
 {
     if (version_major != 3) {
         pyml_assert_initialized();
-        failwith("Python 3 needed");
+        caml_failwith("Python 3 needed");
     }
 }
 
@@ -681,16 +680,16 @@ pyml_check_symbol_available(void *symbol, char *symbol_name)
         char *fmt = "Symbol unavailable with this version of Python: %s.\n";
         ssize_t size = snprintf(NULL, 0, fmt, symbol_name);
         if (size < 0) {
-          failwith("Symbol unavailable with this version of Python.\n");
+          caml_failwith("Symbol unavailable with this version of Python.\n");
           return;
         }
         char *msg = xmalloc(size + 1);
         size = snprintf(msg, size + 1, fmt, symbol_name);
         if (size < 0) {
-          failwith("Symbol unavailable with this version of Python.\n");
+          caml_failwith("Symbol unavailable with this version of Python.\n");
           return;
         }
-        failwith(msg);
+        caml_failwith(msg);
     }
 }
 
@@ -766,7 +765,7 @@ py_load_library(value filename_ocaml, value debug_build_ocaml)
         const char *filename = String_val(Field(filename_ocaml, 0));
         library = open_library(filename);
         if (!library) {
-            failwith(get_library_error());
+            caml_failwith(get_library_error());
         }
     }
     else {
@@ -774,7 +773,7 @@ py_load_library(value filename_ocaml, value debug_build_ocaml)
     }
     Python_Py_GetVersion = find_symbol(library, "Py_GetVersion");
     if (!Python_Py_GetVersion) {
-        failwith("No Python symbol");
+        caml_failwith("No Python symbol");
     }
     const char *version = Python_Py_GetVersion();
     version_major = version[0] - '0';
@@ -847,7 +846,7 @@ py_load_library(value filename_ocaml, value debug_build_ocaml)
             py_debug = Python2_PyString_FromStringAndSize(py_debug_str, 8);
         }
         if (!py_debug) {
-            failwith("py_debug");
+            caml_failwith("py_debug");
         }
         args = singleton(py_debug);
         debug_build_py = Python_PyObject_Call(get_config_var, args, NULL);
@@ -855,7 +854,7 @@ py_load_library(value filename_ocaml, value debug_build_ocaml)
         Py_DECREF(get_config_var);
         Py_DECREF(sysconfig);
         if (!debug_build_py) {
-            failwith("PyObject_Call");
+            caml_failwith("PyObject_Call");
         }
         if (debug_build_py == Python__Py_NoneStruct) {
             debug_build = 0;
@@ -868,12 +867,12 @@ py_load_library(value filename_ocaml, value debug_build_ocaml)
                 debug_build = Python2_PyInt_AsLong(debug_build_py);
             }
             if (debug_build ==  -1) {
-                failwith("Cannot check for debug build");
+                caml_failwith("Cannot check for debug build");
             }
         }
     }
     tuple_empty = Python_PyTuple_New(0);
-    register_custom_operations(&pyops);
+    caml_register_custom_operations(&pyops);
     CAMLreturn(Val_unit);
 }
 
@@ -919,7 +918,7 @@ py_unsetenv(value name_ocaml)
     CAMLparam1(name_ocaml);
     const char *name = String_val(name_ocaml);
     if (unsetenv(name) == -1) {
-        failwith(strerror(errno));
+        caml_failwith(strerror(errno));
     }
     CAMLreturn(Val_unit);
 }
@@ -1540,7 +1539,7 @@ Python27_PyCapsule_IsValid_wrapper(value arg0_ocaml, value arg1_ocaml)
 
     pyml_assert_initialized();
     if (!Python27_PyCapsule_IsValid) {
-        failwith("PyCapsule_IsValid is only available in Python >2.7");
+        caml_failwith("PyCapsule_IsValid is only available in Python >2.7");
     }
     PyObject *arg0 = pyml_unwrap(arg0_ocaml);
     const char *arg1 = String_val(arg1_ocaml);

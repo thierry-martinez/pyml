@@ -33,7 +33,7 @@ pyarray_of_bigarray_wrapper(
     }
     int type_num;
     intnat flags = Caml_ba_array_val(bigarray_ocaml)->flags;
-    switch (flags & BIGARRAY_KIND_MASK) {
+    switch (flags & CAML_BA_KIND_MASK) {
     case CAML_BA_FLOAT32:
         type_num = NPY_FLOAT;
         break;
@@ -59,7 +59,7 @@ pyarray_of_bigarray_wrapper(
         type_num = NPY_LONGLONG;
         break;
     case CAML_BA_CAML_INT:
-        failwith("Caml integers are unsupported for NumPy array");
+        caml_failwith("Caml integers are unsupported for NumPy array");
         break;
     case CAML_BA_NATIVE_INT:
         type_num = NPY_LONG;
@@ -76,7 +76,7 @@ pyarray_of_bigarray_wrapper(
         break;
 #endif
     default:
-        failwith("Unsupported bigarray kind for NumPy array");
+        caml_failwith("Unsupported bigarray kind for NumPy array");
     }
     int np_flags;
     switch (flags & CAML_BA_LAYOUT_MASK) {
@@ -87,7 +87,7 @@ pyarray_of_bigarray_wrapper(
         np_flags = NPY_ARRAY_FARRAY;
         break;
     default:
-        failwith("Unsupported bigarray layout for NumPy array");
+        caml_failwith("Unsupported bigarray layout for NumPy array");
     }
     void *data = Caml_ba_data_val(bigarray_ocaml);
     PyTypeObject (*PyArray_SubType) =
@@ -160,7 +160,7 @@ bigarray_of_pyarray_wrapper(
 #endif
         break;
     default:
-        failwith("Unsupported NumPy kind for bigarray");
+        caml_failwith("Unsupported NumPy kind for bigarray");
     }
     int flags = fields->flags;
     enum caml_ba_layout layout;
@@ -171,7 +171,7 @@ bigarray_of_pyarray_wrapper(
         layout = CAML_BA_FORTRAN_LAYOUT;
     }
     else {
-        failwith("Unsupported NumPy layout for bigarray");
+        caml_failwith("Unsupported NumPy layout for bigarray");
     }
     void *data = fields->data;
     bigarray = caml_ba_alloc(kind | layout, nd, data, dims);
