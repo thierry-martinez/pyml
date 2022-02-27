@@ -409,11 +409,16 @@ let libpython_from_pkg_config version_major version_minor =
       Some (concat_library_filenames library_paths [library_filename])
   | _ -> None
 
-let library_patterns : (int -> int -> string, unit, string) format list =
+let library_patterns : (int -> int -> string) list =
   match Pyml_arch.os with
-  | Pyml_arch.Windows -> ["python%d%dm.dll"; "python%d%d.dll"]
-  | Pyml_arch.Mac -> ["libpython%d.%dm.dylib"; "libpython%d.%d.dylib"]
-  | Pyml_arch.Linux -> ["libpython%d.%dm.so"; "libpython%d.%d.so"]
+  | Pyml_arch.Windows ->
+      [Printf.sprintf "python%d%dm.dll"; Printf.sprintf "python%d%d.dll"]
+  | Pyml_arch.Mac ->
+      [Printf.sprintf "libpython%d.%dm.dylib";
+        Printf.sprintf "libpython%d.%d.dylib"]
+  | Pyml_arch.Linux ->
+      [Printf.sprintf "libpython%d.%dm.so";
+        Printf.sprintf "libpython%d.%d.so"]
 
 let libpython_from_python_config version_major version_minor =
   let command =
@@ -434,7 +439,7 @@ let libpython_from_python_config version_major version_minor =
         List.fold_left parse_word [] word_list in
       let library_filenames =
         List.map
-          (fun format -> Printf.sprintf format version_major version_minor)
+          (fun format -> format version_major version_minor)
           library_patterns in
       Some (concat_library_filenames library_paths library_filenames)
   | _ -> None
@@ -454,7 +459,7 @@ let libpython_from_pythonhome version_major version_minor python_full_path =
         [Filename.concat prefix "lib"] in
   let library_filenames =
     List.map
-      (fun format -> Printf.sprintf format version_major version_minor)
+      (fun format -> format version_major version_minor)
       library_patterns in
   concat_library_filenames library_paths library_filenames
 
