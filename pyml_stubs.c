@@ -135,42 +135,6 @@ file_of_file_descr(value file_descr, const char *mode)
 }
 #endif
 
-/* The following definitions are extracted and simplified from
-#include <Python.h>
-*/
-
-typedef struct {
-    int cf_flags;
-} PyCompilerFlags;
-
-#define Py_TPFLAGS_INT_SUBCLASS         (1L<<23)
-#define Py_TPFLAGS_LONG_SUBCLASS        (1UL << 24)
-#define Py_TPFLAGS_LIST_SUBCLASS        (1UL << 25)
-#define Py_TPFLAGS_TUPLE_SUBCLASS       (1UL << 26)
-#define Py_TPFLAGS_BYTES_SUBCLASS       (1UL << 27)
-#define Py_TPFLAGS_UNICODE_SUBCLASS     (1UL << 28)
-#define Py_TPFLAGS_DICT_SUBCLASS        (1UL << 29)
-#define Py_TPFLAGS_BASE_EXC_SUBCLASS    (1UL << 30)
-#define Py_TPFLAGS_TYPE_SUBCLASS        (1UL << 31)
-
-#define Py_LT 0
-#define Py_LE 1
-#define Py_EQ 2
-#define Py_NE 3
-#define Py_GT 4
-#define Py_GE 5
-
-typedef PyObject *(*PyCFunction)(PyObject *, PyObject *);
-
-typedef struct PyMethodDef {
-    const char *ml_name;
-    PyCFunction ml_meth;
-    int ml_flags;
-    const char	*ml_doc;
-} PyMethodDef;
-
-typedef void (*PyCapsule_Destructor)(PyObject *);
-
 static void *Python27__PyObject_NextNotImplemented;
 
 /* Global variables for the library */
@@ -757,6 +721,8 @@ pyml_wrap_closure(value name, value docstring, value closure)
 
 int debug_build;
 
+int trace_refs_build;
+
 CAMLprim value
 py_load_library(value filename_ocaml, value debug_build_ocaml)
 {
@@ -828,6 +794,12 @@ py_load_library(value filename_ocaml, value debug_build_ocaml)
     }
 #include "pyml_dlsyms.inc"
     Python_Py_Initialize();
+    PyObject *sys = Python_PyImport_ImportModule("sys");
+    if (!sys) {
+      caml_failwith("cannot import module sys");
+    }
+    PyObject *getobjects = Python_PyObject_GetAttrString(sys, "getobjects");
+    trace_refs_build = (getobjects != NULL);
     if (Is_block(debug_build_ocaml)) {
         debug_build = Int_val(Field(debug_build_ocaml, 0));
     }
@@ -850,9 +822,6 @@ py_load_library(value filename_ocaml, value debug_build_ocaml)
         }
         args = singleton(py_debug);
         debug_build_py = Python_PyObject_Call(get_config_var, args, NULL);
-        Py_DECREF(args);
-        Py_DECREF(get_config_var);
-        Py_DECREF(sysconfig);
         if (!debug_build_py) {
             caml_failwith("PyObject_Call");
         }
@@ -870,6 +839,9 @@ py_load_library(value filename_ocaml, value debug_build_ocaml)
                 caml_failwith("Cannot check for debug build");
             }
         }
+        Py_DECREF(args);
+        Py_DECREF(get_config_var);
+        Py_DECREF(sysconfig);
     }
     tuple_empty = Python_PyTuple_New(0);
     caml_register_custom_operations(&pyops);
@@ -883,7 +855,7 @@ struct PyObjectDebug {
 };
 
 PyObjectDescr *pyobjectdescr(PyObject *obj) {
-    if (debug_build) {
+    if (trace_refs_build) {
         return &((struct PyObjectDebug *) obj)->descr;
     }
     else {

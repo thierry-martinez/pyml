@@ -6,6 +6,17 @@
 #include <caml/custom.h>
 #include "pyml_stubs.h"
 
+value
+pyml_wrap(PyObject *object, bool steal);
+
+PyObject *
+pyml_unwrap(value v);
+
+struct numpy_custom_operations {
+    struct custom_operations ops;
+    PyObject *obj;
+};
+
 static void numpy_finalize(value v)
 {
     struct numpy_custom_operations *ops =
