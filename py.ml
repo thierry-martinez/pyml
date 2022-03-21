@@ -500,14 +500,14 @@ let library_filename = ref None
 
 let load_library filename =
   library_filename := filename;
-  load_library filename
+  load_library filename None
 
 let get_library_filename () = !library_filename
 
 let find_library ~verbose ~version_major ~version_minor ~debug_build
     python_full_path =
   try
-    load_library None debug_build
+    load_library None
   with Failure _ ->
     let library_filenames =
       find_library_path version_major version_minor python_full_path in
@@ -533,7 +533,7 @@ let find_library ~verbose ~version_major ~version_minor ~debug_build
                   Printf.eprintf "Trying to load \"%s\".\n" filename;
                   flush stderr;
                 end;
-              load_library (Some filename) debug_build;
+              load_library (Some filename);
             with Failure msg ->
 (*
               if pythonhome_set then
@@ -648,7 +648,7 @@ let initialize ?library_name ?interpreter ?version ?minor ?(verbose = false)
   begin
     match library_name with
     | Some library_name ->
-        load_library (Some library_name) debug_build;
+        load_library (Some library_name);
     | None ->
   begin
     try

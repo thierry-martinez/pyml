@@ -7,10 +7,13 @@
 
 - New function `Py.Module.compile` provides a better API than `Py.compile`.
 
-- Fix bug in Windows
+- `Py.Object.t` can now be serialized (with Marshal or output_value), using Python
+  pickle module
 
 - Cross-compiling friendly architecture detection
   (suggested by @EduardoRFS, https://discuss.ocaml.org/t/a-zoo-of-values-for-system/8525/20)
+
+- Fix bug in Windows
 
 - Null checks for many functions raising OCaml exceptions, instead of segmentation fault
   (initial implementation by Laurent Mazare, https://github.com/thierry-martinez/pyml/pull/72)
@@ -18,13 +21,13 @@
 - Fix wide character conversion bugs leading to segmentation fault in Py_wfopen
   (fixed by Jerry James, https://github.com/thierry-martinez/pyml/pull/75)
 
-- `Py.Object.t` can now be serialized (with Marshal or output_value), using Python
-  pickle module
-
 - `Gc.full_major ()` before unloading `libpython` in `Py.finalize`, to prevent
   segfaulting on finalizing dangling references to Python values after the library
   had been unloaded
   (reported by Denis Efremov on coccinelle mailing list)
+
+- Fix segmentation fault when `~debug_build:true` was passed to `Py.initialize`
+  (reported by Stéphane Glondu, https://github.com/thierry-martinez/pyml/issues/79)
 
 # 2021-10-15
 
