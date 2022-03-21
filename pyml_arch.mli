@@ -1,4 +1,4 @@
-type t = Linux | Windows | Mac
+type t = Windows | Mac | Unix
 
 val os : t
 

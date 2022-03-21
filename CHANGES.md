@@ -13,6 +13,9 @@
 - Cross-compiling friendly architecture detection
   (suggested by @EduardoRFS, https://discuss.ocaml.org/t/a-zoo-of-values-for-system/8525/20)
 
+- Detect macro `unix` instead of `__linux__`, to handle *BSD OSes
+  (reported by Chris Pinnock, https://github.com/thierry-martinez/pyml/issues/74)
+
 - Fix bug in Windows
 
 - Null checks for many functions raising OCaml exceptions, instead of segmentation fault

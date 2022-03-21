@@ -416,7 +416,7 @@ let library_patterns : (int -> int -> string) list =
   | Pyml_arch.Mac ->
       [Printf.sprintf "libpython%d.%dm.dylib";
         Printf.sprintf "libpython%d.%d.dylib"]
-  | Pyml_arch.Linux ->
+  | Pyml_arch.Unix ->
       [Printf.sprintf "libpython%d.%dm.so";
         Printf.sprintf "libpython%d.%d.so"]
 
