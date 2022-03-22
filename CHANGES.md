@@ -1,6 +1,6 @@
 [*] marks changes that break compatibility with previous versions.
 
-# Development version
+# 2022-03-22
 
 - New function `Py.Import.exec_code_module_from_string`
   (suggested by Francois Berenger, https://github.com/thierry-martinez/pyml/issues/78)
