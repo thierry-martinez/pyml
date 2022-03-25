@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <stdcompat.h>
+#include <assert.h>
 #include "pyml_stubs.h"
 
 static FILE *(*Python__Py_fopen)(const char *pathname, const char *mode);
@@ -723,6 +724,49 @@ int debug_build;
 
 int trace_refs_build;
 
+static void
+guess_debug_build()
+{
+    PyObject *sysconfig = Python_PyImport_ImportModule("sysconfig");
+    if (!sysconfig) {
+        caml_failwith("Cannot import sysconfig");
+    }
+    PyObject *get_config_var =
+        Python_PyObject_GetAttrString(sysconfig, "get_config_var");
+    assert(get_config_var);
+    PyObject *args;
+    PyObject *py_debug;
+    PyObject *debug_build_py;
+    char *py_debug_str = "Py_DEBUG";
+    if (version_major >= 3) {
+        py_debug = Python3_PyUnicode_FromStringAndSize(py_debug_str, 8);
+    }
+    else {
+        py_debug = Python2_PyString_FromStringAndSize(py_debug_str, 8);
+    }
+    assert(py_debug);
+    args = singleton(py_debug);
+    debug_build_py = Python_PyObject_Call(get_config_var, args, NULL);
+    assert(debug_build_py);
+    if (debug_build_py == Python__Py_NoneStruct) {
+        debug_build = 0;
+    }
+    else {
+        if (version_major >= 3) {
+            debug_build = Python_PyLong_AsLong(debug_build_py);
+        }
+        else {
+            debug_build = Python2_PyInt_AsLong(debug_build_py);
+        }
+        if (debug_build ==  -1) {
+            caml_failwith("Cannot check for debug build");
+        }
+    }
+    Py_DECREF(args);
+    Py_DECREF(get_config_var);
+    Py_DECREF(sysconfig);
+}
+
 CAMLprim value
 py_load_library(value filename_ocaml, value debug_build_ocaml)
 {
@@ -798,50 +842,12 @@ py_load_library(value filename_ocaml, value debug_build_ocaml)
     if (!sys) {
       caml_failwith("cannot import module sys");
     }
-    PyObject *getobjects = Python_PyObject_GetAttrString(sys, "getobjects");
-    trace_refs_build = (getobjects != NULL);
+    trace_refs_build = Python_PyObject_HasAttrString(sys, "getobjects");
     if (Is_block(debug_build_ocaml)) {
         debug_build = Int_val(Field(debug_build_ocaml, 0));
     }
     else {
-        PyObject *sysconfig = Python_PyImport_ImportModule("sysconfig");
-        PyObject *get_config_var =
-            Python_PyObject_GetAttrString(sysconfig, "get_config_var");
-        PyObject *args;
-        PyObject *py_debug;
-        PyObject *debug_build_py;
-        char *py_debug_str = "Py_DEBUG";
-        if (version_major >= 3) {
-            py_debug = Python3_PyUnicode_FromStringAndSize(py_debug_str, 8);
-        }
-        else {
-            py_debug = Python2_PyString_FromStringAndSize(py_debug_str, 8);
-        }
-        if (!py_debug) {
-            caml_failwith("py_debug");
-        }
-        args = singleton(py_debug);
-        debug_build_py = Python_PyObject_Call(get_config_var, args, NULL);
-        if (!debug_build_py) {
-            caml_failwith("PyObject_Call");
-        }
-        if (debug_build_py == Python__Py_NoneStruct) {
-            debug_build = 0;
-        }
-        else {
-            if (version_major >= 3) {
-                debug_build = Python_PyLong_AsLong(debug_build_py);
-            }
-            else {
-                debug_build = Python2_PyInt_AsLong(debug_build_py);
-            }
-            if (debug_build ==  -1) {
-                caml_failwith("Cannot check for debug build");
-            }
-        }
-        Py_DECREF(args);
-        Py_DECREF(get_config_var);
-        Py_DECREF(sysconfig);
+        guess_debug_build();
     }
     tuple_empty = Python_PyTuple_New(0);
     caml_register_custom_operations(&pyops);

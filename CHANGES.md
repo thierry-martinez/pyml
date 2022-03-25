@@ -1,5 +1,9 @@
 [*] marks changes that break compatibility with previous versions.
 
+# 2022-03-25
+
+- Fix debug build detection
+
 # 2022-03-22
 
 - New function `Py.Import.exec_code_module_from_string`
