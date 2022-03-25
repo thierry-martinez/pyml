@@ -414,6 +414,13 @@ module Callable: sig
       Wrapper for
       {{: https://docs.python.org/3/c-api/object.html#c.PyCallable_Check} PyCallable_Check}. *)
 
+  val handle_errors : ('a -> Object.t) -> 'a -> Object.t
+  (** [handle_errors f x] calls [f x] and returns its result if the call
+      succeeds. If [f x] raises a Python exception
+      ([Py.E (errtype, errvalue)] or [Py.Err (errtype, msg)]),
+      this exception is raised as a Python exception
+      (via {!Err.set_object} or {!Err.set_error} respectively). *)
+
   val of_function_as_tuple: ?name:string -> ?docstring:string -> (Object.t -> Object.t) ->
     Object.t
   (** [of_function_as_tuple f] returns a Python callable object that calls the

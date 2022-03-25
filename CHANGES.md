@@ -4,6 +4,8 @@
 
 - Fix debug build detection
 
+- Expose the function `Py.Callable.handle_errors`
+
 # 2022-03-22
 
 - New function `Py.Import.exec_code_module_from_string`
