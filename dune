@@ -3,12 +3,12 @@
   (modules numpy py pyops pycaml pyml_arch pytypes pywrappers pyutils)
   (foreign_stubs (language c) (names numpy_stubs pyml_stubs))
   (wrapped false)
-  (libraries bigarray stdcompat))
+  (libraries bigarray unix))
 
 (executables
   (names generate)
   (modules generate)
-  (libraries stdcompat))
+  (libraries unix))
 
 (rule
   (targets pywrappers.ml pyml.h pyml_dlsyms.inc pyml_wrappers.inc)
@@ -30,17 +30,17 @@
 (library
   (name pyml_tests_common)
   (modules pyml_tests_common)
-  (libraries pyml stdcompat))
+  (libraries pyml))
 
 (test
   (name numpy_tests)
   (modules numpy_tests)
-  (libraries pyml pyml_tests_common stdcompat))
+  (libraries pyml pyml_tests_common))
 
 (test
   (name pyml_tests)
   (modules pyml_tests)
-  (libraries pyml pyml_tests_common stdcompat))
+  (libraries pyml pyml_tests_common))
 
 (rule
   (enabled_if (>= %{ocaml_version} 4.06))

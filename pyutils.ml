@@ -1,5 +1,3 @@
-open Stdcompat
-
 let option_find f x =
   try Some (f x)
   with Not_found -> None
@@ -53,11 +51,21 @@ let write_and_close channel f arg =
     close_out_noerr channel;
     raise e
 
+let read_and_close channel f arg =
+  try
+    let result = f arg in
+    close_in channel;
+    result
+  with e ->
+    close_in_noerr channel;
+    raise e
+
 let with_temp_file contents f =
   let (file, channel) = Filename.open_temp_file "pyml_tests" ".py" in
   Fun.protect begin fun () ->
     write_and_close channel (output_string channel) contents;
-    Stdcompat.In_channel.with_open_bin file (f file)
+    let channel = open_in file in
+    read_and_close channel (f file) channel
   end
   ~finally:(fun () -> Sys.remove file)
 

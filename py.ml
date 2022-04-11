@@ -1,5 +1,41 @@
-module Stdlib_printexc = Printexc
-(* Workaround for opaque Printexc bug in Stdcompat 9 *)
+module Stdcompat = struct
+  module Bytes = struct
+    include Stdlib.Bytes
+  
+    let rec unsafe_sub_equal bytes0 off0 bytes1 off1 length =
+      if length = 0 then
+        true
+      else if unsafe_get bytes0 off0 = unsafe_get bytes1 off1 then
+        unsafe_sub_equal bytes0 (succ off0) bytes1 (succ off1) (pred length)
+      else
+        false
+    
+    let starts_with ~prefix bytes =
+      length prefix <= length bytes &&
+      unsafe_sub_equal bytes 0 prefix 0 (length prefix)
+  end
+  
+  module String = struct
+    include Stdlib.String
+  
+    let starts_with ~prefix s =
+      Bytes.starts_with
+        ~prefix:(Bytes.unsafe_of_string prefix)
+        (Bytes.unsafe_of_string s)
+  end
+  
+  module List = struct
+    include Stdlib.List
+  
+    let rec find_map f l =
+      match l with
+      | [] -> None
+      | hd :: tl ->
+          match f hd with
+          | None -> find_map f tl
+          | some -> some  
+  end
+end
 
 open Stdcompat
 
@@ -229,7 +265,7 @@ let libpython_from_interpreter python_full_path =
   let lines = ldd python_full_path in
   let is_libpython line =
     let basename = Filename.basename line in
-    Stdcompat.String.starts_with ~prefix:"libpython" basename in
+    String.starts_with ~prefix:"libpython" basename in
   List.find_opt is_libpython lines
 
 let libpython_from_ldconfig major minor =
@@ -242,7 +278,7 @@ let libpython_from_ldconfig major minor =
         Printf.sprintf "libpython%d.%d" major' minor' in
   let is_libpython line =
     let basename = Filename.basename line in
-    Stdcompat.String.starts_with ~prefix:prefix basename in
+    String.starts_with ~prefix:prefix basename in
   List.find_opt is_libpython lines
 
 let parse_python_list list =
@@ -504,7 +540,7 @@ let load_library filename =
 
 let get_library_filename () = !library_filename
 
-let find_library ~verbose ~version_major ~version_minor ~debug_build
+let find_library ~verbose ~version_major ~version_minor ~debug_build:_
     python_full_path =
   try
     load_library None
@@ -1088,7 +1124,7 @@ module Mapping = struct
     option (Pywrappers.pymapping_getitemstring mapping key)
 
   let find_string mapping key =
-    Stdcompat.Option.get (get_item_string mapping key)
+    Option.get (get_item_string mapping key)
 
   let find_string_opt = get_item_string
 
@@ -1463,25 +1499,25 @@ module Object = struct
     assert_not_null "get_attr_string" obj;
     option (Pywrappers.pyobject_getattrstring obj attr)
 
-  let find_attr obj attr = Stdcompat.Option.get (get_attr obj attr)
+  let find_attr obj attr = Option.get (get_attr obj attr)
 
   let find_attr_opt = get_attr
 
   let find_attr_string obj attr =
-    Stdcompat.Option.get (get_attr_string obj attr)
+    Option.get (get_attr_string obj attr)
 
   let find_attr_string_opt = get_attr_string
 
   let get_item obj key =
     option (Pywrappers.pyobject_getitem obj key)
 
-  let find obj attr = Stdcompat.Option.get (get_item obj attr)
+  let find obj attr = Option.get (get_item obj attr)
 
   let find_opt = get_item
 
   let get_item_string obj key = get_item obj (String.of_string key)
 
-  let find_string obj attr = Stdcompat.Option.get (get_item_string obj attr)
+  let find_string obj attr = Option.get (get_item_string obj attr)
 
   let find_string_opt = get_item_string
 
@@ -1616,7 +1652,7 @@ let exception_printer exn =
         (Object.to_string value))
   | _ -> None
 
-let () = Stdlib_printexc.register_printer exception_printer
+let () = Printexc.register_printer exception_printer
 
 module Long = struct
   let check o = Type.get o = Type.Long
@@ -2094,7 +2130,7 @@ module Dict = struct
     assert_not_null "get_item(_, !)" key;
     option (Pywrappers.pydict_getitem dict key)
 
-  let find dict key = Stdcompat.Option.get (get_item dict key)
+  let find dict key = Option.get (get_item dict key)
 
   let find_opt = get_item
 
@@ -2102,7 +2138,7 @@ module Dict = struct
     assert_not_null "get_item_string" dict;
     option (Pywrappers.pydict_getitemstring dict name)
 
-  let find_string dict key = Stdcompat.Option.get (get_item_string dict key)
+  let find_string dict key = Option.get (get_item_string dict key)
 
   let find_string_opt = get_item_string
 
@@ -2876,7 +2912,7 @@ let compile ~source ~filename ?dont_inherit ?optimize mode =
     | `Eval -> Eval
     | `Single -> Single in
   let optimize =
-    Stdcompat.Option.map (function
+    Option.map (function
         | `Default -> Default
         | `Debug -> Debug
         | `Normal -> Normal

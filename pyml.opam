@@ -10,9 +10,7 @@ doc: "http://github.com/thierry-martinez/pyml"
 bug-reports: "http://github.com/thierry-martinez/pyml/issues"
 depends: [
   "dune" {>= "2.8"}
-  "ocaml" {>= "3.12.1"}
-  "ocamlfind" {build}
-  "stdcompat" {>= "18"}
+  "ocaml" {>= "4.08.0"}
   "conf-python-3-dev" {with-test}
   "odoc" {with-doc}
 ]
@@ -32,4 +30,3 @@ build: [
   ]
 ]
 dev-repo: "git+https://github.com/thierry-martinez/pyml.git"
-version: "20220325"

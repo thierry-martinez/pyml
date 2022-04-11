@@ -10,9 +10,6 @@ actively maintained.
 The Python library is linked at runtime and the same executable can be
 run in a Python 2 or a Python 3 environment. ``py.ml`` does not
 require any Python library at compile time.
-The only compile time dependency is
-[``Stdcompat``](https://github.com/thierry-martinez/stdcompat) to ensure compatibility
-with all OCaml compiler versions from 3.12.
 
 Bindings are split in three modules:
 

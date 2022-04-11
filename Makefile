@@ -35,13 +35,10 @@ ifneq ($(HAVE_OCAMLFIND),no)
 	OCAMLMKTOP := $(OCAMLFIND) ocamlmktop
 	OCAMLDEP := $(OCAMLFIND) ocamldep
 	OCAMLDOC := $(OCAMLFIND) ocamldoc
-	STDCOMPAT := $(shell $(OCAMLFIND) query stdcompat)
-        OCAMLCFLAGS := -package stdcompat
-        OCAMLLDFLAGS := -linkpkg
-	OCAMLBYTECODELIBS := -package unix,stdcompat
-	OCAMLBYTECODELIBSNUMPY := -package unix,stdcompat,bigarray
-	OCAMLNATIVELIBS := -package unix,stdcompat
-	OCAMLNATIVELIBSNUMPY := -package unix,stdcompat,bigarray
+	OCAMLBYTECODELIBS := -package unix
+	OCAMLBYTECODELIBSNUMPY := -package unix,bigarray
+	OCAMLNATIVELIBS := -package unix
+	OCAMLNATIVELIBSNUMPY := -package unix,bigarray
 else
 	OCAMLC := $(shell \
 		if ocamlc.opt -version >/dev/null 2>&1; then \
@@ -66,17 +63,10 @@ $(error There is no OCaml compiler available in path)
 	OCAMLMKTOP := ocamlmktop
 	OCAMLDEP := ocamldep
 	OCAMLDOC := ocamldoc
-	STDCOMPAT := .
-        OCAMLCFLAGS := -I $(STDCOMPAT)
-        OCAMLLDFLAGS := -I $(STDCOMPAT)
-	OCAMLBYTECODELIBS := unix.cma stdcompat.cma
-	OCAMLBYTECODELIBSNUMPY := unix.cma stdcompat.cma bigarray.cma
-	OCAMLNATIVELIBS := unix.cmxa stdcompat.cmxa
-	OCAMLNATIVELIBSNUMPY := unix.cmxa stdcompat.cmxa bigarray.cmxa
-endif
-
-ifeq ($(wildcard $(STDCOMPAT)/stdcompat.cma),)
-$(error stdcompat module not found: please specify the path with STDCOMPAT=...)
+	OCAMLBYTECODELIBS := unix.cma
+	OCAMLBYTECODELIBSNUMPY := unix.cma bigarray.cma
+	OCAMLNATIVELIBS := unix.cmxa
+	OCAMLNATIVELIBSNUMPY := unix.cmxa bigarray.cmxa
 endif
 
 OCAMLVERSION := $(shell $(OCAMLC) -version)
@@ -171,7 +161,6 @@ endif
 	@echo make OCAMLLDFLAGS=... : set flags to OCaml compiler for linking
 	@echo make OCAMLLIBFLAGS=... :
 	@echo "  set flags to OCaml compiler for building the library"
-	@echo make STDCOMPAT=... : set path to the stdcompat library
 
 .PHONY : all.bytecode
 all.bytecode : pyml.cma numpy.cma
@@ -349,7 +338,7 @@ endif
 #	ocamlmktop raises "Warning 31". See https://github.com/diml/utop/issues/212
 #	$(OCAMLMKTOP) -o $@ -thread -linkpkg -package utop -dontlink compiler-libs $^
 	ocamlfind ocamlc -thread -linkpkg -linkall -predicates create_toploop \
-		-package compiler-libs.toplevel,utop,stdcompat $^ -o $@
+		-package compiler-libs.toplevel,utop $^ -o $@
 
 pyops.ml: pyops.ml.new
 	cp $< $@
