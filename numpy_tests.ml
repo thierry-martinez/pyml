@@ -154,5 +154,37 @@ let () =
         end)
 
 let () =
+  Pyml_tests_common.add_test ~title:"to_bigarray_k"
+    (fun () ->
+      if Py.Import.try_import_module "numpy" = None then
+        Pyml_tests_common.Disabled "numpy is not available"
+      else
+        begin
+          let m = Py.Import.add_module "test" in
+          let callback arg =
+            let k { Numpy.kind; layout; array } =
+              assert (Numpy.compare_kind kind Bigarray.nativeint = 0);
+              assert (Numpy.compare_layout layout Bigarray.c_layout = 0);
+              let bigarray =
+                Stdcompat.Option.get (Numpy.check_kind_and_layout
+                  Bigarray.nativeint Bigarray.c_layout array) in
+              assert (Bigarray.Genarray.dims bigarray = [| 4 |]);
+              let array1 = Bigarray.array1_of_genarray bigarray in
+              assert (Bigarray.Array1.get array1 0 = 0n);
+              assert (Bigarray.Array1.get array1 1 = 1n);
+              assert (Bigarray.Array1.get array1 2 = 2n);
+              assert (Bigarray.Array1.get array1 3 = 3n) in
+            Numpy.to_bigarray_k { Numpy.f = k } arg.(0);
+            Py.none in
+          Py.Module.set m "callback" (Py.Callable.of_function callback);
+          assert (Py.Run.simple_string "
+from test import callback
+import numpy
+callback(numpy.array([0,1,2,3]))
+");
+          Pyml_tests_common.Passed
+        end)
+
+let () =
   if not !Sys.interactive then
     Pyml_tests_common.main ()

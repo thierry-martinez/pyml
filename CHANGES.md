@@ -1,5 +1,13 @@
 [*] marks changes that break compatibility with previous versions.
 
+# Next version
+
+- `Numpy.to_bigarray_k` is continuation-passing-style version of `Numpy.to_bigarray`,
+  allowing caller to convert Numpy arrays to bigarrays without having to know
+  the kind and the layout of the array
+  (suggested by Lindsay Errington and Andie Sigler,
+  https://github.com/thierry-martinez/pyml/issues/81)
+
 # 2022-03-25
 
 - Fix debug build detection
