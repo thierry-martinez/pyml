@@ -504,7 +504,7 @@ let load_library filename =
 
 let get_library_filename () = !library_filename
 
-let find_library ~verbose ~version_major ~version_minor ~debug_build
+let find_library ~verbose ~version_major ~version_minor ~debug_build:_
     python_full_path =
   try
     load_library None
