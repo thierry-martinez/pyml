@@ -1,6 +1,6 @@
 [*] marks changes that break compatibility with previous versions.
 
-# Next version
+# 2022-06-15
 
 - `Numpy.to_bigarray_k` is continuation-passing-style version of `Numpy.to_bigarray`,
   allowing caller to convert Numpy arrays to bigarrays without having to know
