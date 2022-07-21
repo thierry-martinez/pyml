@@ -1,5 +1,16 @@
 [*] marks changes that break compatibility with previous versions.
 
+# Development version
+
+- New functions
+  `Py.Dict.{to_bindings_seq, to_bindings_seq_map, to_bindings_string_seq}`.
+
+- Do not let `python` capture `sigint` by default (can be changed by passing
+  `~python_sigint:true` to `Py.initialize`): `Ctrl+C` now interrupts the
+  program, even after `Py.initialize` is called.
+  (reported by Arulselvan Madhavan,
+  https://github.com/thierry-martinez/pyml/issues/83)
+
 # 2022-06-15
 
 - `Numpy.to_bigarray_k` is continuation-passing-style version of `Numpy.to_bigarray`,

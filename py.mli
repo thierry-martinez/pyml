@@ -3,7 +3,8 @@
 (** Call [initialize ()] first. *)
 
 val initialize: ?library_name:string -> ?interpreter:string -> ?version:int ->
-  ?minor:int -> ?verbose:bool -> ?debug_build:bool -> unit -> unit
+  ?minor:int -> ?verbose:bool -> ?debug_build:bool -> ?python_sigint:bool ->
+  unit -> unit
 (** [initialize ~interpreter ~version ~minor ~verbose ~debug_build ()] finds
     and loads the Python library.
     This function should be called before any other functions, except
@@ -23,11 +24,17 @@ val initialize: ?library_name:string -> ?interpreter:string -> ?version:int ->
     in the directory [../lib] relatively to the directory where the
     [python] executable is. If the library has been statically linked
     with the executable, it will be used.
-    When [verbose] is true (default: false), library filenames that are
+    When [verbose] is [true] (default: [false]), library filenames that are
     tried to be loaded are printed on standard error.
     [debug_build] specifies whether the Python library is a debug build:
     if the argument is left unspecified, debug build is detected
-    automatically. *)
+    automatically.
+    If [python_sigint] is [true] (default: [false]), the function let
+    [pythonlib] take handle on [sigint], preventing programs from
+    being interrupted by [Ctrl+C]. When [python_sigint] is [false]
+    (the default), the previous signal behavior of [sigint] is restored after
+    the library has been loaded (so, [Ctrl+C] will still interrupt the
+    program, unless this behavior was changed elsewhere). *)
 
 val finalize: unit -> unit
 (** [finalize ()] unloads the library. No other functions except
@@ -688,8 +695,8 @@ module Dict: sig
       [p key value]. *)
 
   val to_bindings: Object.t -> (Object.t * Object.t) list
-  (** [to_bindings o] returns all the pairs [(key, value)] in the Python dictionary
-      [o]. *)
+  (** [to_bindings o] returns all the pairs [(key, value)] in the Python
+      dictionary [o]. *)
 
   val to_bindings_map: (Object.t -> 'a) -> (Object.t -> 'b) -> Object.t ->
     ('a * 'b) list
@@ -699,6 +706,19 @@ module Dict: sig
   val to_bindings_string: Object.t -> (string * Object.t) list
   (** [to_bindings_string o] returns all the pairs [(key, value)] in the Python
       dictionary [o]. *)
+
+  val to_bindings_seq: Object.t -> (Object.t * Object.t) Seq.t
+  (** [to_bindings_seq o] returns the ephemeral sequence of all the pairs
+      (key, value) in the Python dictionary [o]. *)
+
+  val to_bindings_seq_map: (Object.t -> 'a) -> (Object.t -> 'b) -> Object.t ->
+    ('a * 'b) Seq.t
+  (** [to_bindings_seq_map fkey fvalue o] returns the ephemeral sequence of all
+      the pairs (fkey key, fvalue value) in the Python dictionary [o]. *)
+
+  val to_bindings_string_seq: Object.t -> (string * Object.t) Seq.t
+  (** [to_bindings_string_seq o] returns the ephemeral sequence of all the pairs
+      (key, value) in the Python dictionary [o]. *)
 
   val of_bindings: (Object.t * Object.t) list -> Object.t
   (** [of_bindings b] returns then Python dictionary mapping all the pairs

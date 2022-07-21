@@ -641,79 +641,97 @@ let path_separator =
   | Pyml_arch.Windows -> ";"
   | _ -> ":"
 
-let initialize ?library_name ?interpreter ?version ?minor ?(verbose = false)
-    ?debug_build () =
+(* Preserve signal behavior for sigint (Ctrl+C)
+   (Reported by Arulselvan Madhavan,
+    see https://github.com/thierry-martinez/pyml/issues/83)
+
+   pythonlib changes the handling of sigint, making programs
+   uninterruptible when the library is loaded.
+
+   The following function restores sigint handling and `initialize`
+   uses it except if ~python_sigint:true is passed.
+ *)
+
+let keep_sigint f =
+  let previous_signal_behavior = Sys.signal Sys.sigint Sys.Signal_ignore in
+  Sys.set_signal Sys.sigint previous_signal_behavior;
+  Stdcompat.Fun.protect f
+    ~finally:(fun () -> Sys.set_signal Sys.sigint previous_signal_behavior)
+
+let initialize ?library_name ?interpreter ?version
+    ?minor ?(verbose = false) ?debug_build ?(python_sigint = false) () =
   if !initialized then
     failwith "Py.initialize: already initialized";
-  begin
+  let do_initialize () =
     match library_name with
     | Some library_name ->
         load_library (Some library_name);
     | None ->
-  begin
-    try
-      let python_full_path = find_interpreter interpreter version minor in
-      let interpreter_pythonpaths =
-        match python_full_path with
-          None -> []
-        | Some python_full_path' ->
-            pythonpaths_from_interpreter python_full_path' in
-      let new_pythonpaths =
-        List.rev_append !pythonpaths interpreter_pythonpaths in
-      if new_pythonpaths <> [] then
-        begin
-          let former_pythonpath = Sys.getenv_opt "PYTHONPATH" in
-          has_set_pythonpath := Some former_pythonpath;
-          let all_paths =
-            match former_pythonpath with
-              None -> new_pythonpaths
-            | Some former_pythonpath' ->
-                former_pythonpath' :: new_pythonpaths in
-          let pythonpath = String.concat path_separator all_paths in
-          if verbose then
+        try
+          let python_full_path = find_interpreter interpreter version minor in
+          let interpreter_pythonpaths =
+            match python_full_path with
+              None -> []
+            | Some python_full_path' ->
+                pythonpaths_from_interpreter python_full_path' in
+          let new_pythonpaths =
+            List.rev_append !pythonpaths interpreter_pythonpaths in
+          if new_pythonpaths <> [] then
             begin
-              Printf.eprintf "Temporary set PYTHONPATH=\"%s\".\n" pythonpath;
-              flush stderr;
-            end;
-          Unix.putenv "PYTHONPATH" pythonpath
-      end;
-      let (version_major, version_minor) =
-        match python_full_path with
-          Some python_full_path' ->
-            let version_string =
-              python_version_from_interpreter python_full_path' in
-            let (version_major, version_minor) =
-              extract_version_major_minor version_string in
-            begin
-              match version with
-                None -> ()
-              | Some version_major' ->
-                  if version_major <> version_major' then
-                    failwith
-                      (version_mismatch
-                         python_full_path' (string_of_int version_major)
-                         (string_of_int version_major'));
-                  match minor with
+              let former_pythonpath = Sys.getenv_opt "PYTHONPATH" in
+              has_set_pythonpath := Some former_pythonpath;
+              let all_paths =
+                match former_pythonpath with
+                  None -> new_pythonpaths
+                | Some former_pythonpath' ->
+                    former_pythonpath' :: new_pythonpaths in
+              let pythonpath = String.concat path_separator all_paths in
+              if verbose then
+                begin
+                  Printf.eprintf "Temporary set PYTHONPATH=\"%s\".\n" pythonpath;
+                  flush stderr;
+                end;
+              Unix.putenv "PYTHONPATH" pythonpath
+          end;
+          let (version_major, version_minor) =
+            match python_full_path with
+              Some python_full_path' ->
+                let version_string =
+                  python_version_from_interpreter python_full_path' in
+                let (version_major, version_minor) =
+                  extract_version_major_minor version_string in
+                begin
+                  match version with
                     None -> ()
-                  | Some version_minor' ->
-                      if version_minor <> version_minor' then
-                        let expected =
-                          build_version_string version_major version_minor in
-                        let got =
-                          build_version_string version_major' version_minor' in
+                  | Some version_major' ->
+                      if version_major <> version_major' then
                         failwith
-                          (version_mismatch python_full_path' expected got);
-            end;
-            (Some version_major, Some version_minor)
-        | _ -> version, minor in
-      initialize_library ~verbose ~version_major ~version_minor ~debug_build
-        python_full_path;
-    with e ->
-      uninit_pythonhome ();
-      uninit_pythonpath ();
-      raise e
-  end;
-  end;
+                          (version_mismatch
+                             python_full_path' (string_of_int version_major)
+                             (string_of_int version_major'));
+                      match minor with
+                        None -> ()
+                      | Some version_minor' ->
+                          if version_minor <> version_minor' then
+                            let expected =
+                              build_version_string version_major version_minor in
+                            let got =
+                              build_version_string version_major' version_minor' in
+                            failwith
+                              (version_mismatch python_full_path' expected got);
+                end;
+                (Some version_major, Some version_minor)
+            | _ -> version, minor in
+          initialize_library ~verbose ~version_major ~version_minor ~debug_build
+            python_full_path;
+        with e ->
+          uninit_pythonhome ();
+          uninit_pythonpath ();
+          raise e in
+  if python_sigint then
+    do_initialize ()
+  else
+    keep_sigint do_initialize;
   let version = get_version () in
   let (version_major, version_minor) =
     extract_version_major_minor version in
@@ -1898,6 +1916,14 @@ module Iter_ = struct
     match next i with
       None -> false
     | Some item -> p item || exists p i
+
+  let unsafe_to_seq_map f i =
+    let rec seq () =
+      match next i with
+      | None -> Seq.Nil
+      | Some item ->
+          Seq.Cons (f item, seq) in
+    seq
 end
 
 (* From stdcompat *)
@@ -2145,6 +2171,17 @@ module Dict = struct
       let (key, value) = Tuple.to_pair pair in
       p key value
     end (Object.get_iter (items dict))
+
+  let to_bindings_seq_map fkey fvalue dict =
+    Iter_.unsafe_to_seq_map
+      (fun pair ->
+        let (key, value) = Tuple.to_pair pair in
+        (fkey key, fvalue value))
+      (Object.get_iter (items dict))
+
+  let to_bindings_seq = to_bindings_seq_map id id
+
+  let to_bindings_string_seq = to_bindings_seq_map String.to_string id
 
   let to_bindings_map fkey fvalue dict =
     Iter_.to_list_map begin fun pair ->
@@ -2529,14 +2566,6 @@ module Iter = struct
       | None -> Seq.Nil
       | Some item ->
           Seq.Cons (item, seq) in
-    seq
-
-  let unsafe_to_seq_map f i =
-    let rec seq () =
-      match next i with
-      | None -> Seq.Nil
-      | Some item ->
-          Seq.Cons (f item, seq) in
     seq
 
   let of_list l =
