@@ -1,3 +1,4 @@
+(*
 let () =
   Pyml_tests_common.add_test
     ~title:"version"
@@ -274,7 +275,7 @@ let () =
            Pyml_tests_common.Failed msg
        )
     )
-
+*)
 let () =
   Pyml_tests_common.add_test
     ~title:"boolean"
