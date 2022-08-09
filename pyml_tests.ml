@@ -187,7 +187,14 @@ try:
     raise Exception('No exception raised')
 except Exception as err:
     if sys.version_info.major == 3 and sys.version_info.minor >= 7:
-        filenames = [f.filename for f in traceback.extract_tb(err.__traceback__)]
+        if sys.version_info.minor >= 11:
+            filenames = [
+                f.filename for f in
+                traceback.StackSummary.extract(
+                    traceback.walk_tb(err.__traceback__))]
+        else:
+            filenames = [
+                f.filename for f in traceback.extract_tb(err.__traceback__)]
         assert filenames == ['<string>', 'file2.ml', 'file1.ml']
     assert str(err) == \"Great\"
 ");
