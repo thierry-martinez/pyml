@@ -61,10 +61,11 @@ let main () =
        begin
          match  String.length version with
            1 -> None, Some (int_of_string version), None
-         | 3 when version.[1] = '.' ->
+         | (3 | 4) when version.[1] = '.' ->
              None,
              Some (int_of_string (String.sub version 0 1)),
-             Some (int_of_string (String.sub version 2 1))
+             Some
+               (int_of_string (String.sub version 2 (String.length version - 2)))
          | _ -> Some version, None, None
        end
     | _ -> failwith "Argument should be a version number" in
