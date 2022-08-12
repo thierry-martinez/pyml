@@ -4,6 +4,17 @@
 
 - Support for OCaml 5.0
 
+- Support for Python 3.11.
+  All OCaml exceptions raised in callbacks are now encapsulated with their
+  backtrace in Python exceptions instead of bypassing the Python interpreter.
+  The former behavior led to segmentation faults in the test-suite, and nothing
+  indicate that previous versions of Python were supposed to support that well.
+  *The new behavior can break existing code*, especially code relying on
+  `Py.Run.simple_string`, which now catches all exceptions, including OCaml
+  exceptions. If you need proper exception handling, you can use `Py.Run.eval`.
+  (reported by Jerry James,
+  https://github.com/thierry-martinez/pyml/issues/84)
+
 - New function `Py.Object.dir`.
 
 - New functions `Py.Err.set_interrupt` and, for Python >=3.10,
