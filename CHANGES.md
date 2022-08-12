@@ -4,6 +4,8 @@
 
 - Support for OCaml 5.0
 
+- New function `Py.Object.dir`.
+
 - New functions `Py.Err.set_interrupt` and, for Python >=3.10,
  `Py.Err.set_interrupt_ex`.
 

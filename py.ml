@@ -1632,6 +1632,10 @@ module Object = struct
   let size obj =
     assert_not_null "size" obj;
     check_int (Pywrappers.pyobject_size obj)
+
+  let dir obj =
+    assert_not_null "dir" obj;
+    check_not_null (Pywrappers.pyobject_dir obj)
 end
 
 let exception_printer exn =
