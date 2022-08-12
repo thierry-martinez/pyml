@@ -297,6 +297,10 @@ module Object: sig
   val size: t -> int
   (** Wrapper for
       {{:https://docs.python.org/3/c-api/object.html#c.PyObject_Size} PyObject_Size} *)
+
+  val dir: t -> t
+  (** Wrapper for
+      {{:https://docs.python.org/3/c-api/object.html#c.PyObject_Dir} PyObject_Dir} *)
 end
 
 exception E of Object.t * Object.t
