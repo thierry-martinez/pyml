@@ -2,6 +2,8 @@
 
 # Development version
 
+- Support for OCaml 5.0
+
 - New functions
   `Py.Dict.{to_bindings_seq, to_bindings_seq_map, to_bindings_string_seq}`.
 

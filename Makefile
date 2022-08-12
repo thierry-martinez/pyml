@@ -36,12 +36,6 @@ ifneq ($(HAVE_OCAMLFIND),no)
 	OCAMLDEP := $(OCAMLFIND) ocamldep
 	OCAMLDOC := $(OCAMLFIND) ocamldoc
 	STDCOMPAT := $(shell $(OCAMLFIND) query stdcompat)
-        OCAMLCFLAGS := -package stdcompat
-        OCAMLLDFLAGS := -linkpkg
-	OCAMLBYTECODELIBS := -package unix,stdcompat
-	OCAMLBYTECODELIBSNUMPY := -package unix,stdcompat,bigarray
-	OCAMLNATIVELIBS := -package unix,stdcompat
-	OCAMLNATIVELIBSNUMPY := -package unix,stdcompat,bigarray
 else
 	OCAMLC := $(shell \
 		if ocamlc.opt -version >/dev/null 2>&1; then \
@@ -67,12 +61,40 @@ $(error There is no OCaml compiler available in path)
 	OCAMLDEP := ocamldep
 	OCAMLDOC := ocamldoc
 	STDCOMPAT := .
+endif
+
+OCAMLVERSION := $(shell $(OCAMLC) -version)
+OCAMLVERSION_LIST := $(subst ., ,$(OCAMLVERSION))
+OCAMLVERSION_MAJOR := $(word 1,$(OCAMLVERSION_LIST))
+
+LIBRARIES := unix stdcompat
+
+ifeq ($(OCAMLVERSION_MAJOR),5)
+	LIBRARIES_NUMPY = $(LIBRARIES)
+else
+	LIBRARIES_NUMPY = $(LIBRARIES) bigarray
+endif
+
+null  :=
+space := $(null) #
+comma := ,
+
+ifneq ($(HAVE_OCAMLFIND),no)
+        OCAMLCFLAGS := -package stdcompat
+        OCAMLLDFLAGS := -linkpkg
+	PACKAGES := $(subst $(space),$(comma),$(LIBRARIES))
+	PACKAGES_NUMPY := $(subst $(space),$(comma),$(LIBRARIES_NUMPY))
+	OCAMLBYTECODELIBS := -package $(PACKAGES)
+	OCAMLBYTECODELIBSNUMPY := -package $(PACKAGES_NUMPY)
+	OCAMLNATIVELIBS := -package $(PACKAGES)
+	OCAMLNATIVELIBSNUMPY := -package $(PACKAGES_NUMPY)
+else
         OCAMLCFLAGS := -I $(STDCOMPAT)
         OCAMLLDFLAGS := -I $(STDCOMPAT)
-	OCAMLBYTECODELIBS := unix.cma stdcompat.cma
-	OCAMLBYTECODELIBSNUMPY := unix.cma stdcompat.cma bigarray.cma
-	OCAMLNATIVELIBS := unix.cmxa stdcompat.cmxa
-	OCAMLNATIVELIBSNUMPY := unix.cmxa stdcompat.cmxa bigarray.cmxa
+	OCAMLBYTECODELIBS := $(LIBRARIES:=cma)
+	OCAMLBYTECODELIBSNUMPY := $(LIBRARIES_NUMPY:=cma)
+	OCAMLNATIVELIBS := $(LIBRARIES:=cmxa)
+	OCAMLNATIVELIBSNUMPY := $(LIBRARIES_NUMPY:=cmxa)
 endif
 
 ifeq ($(wildcard $(STDCOMPAT)/stdcompat.cma),)
