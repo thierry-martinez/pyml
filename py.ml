@@ -785,10 +785,32 @@ exception E of pyobject * pyobject
 
 let fetched_exception = ref None
 
+let ocaml_exception_class = ref None
+
+let ocaml_exception_capsule = ref None
+
 let python_exception () =
   let ptype, pvalue, ptraceback = pyerr_fetch_internal () in
-  fetched_exception := Some (ptype, pvalue, ptraceback);
-  raise (E (ptype, pvalue))
+  if
+    match !ocaml_exception_class with
+    | None -> false
+    | Some ocaml_exception_class ->
+        Lazy.is_val ocaml_exception_class &&
+        Lazy.force ocaml_exception_class = ptype
+  then
+    begin
+      let args = Pywrappers.pyobject_getattrstring pvalue "args" in
+      assert (args <> null);
+      let capsule = Pywrappers.pysequence_getitem args 0 in
+      assert (capsule <> null);
+      let exc, bt = snd (Option.get !ocaml_exception_capsule) capsule in
+      Printexc.raise_with_backtrace exc bt
+    end
+  else
+    begin
+      fetched_exception := Some (ptype, pvalue, ptraceback);
+      raise (E (ptype, pvalue))
+    end
 
 let check_not_null result =
   if result = null then
@@ -974,6 +996,10 @@ module Dict_ = struct
   let of_bindings = of_bindings_map id id
 
   let of_bindings_string = of_bindings_map String_.of_string id
+
+  let set_item_string dict name value =
+    assert_not_null "set_item_string" dict;
+    assert_int_success (Pywrappers.pydict_setitemstring dict name value)
 end
 
 module Object_ = struct
@@ -2161,10 +2187,6 @@ module Dict = struct
 
   let items dict = check_not_null (Pywrappers.pydict_items dict)
 
-  let set_item_string dict name value =
-    assert_not_null "set_item_string" dict;
-    assert_int_success (Pywrappers.pydict_setitemstring dict name value)
-
   let size dict =
     let sz = Pywrappers.pydict_size dict in
     assert_int_success sz;
@@ -2303,6 +2325,34 @@ end
 
 exception Err_with_traceback of Err.t * string * Traceback.t
 
+module Class = struct
+  let init ?(parents = []) ?(fields = []) ?(methods = []) classname =
+    if version_major () >= 3 then
+      let methods = List.rev_map (fun (name, closure) ->
+        (name, Pywrappers.Python3.pyinstancemethod_new closure)) methods in
+      Type.create classname parents (List.rev_append methods fields)
+    else
+      let classname = String.of_string classname in
+      let dict = Dict_.of_bindings_string fields in
+      let c =
+        check_not_null (Pywrappers.Python2.pyclass_new (Tuple_.of_list parents)
+          dict classname) in
+      let add_method (name, closure) =
+        let m = check_not_null (Pywrappers.pymethod_new closure null c) in
+        Dict_.set_item_string dict name m in
+      List.iter add_method methods;
+      c
+end
+
+let () =
+  ocaml_exception_class :=
+    Some (lazy (Class.init ~parents:[Pywrappers.pyexc_baseexception ()]
+      "ocaml exception"))
+
+let () =
+  ocaml_exception_capsule :=
+    Some (Capsule.make "ocaml_exception_capsule")
+
 module Callable = struct
   let check v = Pywrappers.pycallable_check v <> 0
 
@@ -2325,6 +2375,12 @@ module Callable = struct
             let traceback = Traceback.create traceback in
             Err.restore (Err.of_error errtype) (String.of_string msg) traceback;
         in
+        null
+    | e ->
+        let err =
+          fst (Option.get !ocaml_exception_capsule)
+            (e, Printexc.get_raw_backtrace ()) in
+        Err.set_object (Lazy.force (Option.get !ocaml_exception_class)) err;
         null
 
   let of_function_as_tuple ?name ?(docstring = "Anonymous closure") f =
@@ -2509,25 +2565,6 @@ module Module = struct
   let set_docstring m doc =
     Pywrappers.pymodule_setdocstring m doc
     |> assert_int_success
-end
-
-module Class = struct
-  let init ?(parents = []) ?(fields = []) ?(methods = []) classname =
-    if version_major () >= 3 then
-      let methods = List.rev_map (fun (name, closure) ->
-        (name, Pywrappers.Python3.pyinstancemethod_new closure)) methods in
-      Type.create classname parents (List.rev_append methods fields)
-    else
-      let classname = String.of_string classname in
-      let dict = Dict.of_bindings_string fields in
-      let c =
-        check_not_null (Pywrappers.Python2.pyclass_new (Tuple.of_list parents)
-          dict classname) in
-      let add_method (name, closure) =
-        let m = check_not_null (Pywrappers.pymethod_new closure null c) in
-        Dict.set_item_string dict name m in
-      List.iter add_method methods;
-      c
 end
 
 module Iter = struct

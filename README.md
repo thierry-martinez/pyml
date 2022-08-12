@@ -142,12 +142,15 @@ When an OCaml function ``f`` is called from Python
 where ``type`` belongs to the enumeration ``Py.Err.t``
 and ``msg`` is an OCaml string.
 If ``f`` raises an exception that is neither
-of the form ``Py.E`` nor ``Py.Err``, then the Python interpreter is interrupted,
-and the exception is raised back in OCaml.
+of the form ``Py.E`` nor ``Py.Err``, then
+this exception is encapsulated with its backtrace in a Python exception
+(of class `ocaml exception` derived from `BaseException` and not from
+`Exception`, so as not to be caught), leading the Python interpreter to
+be interrupted, and the exception is raised back in OCaml.
 
-``Py.Run.simple_string`` catches all Python exceptions and returns a single
-Boolean to indicate success. One can prefer ``Py.Run.eval`` to get proper
-error handling.
+``Py.Run.simple_string`` catches all Python exceptions (and OCaml
+exceptions as well) and returns a single Boolean to indicate
+success. One can prefer ``Py.Run.eval`` to get proper error handling.
 
 Data types
 ----------

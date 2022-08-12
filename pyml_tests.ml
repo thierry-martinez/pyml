@@ -187,7 +187,14 @@ try:
     raise Exception('No exception raised')
 except Exception as err:
     if sys.version_info.major == 3 and sys.version_info.minor >= 7:
-        filenames = [f.filename for f in traceback.extract_tb(err.__traceback__)]
+        if sys.version_info.minor >= 11:
+            filenames = [
+                f.filename for f in
+                traceback.StackSummary.extract(
+                    traceback.walk_tb(err.__traceback__))]
+        else:
+            filenames = [
+                f.filename for f in traceback.extract_tb(err.__traceback__)]
         assert filenames == ['<string>', 'file2.ml', 'file1.ml']
     assert str(err) == \"Great\"
 ");
@@ -222,7 +229,7 @@ let () =
       let mywrap _ = raise Exit in
       Py.Module.set_function m "mywrap" mywrap;
       try
-        assert (Py.Run.simple_string "
+        ignore (Py.Run.eval ~start:File "
 from test import mywrap
 try:
     mywrap()
@@ -281,7 +288,7 @@ let () =
           Pyml_tests_common.Passed;
       with Py.E (_, value) ->
         Pyml_tests_common.Failed (Py.Object.to_string value))
-(*
+
 let () =
   Pyml_tests_common.add_test
     ~title:"reinitialize"
@@ -300,7 +307,7 @@ let () =
       Py.initialize ~verbose:true ?version ?minor ();
       Pyml_tests_common.Passed
     )
-*)
+
 let () =
   Pyml_tests_common.add_test
     ~title:"string conversion error"
@@ -359,7 +366,8 @@ from test import ocaml_iterator
 res = 0
 for v in ocaml_iterator: res += v
 ");
-      let res = Py.Dict.find_string (Py.Eval.get_globals ()) "res" in
+      let main = Py.Module.get_dict (Py.Import.add_module "__main__") in
+      let res = Py.Dict.find_string main "res" in
       assert (Py.Int.to_int res = 14);
       let iter = Py.Iter.of_list_map Py.String.of_string ["a"; "b"; "c"] in
       let list = Py.Iter.to_list_map Py.String.to_string iter in
@@ -389,7 +397,8 @@ from test import ocaml_iterator2
 res = 0
 for v in ocaml_iterator2: res += v
 ");
-      let res = Py.Dict.find_string (Py.Eval.get_globals ()) "res" in
+      let main = Py.Module.get_dict (Py.Import.add_module "__main__") in
+      let res = Py.Dict.find_string main "res" in
       assert (Py.Int.to_int res = 14);
       let iter = iter_of_list Py.String.of_string ["a"; "b"; "c"] in
       let list = Py.Iter.to_list_map Py.String.to_string iter in
