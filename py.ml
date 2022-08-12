@@ -765,6 +765,10 @@ let version_minor () =
   assert_initialized ();
   !version_minor_value
 
+let version_pair () =
+  assert_initialized ();
+  (!version_major_value, !version_minor_value)
+
 let null =
   pynull ()
 

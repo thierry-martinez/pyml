@@ -69,6 +69,10 @@ val version_minor: unit -> int
 (** [version_minor ()] returns the minor number (the second component) of the
     version of the Python library. *)
 
+val version_pair: unit -> int * int
+(** [version_pair ()] returns the major and the minor numbers of the
+    version of the Python library. *)
+
 type compare = Pytypes.compare = LT | LE | EQ | NE | GT | GE
 
 (** Either a filename or a channel.
