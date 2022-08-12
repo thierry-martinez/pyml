@@ -490,17 +490,25 @@ end
 
 (** Embedding of OCaml values in Python. *)
 module Capsule: sig
+  type 'a t = {
+    wrap : 'a -> Object.t;
+    unwrap : Object.t -> 'a;
+  }
+
   val check: Object.t -> bool
   (** [check v] returns [true] if [v] contains an OCaml value. *)
 
-  val make: string -> ('a -> Object.t) * (Object.t -> 'a)
-  (** For a given type ['a], [make s] returns a pair [(wrap, unwrap)].
+  val create: string -> 'a t
+  (** For a given type ['a], [create s] returns a pair [{ wrap; unwrap }].
       [wrap v] transforms the value [v] of type 'a to an opaque Python object.
       [unwrap w] transforms the opaque Python object [w] previously obtained
       with [wrap v] into the original OCaml value [v],
       such that [unwrap (wrap v) = v].
       [Failure _] is raised if a wrapper has already been generated for a type
       of the same name. *)
+
+  val make: string -> ('a -> Object.t) * (Object.t -> 'a)
+  (** Same as {!val:create}, but returns a plain pair instead of a record. *)
 
   val type_of: Object.t -> string
   (** [type_of w] returns the type string associated to the opaque Python

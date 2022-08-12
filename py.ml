@@ -1064,6 +1064,11 @@ module Type = struct
 end
 
 module Capsule = struct
+  type 'a t = {
+    wrap : 'a -> pyobject;
+    unwrap : pyobject -> 'a;
+  }
+
   let is_valid v name  = pycapsule_isvalid v name <> 0
 
   let check v = is_valid v "ocaml-capsule"
@@ -1096,6 +1101,10 @@ module Capsule = struct
                name' name);
         v in
       (wrap, unwrap)
+
+  let create name =
+    let wrap, unwrap = make name in
+    { wrap; unwrap }
 
   let type_of x =
     if pycapsule_check x = 0 then

@@ -12,6 +12,10 @@
 - New functions
   `Py.Dict.{to_bindings_seq, to_bindings_seq_map, to_bindings_string_seq}`.
 
+- New function `Py.Capsule.create`, equivalent to `Py.Capsule.make`, but
+  returning the record `{ wrap; unwrap }` of the new type `'a Py.Capsule.t`
+  instead of a pair.
+
 - Do not let `python` capture `sigint` by default (can be changed by passing
   `~python_sigint:true` to `Py.initialize`): `Ctrl+C` now interrupts the
   program, even after `Py.initialize` is called.
