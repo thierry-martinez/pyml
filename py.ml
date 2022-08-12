@@ -1455,6 +1455,14 @@ module Err = struct
 
   let set_error error msg =
     set_object (of_error error) (String.of_string msg)
+
+  let set_interrupt () =
+    Pywrappers.pyerr_setinterrupt ()
+
+  let set_interrupt_ex signal =
+    if version_pair () < (3, 10) then
+      failwith "set_interrupt_ex: only available with Python >= 3.10";
+    Pywrappers.pyerr_setinterruptex signal
 end
 
 exception Err of Err.t * string

@@ -886,6 +886,14 @@ module Err: sig
       {{:https://docs.python.org/3/c-api/exceptions.html#c.PyErr_SetObject} PyErr_SetObject}.
       In a closure/method/callback, it is recommended to raise a [Py.E _] exception
       instead. *)
+
+  val set_interrupt: unit -> unit
+  (** Wrapper for
+      {{:https://docs.python.org/3/c-api/exceptions.html#c.PyErr_SetInterrupt} PyErr_SetInterrupt} *)
+
+  val set_interrupt_ex: int -> unit
+  (** Since Python 3.10. Wrapper for
+      {{:https://docs.python.org/3/c-api/exceptions.html#c.PyErr_SetInterruptEx} PyErr_SetInterruptEx} *)
 end
 
 module Traceback : sig
