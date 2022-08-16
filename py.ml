@@ -2255,7 +2255,7 @@ module Set = struct
 
   let clear o =
     assert_not_null "clear" o;
-    Pywrappers.pyset_clear o
+    assert_int_success (Pywrappers.pyset_clear o)
 
   let copy v = check_not_null (Pywrappers.pyset_new v)
 
@@ -2739,7 +2739,7 @@ module Marshal = struct
 
   let write_object_to_file v file version =
     let fd = Pytypes.file_map Unix.descr_of_out_channel file in
-    assert_int_success (Pywrappers.pymarshal_writeobjecttofile v fd version)
+    Pywrappers.pymarshal_writeobjecttofile v fd version
 
   let dump ?(version = version ()) v file =
     write_object_to_file v file version

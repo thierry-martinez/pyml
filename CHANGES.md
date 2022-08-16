@@ -33,6 +33,16 @@
   (reported by Arulselvan Madhavan,
   https://github.com/thierry-martinez/pyml/issues/83)
 
+- Bindings for exceptions: `PyExc_EncodingWarning` (added in Python 3.10),
+  `PyExc_ResourceWarning` (added in Python 3.2)
+  (reported by Jerry James,
+  https://github.com/thierry-martinez/pyml/issues/84)
+
+- Fixes in bindings for `PyCompilerFlags`, `PyMarshal_WriteObjectToFile`,
+  and `PySet_Clear`
+  (reported by Jerry James,
+  https://github.com/thierry-martinez/pyml/issues/84)
+
 # 2022-06-15
 
 - `Numpy.to_bigarray_k` is continuation-passing-style version of `Numpy.to_bigarray`,

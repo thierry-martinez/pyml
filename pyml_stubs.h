@@ -229,6 +229,7 @@ typedef struct tagPyArrayObject_fields {
 
 typedef struct {
     int cf_flags;
+    int cf_feature_version; /* Python >=3.8 */
 } PyCompilerFlags;
 
 #define Py_TPFLAGS_INT_SUBCLASS         (1L<<23)

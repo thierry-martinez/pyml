@@ -483,6 +483,10 @@ pyml_unwrap_compilerflags(value v)
     if (Is_block(v)) {
         PyCompilerFlags *flags = malloc(sizeof(PyCompilerFlags));
         flags->cf_flags = Int_val(Field(Field(v, 0), 0));
+
+        /* only useful for Python >= 3.8 */
+        flags->cf_feature_version = version_minor;
+
         CAMLreturnT(PyCompilerFlags *, flags);
     }
     else {
