@@ -188,7 +188,7 @@ bigarray_of_pyarray_wrapper(
     bigarray = caml_ba_alloc(kind | layout, nd, data, dims);
     free(dims);
     Py_INCREF(array);
-    struct custom_operations *oldops = Custom_ops_val(bigarray);
+    const struct custom_operations *oldops = Custom_ops_val(bigarray);
     struct numpy_custom_operations *newops = (struct numpy_custom_operations *)
         malloc(sizeof(struct numpy_custom_operations));
     newops->ops.identifier = oldops->identifier;

@@ -71,6 +71,7 @@ LIBRARIES := unix stdcompat
 
 ifeq ($(OCAMLVERSION_MAJOR),5)
 	LIBRARIES_NUMPY = $(LIBRARIES)
+	OCAMLCFLAGS = -I +unix
 else
 	LIBRARIES_NUMPY = $(LIBRARIES) bigarray
 endif
@@ -80,8 +81,8 @@ space := $(null) #
 comma := ,
 
 ifneq ($(HAVE_OCAMLFIND),no)
-        OCAMLCFLAGS := -package stdcompat
-        OCAMLLDFLAGS := -linkpkg
+        OCAMLCFLAGS += -package stdcompat
+        OCAMLLDFLAGS += -linkpkg
 	PACKAGES := $(subst $(space),$(comma),$(LIBRARIES))
 	PACKAGES_NUMPY := $(subst $(space),$(comma),$(LIBRARIES_NUMPY))
 	OCAMLBYTECODELIBS := -package $(PACKAGES)
@@ -89,8 +90,8 @@ ifneq ($(HAVE_OCAMLFIND),no)
 	OCAMLNATIVELIBS := -package $(PACKAGES)
 	OCAMLNATIVELIBSNUMPY := -package $(PACKAGES_NUMPY)
 else
-        OCAMLCFLAGS := -I $(STDCOMPAT)
-        OCAMLLDFLAGS := -I $(STDCOMPAT)
+        OCAMLCFLAGS += -I $(STDCOMPAT)
+        OCAMLLDFLAGS += -I $(STDCOMPAT)
 	OCAMLBYTECODELIBS := $(LIBRARIES:=cma)
 	OCAMLBYTECODELIBSNUMPY := $(LIBRARIES_NUMPY:=cma)
 	OCAMLNATIVELIBS := $(LIBRARIES:=cmxa)
@@ -284,7 +285,7 @@ pywrappers.ml pyml_wrappers.inc : generate
 pyml_wrappers.inc : pywrappers.ml
 
 pywrappers.mli : pywrappers.ml pytypes.cmi pyml_arch.cmi
-	$(OCAMLC) -i $< >$@
+	$(OCAMLC) $(OCAMLCFLAGS) -i $< >$@
 
 pyml_tests.native : py.cmi pyml.cmxa pyml_tests_common.cmx pyml_tests.cmx
 	$(OCAMLOPT) $(OCAMLLDFLAGS) $(OCAMLNATIVELIBS) pyml.cmxa \
