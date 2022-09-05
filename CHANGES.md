@@ -1,6 +1,6 @@
 [*] marks changes that break compatibility with previous versions.
 
-# Development version
+# 2022-09-05
 
 - Support for OCaml 5.0
 
