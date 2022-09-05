@@ -32,4 +32,3 @@ build: [
   ]
 ]
 dev-repo: "git+https://github.com/thierry-martinez/pyml.git"
-version: "20220615"

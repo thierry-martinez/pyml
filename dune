@@ -3,7 +3,7 @@
   (modules numpy py pyops pycaml pyml_arch pytypes pywrappers pyutils)
   (foreign_stubs (language c) (names numpy_stubs pyml_stubs))
   (wrapped false)
-  (libraries bigarray stdcompat))
+  (libraries unix bigarray stdcompat))
 
 (executables
   (names generate)

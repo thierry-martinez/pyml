@@ -723,16 +723,16 @@ module Dict: sig
   (** [to_bindings_string o] returns all the pairs [(key, value)] in the Python
       dictionary [o]. *)
 
-  val to_bindings_seq: Object.t -> (Object.t * Object.t) Seq.t
+  val to_bindings_seq: Object.t -> (Object.t * Object.t) Stdcompat.Seq.t
   (** [to_bindings_seq o] returns the ephemeral sequence of all the pairs
       (key, value) in the Python dictionary [o]. *)
 
   val to_bindings_seq_map: (Object.t -> 'a) -> (Object.t -> 'b) -> Object.t ->
-    ('a * 'b) Seq.t
+    ('a * 'b) Stdcompat.Seq.t
   (** [to_bindings_seq_map fkey fvalue o] returns the ephemeral sequence of all
       the pairs (fkey key, fvalue value) in the Python dictionary [o]. *)
 
-  val to_bindings_string_seq: Object.t -> (string * Object.t) Seq.t
+  val to_bindings_string_seq: Object.t -> (string * Object.t) Stdcompat.Seq.t
   (** [to_bindings_string_seq o] returns the ephemeral sequence of all the pairs
       (key, value) in the Python dictionary [o]. *)
 
