@@ -68,8 +68,8 @@ jobs:
           su ci --command "make STDCOMPAT=/home/ci/stdcompat-19"
       - name: Test
         run: |
-          find /usr -name libpython*
-          su ci --command "make STDCOMPAT=/home/ci/stdcompat-19 test"
+          su ci --command "LD_LIBRARY_PATH=/usr/local/lib pip install numpy"
+          su ci --command "LD_LIBRARY_PATH=/usr/local/lib make STDCOMPAT=/home/ci/stdcompat-19 test"
 
   check-image-fedora-rawhide:
     runs-on: ubuntu-latest
