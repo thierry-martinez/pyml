@@ -68,7 +68,7 @@ jobs:
           su ci --command "make STDCOMPAT=/home/ci/stdcompat-19"
       - name: Test
         run: |
-          su ci --command "make test"
+          su ci --command "make STDCOMPAT=/home/ci/stdcompat-19 test"
 
   check-image-fedora-rawhide:
     runs-on: ubuntu-latest
