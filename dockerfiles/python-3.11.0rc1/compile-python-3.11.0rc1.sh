@@ -8,4 +8,4 @@ cd Python-3.11.0rc1
 ./configure --enable-optimizations --enable-shared
 make
 sudo make install
-sudo pip3 install numpy
+#sudo pip3 install numpy
