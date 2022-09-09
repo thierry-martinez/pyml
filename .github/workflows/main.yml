@@ -68,6 +68,7 @@ jobs:
           su ci --command "make STDCOMPAT=/home/ci/stdcompat-19"
       - name: Test
         run: |
+          find /usr -name libpython*
           su ci --command "make STDCOMPAT=/home/ci/stdcompat-19 test"
 
   check-image-fedora-rawhide:
