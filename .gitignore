@@ -25,3 +25,4 @@ _build
 /pyops.ml
 /pyops.mli
 /pyml_arch_generate.exe
+/.github/secrets
