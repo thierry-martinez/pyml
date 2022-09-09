@@ -6,7 +6,7 @@ sudo DEBIAN_FRONTEND=noninteractive \
 wget https://www.python.org/ftp/python/3.11.0/Python-3.11.0rc1.tar.xz
 tar -xf Python-3.11.0rc1.tar.xz
 cd Python-3.11.0rc1
-./configure --enable-optimizations --enable-shared --with-openssl
+./configure --enable-optimizations --enable-shared
 make
 sudo make install
 sudo LD_LIBRARY_PATH=/usr/local/lib pip3 install numpy
