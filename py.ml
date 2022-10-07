@@ -783,11 +783,16 @@ let is_none v =
 
 exception E of pyobject * pyobject
 
-let fetched_exception = ref None
+let create_ref_to_python_object () =
+  let result = ref None in
+  on_finalize (fun () -> result := None);
+  result
 
-let ocaml_exception_class = ref None
+let fetched_exception = create_ref_to_python_object ()
 
-let ocaml_exception_capsule = ref None
+let ocaml_exception_class = create_ref_to_python_object ()
+
+let ocaml_exception_capsule = create_ref_to_python_object ()
 
 let python_exception () =
   let ptype, pvalue, ptraceback = pyerr_fetch_internal () in
