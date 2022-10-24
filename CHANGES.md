@@ -1,5 +1,12 @@
 [*] marks changes that break compatibility with previous versions.
 
+# Development version
+
+- Fix segmentation fault by forgetting objects on library unloading
+  (observed on Fedora Rawhide with address randomization)
+  (reported by Jerry James,
+  https://github.com/thierry-martinez/pyml/issues/85)
+
 # 2022-09-05
 
 - Support for OCaml 5.0
