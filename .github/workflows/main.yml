@@ -83,7 +83,7 @@ jobs:
           opam install --yes ocamlfind stdcompat.18
       - name: Make pyml
         run: |
-          opam var stdcompat:lib
+          ls -R D:/a/pyml/pyml/_opam/lib/stdcompat
           opam exec -- make
       - name: Test pyml
         run: |
