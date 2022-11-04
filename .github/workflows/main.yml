@@ -80,7 +80,7 @@ jobs:
           ocaml-compiler: 4.14.x
       - name: Install OPAM dependencies
         run: >
-          opam install --yes stdcompat
+          opam install --yes ocamlfind stdcompat
       - name: Make pyml
         run: |
           opam exec -- make
