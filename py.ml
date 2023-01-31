@@ -207,7 +207,10 @@ let uninit_pythonpath () =
       end
 
 let ldd executable =
-  let command = Printf.sprintf "ldd %s" executable in
+  let command =
+    match Pyml_arch.os with
+    | Pyml_arch.Mac -> Printf.sprintf "otool -L %s" executable
+    | _ -> Printf.sprintf "ldd %s" executable in
   match run_command_opt command false with
     None -> []
   | Some lines ->
