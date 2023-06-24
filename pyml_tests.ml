@@ -710,5 +710,13 @@ let () =
       Pyml_tests_common.Passed)
 
 let () =
+  Pyml_tests_common.add_test
+    ~title:"get_attr_string"
+    (fun () ->
+       let bool_ty = Py.Object.get_type Py.Bool.t in
+       assert (Py.Object.get_attr_string bool_ty "dtype" = None);
+       Pyml_tests_common.Passed)
+
+let () =
   if not !Sys.interactive then
     Pyml_tests_common.main ()
