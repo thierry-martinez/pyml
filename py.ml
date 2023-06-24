@@ -444,19 +444,23 @@ let libpython_from_python_config version_major version_minor =
       Some (concat_library_filenames library_paths library_filenames)
   | _ -> None
 
+let getenv_opt var =
+  try Some (Sys.getenv var)
+  with Not_found -> None
+
 let libpython_from_pythonhome version_major version_minor python_full_path =
   let library_paths =
     match
-      try Some (Sys.getenv "PYTHONHOME")
-      with Not_found ->
+      match getenv_opt "PYTHONHOME" with
+      | Some python_home -> Some (Pyutils.split_left_on_char ':' python_home)
+      | None ->
         match python_full_path with
-          None -> None
         | Some python_full_path -> Some (parent_dir python_full_path)
+        | None -> None
     with
       None -> failwith "Unable to find libpython!"
-    | Some pythonhome ->
-        let prefix = Pyutils.split_left_on_char ':' pythonhome in
-        [Filename.concat prefix "lib"] in
+    | Some dir ->
+        [Filename.concat dir "lib"] in
   let library_filenames =
     List.map
       (fun format -> format version_major version_minor)
@@ -485,9 +489,7 @@ let find_library_path version_major version_minor python_full_path =
           Some (libpython_from_pythonhome version_major version_minor
             python_full_path))));
   ] in
-  match List.find_map (fun f -> f ()) heuristics with
-  | None -> failwith "Cannot find Python library"
-  | Some paths -> paths
+  List.concat (List.map (fun f -> Option.value ~default:[] (f ())) heuristics)
 
 let python_version_from_interpreter interpreter =
   let version_line =
@@ -905,6 +907,15 @@ let option result =
   if result = null then
     begin
       check_error ();
+      None
+    end
+  else
+    Some result
+
+let option_of_error result =
+  if result = null then
+    begin
+      let _ = pyerr_fetch_internal () in
       None
     end
   else
@@ -1529,16 +1540,17 @@ module Object = struct
     assert_not_null "get_attr(_, !)" attr;
     option (Pywrappers.pyobject_getattr obj attr)
 
+  let find_attr_string obj attr =
+    assert_not_null "find_attr_string" obj;
+    check_not_null (Pywrappers.pyobject_getattrstring obj attr)
+
   let get_attr_string obj attr =
-    assert_not_null "get_attr_string" obj;
-    option (Pywrappers.pyobject_getattrstring obj attr)
+    assert_not_null "find_attr_string" obj;
+    option_of_error (Pywrappers.pyobject_getattrstring obj attr)
 
   let find_attr obj attr = Stdcompat.Option.get (get_attr obj attr)
 
   let find_attr_opt = get_attr
-
-  let find_attr_string obj attr =
-    Stdcompat.Option.get (get_attr_string obj attr)
 
   let find_attr_string_opt = get_attr_string
 

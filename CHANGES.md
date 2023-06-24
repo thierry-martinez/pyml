@@ -7,6 +7,14 @@
   (reported by Jerry James,
   https://github.com/thierry-martinez/pyml/issues/85)
 
+- #93, #94: Fix `Py.Object.get_attr_string`: this function now returns
+  `None` when attribute is missing (the former version raised an
+  exception, despite the `option` return type and contrary to what was
+  documented) (reported by Lindsay Errington, @dlindsaye,
+  https://github.com/thierry-martinez/pyml/issues/93)
+
+- #94: Better search heuristics for `python` library
+
 # 2022-09-05
 
 - Support for OCaml 5.0
