@@ -448,6 +448,13 @@ let getenv_opt var =
   try Some (Sys.getenv var)
   with Not_found -> None
 
+let library_filenames_from_paths version_major version_minor paths =
+  let library_filenames =
+    List.map
+      (fun format -> format version_major version_minor)
+      library_patterns in
+  concat_library_filenames paths library_filenames
+
 let libpython_from_pythonhome version_major version_minor python_full_path =
   let library_paths =
     match
@@ -461,11 +468,21 @@ let libpython_from_pythonhome version_major version_minor python_full_path =
       None -> failwith "Unable to find libpython!"
     | Some dir ->
         [Filename.concat dir "lib"] in
-  let library_filenames =
-    List.map
-      (fun format -> format version_major version_minor)
-      library_patterns in
-  concat_library_filenames library_paths library_filenames
+  library_filenames_from_paths version_major version_minor library_paths
+
+let libpython_from_pythonpath version_major version_minor =
+  match getenv_opt "PYTHONPATH" with
+  | None -> None
+  | Some pythonpath ->
+    let paths = String.split_on_char ':' pythonpath in
+    let python_zip = Printf.sprintf "python%d%d.zip" version_major version_minor in
+    let is_python_zip filename =
+      Filename.basename filename = python_zip in
+    match List.find_opt is_python_zip paths with
+    | None -> None
+    | Some filename ->
+      let dir = Filename.dirname filename in
+      Some (library_filenames_from_paths version_major version_minor [dir])
 
 let find_library_path version_major version_minor python_full_path =
   let heuristics = [
@@ -488,6 +505,10 @@ let find_library_path version_major version_minor python_full_path =
         Option.bind version_minor (fun version_minor ->
           Some (libpython_from_pythonhome version_major version_minor
             python_full_path))));
+    (fun () ->
+      Option.bind version_major (fun version_major ->
+        Option.bind version_minor (fun version_minor ->
+          libpython_from_pythonpath version_major version_minor)));
   ] in
   List.concat (List.map (fun f -> Option.value ~default:[] (f ())) heuristics)
 
