@@ -420,6 +420,13 @@ let library_patterns : (int -> int -> string) list =
       [Printf.sprintf "libpython%d.%dm.so";
         Printf.sprintf "libpython%d.%d.so"]
 
+let library_filenames_from_paths version_major version_minor paths =
+  let library_filenames =
+    List.map
+      (fun format -> format version_major version_minor)
+      library_patterns in
+  concat_library_filenames paths library_filenames
+
 let libpython_from_python_config version_major version_minor =
   let command =
     Printf.sprintf "python%d.%d-config --ldflags" version_major version_minor in
@@ -437,23 +444,21 @@ let libpython_from_python_config version_major version_minor =
         else library_paths in
       let library_paths =
         List.fold_left parse_word [] word_list in
-      let library_filenames =
-        List.map
-          (fun format -> format version_major version_minor)
-          library_patterns in
-      Some (concat_library_filenames library_paths library_filenames)
+      Some (library_filenames_from_paths version_major version_minor library_paths)
+  | _ -> None
+
+let libpython_from_python_config_prefix version_major version_minor =
+  let command =
+    Printf.sprintf "python%d.%d-config --prefix" version_major version_minor in
+  match run_command_opt command false with
+  | Some (prefix :: _) ->
+      let library_paths = [Filename.concat prefix "lib"] in
+      Some (library_filenames_from_paths version_major version_minor library_paths)
   | _ -> None
 
 let getenv_opt var =
   try Some (Sys.getenv var)
   with Not_found -> None
-
-let library_filenames_from_paths version_major version_minor paths =
-  let library_filenames =
-    List.map
-      (fun format -> format version_major version_minor)
-      library_patterns in
-  concat_library_filenames paths library_filenames
 
 let libpython_from_pythonhome version_major version_minor python_full_path =
   let library_paths =
@@ -496,6 +501,10 @@ let find_library_path version_major version_minor python_full_path =
       Option.bind version_major (fun version_major ->
         Option.bind version_minor (fun version_minor ->
           libpython_from_pkg_config version_major version_minor)));
+    (fun () ->
+      Option.bind version_major (fun version_major ->
+        Option.bind version_minor (fun version_minor ->
+          libpython_from_python_config_prefix version_major version_minor)));
     (fun () ->
       Option.bind version_major (fun version_major ->
         Option.bind version_minor (fun version_minor ->

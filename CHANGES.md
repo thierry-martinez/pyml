@@ -15,7 +15,9 @@
   documented) (reported by Lindsay Errington, @dlindsaye,
   https://github.com/thierry-martinez/pyml/issues/93)
 
-- #94: Better search heuristics for `python` library
+- #92, #94: Better search heuristics for `python` library
+  Suggested by camlspotter.
+  (https://github.com/thierry-martinez/pyml/issues/92)
 
 # 2022-09-05
 
