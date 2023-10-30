@@ -2,6 +2,8 @@
 
 # Development version
 
+- Compatibility with Python 3.13
+
 - Fix segmentation fault by forgetting objects on library unloading
   (observed on Fedora Rawhide with address randomization)
   (reported by Jerry James,
