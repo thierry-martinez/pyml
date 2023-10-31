@@ -945,6 +945,15 @@ let option result =
   else
     Some result
 
+let check_found result =
+  if result = null then
+    begin
+      check_error ();
+      raise Not_found
+    end
+  else
+    result
+
 let option_of_error result =
   if result = null then
     begin
@@ -1194,7 +1203,7 @@ module Mapping = struct
     option (Pywrappers.pymapping_getitemstring mapping key)
 
   let find_string mapping key =
-    Stdcompat.Option.get (get_item_string mapping key)
+    check_found (Pywrappers.pymapping_getitemstring mapping key)
 
   let find_string_opt = get_item_string
 
@@ -1555,6 +1564,16 @@ end
 
 exception Err of Err.t * string
 
+let attribute_error = "AttributeError"
+
+let check_found_catch error result =
+  try
+    check_found result
+  with E (ty, _)
+  when
+    String.to_string (check_found (Pywrappers.pyobject_getattrstring ty "__name__")) = error ->
+    raise Not_found
+
 module Object = struct
   include Object_
 
@@ -1575,13 +1594,25 @@ module Object = struct
 
   let find_attr_string obj attr =
     assert_not_null "find_attr_string" obj;
+    check_found_catch attribute_error (Pywrappers.pyobject_getattrstring obj attr)
+
+  let find_attr_string_err obj attr =
+    assert_not_null "find_attr_string" obj;
     check_not_null (Pywrappers.pyobject_getattrstring obj attr)
 
   let get_attr_string obj attr =
     assert_not_null "find_attr_string" obj;
     option_of_error (Pywrappers.pyobject_getattrstring obj attr)
 
-  let find_attr obj attr = Stdcompat.Option.get (get_attr obj attr)
+  let find_attr obj attr =
+    assert_not_null "find_attr(!, _)" obj;
+    assert_not_null "find_attr(_, !)" attr;
+    check_found_catch attribute_error (Pywrappers.pyobject_getattr obj attr)
+
+  let find_attr_err obj attr =
+    assert_not_null "find_attr(!, _)" obj;
+    assert_not_null "find_attr(_, !)" attr;
+    check_not_null (Pywrappers.pyobject_getattr obj attr)
 
   let find_attr_opt = get_attr
 
@@ -1590,13 +1621,19 @@ module Object = struct
   let get_item obj key =
     option (Pywrappers.pyobject_getitem obj key)
 
-  let find obj attr = Stdcompat.Option.get (get_item obj attr)
+  let find obj attr =
+    check_found_catch "KeyError" (Pywrappers.pyobject_getitem obj attr)
+
+  let find_err obj attr =
+    check_not_null (Pywrappers.pyobject_getitem obj attr)
 
   let find_opt = get_item
 
   let get_item_string obj key = get_item obj (String.of_string key)
 
-  let find_string obj attr = Stdcompat.Option.get (get_item_string obj attr)
+  let find_string obj key = find obj (String.of_string key)
+
+  let find_string_err obj key = find_err obj (String.of_string key)
 
   let find_string_opt = get_item_string
 
@@ -2221,7 +2258,10 @@ module Dict = struct
     assert_not_null "get_item(_, !)" key;
     option (Pywrappers.pydict_getitem dict key)
 
-  let find dict key = Stdcompat.Option.get (get_item dict key)
+  let find dict key =
+    assert_not_null "get_item(!, _)" dict;
+    assert_not_null "get_item(_, !)" key;
+    check_found (Pywrappers.pydict_getitem dict key)
 
   let find_opt = get_item
 
@@ -2229,7 +2269,9 @@ module Dict = struct
     assert_not_null "get_item_string" dict;
     option (Pywrappers.pydict_getitemstring dict name)
 
-  let find_string dict key = Stdcompat.Option.get (get_item_string dict key)
+  let find_string dict key =
+    assert_not_null "get_item_string" dict;
+    check_found (Pywrappers.pydict_getitemstring dict key)
 
   let find_string_opt = get_item_string
 
@@ -2581,7 +2623,7 @@ module Module = struct
     assert_not_null "get_name" m;
     check_some (Pywrappers.pymodule_getname m)
 
-  let get = Object.find_attr_string
+  let get = Object.find_attr_string_err
 
   let get_opt = Object.find_attr_string_opt
 
