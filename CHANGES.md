@@ -15,9 +15,12 @@
   documented) (reported by Lindsay Errington, @dlindsaye,
   https://github.com/thierry-martinez/pyml/issues/93)
 
-- #92, #94: Better search heuristics for `python` library
-  Suggested by camlspotter.
-  (https://github.com/thierry-martinez/pyml/issues/92)
+- #91, #92, #94: Better search heuristics for `python` library.
+  Suggested by camlspotter and Et7f3.
+  Use of `python-config`.
+  Use of `otool -L` instead of `ldd` on Mac OS X.
+  (https://github.com/thierry-martinez/pyml/issues/91
+   https://github.com/thierry-martinez/pyml/issues/92 )
 
 # 2022-09-05
 
