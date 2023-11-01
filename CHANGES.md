@@ -1,6 +1,6 @@
 [*] marks changes that break compatibility with previous versions.
 
-# Development version
+# 2023-11-01
 
 - Compatibility with Python 3.13
 
