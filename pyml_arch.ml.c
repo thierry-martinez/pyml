@@ -5,6 +5,8 @@
   #define WIN_HANDLE_FD
 #elif unix
   #define PLATFORM_NAME Unix
+#elif __unix__
+  #define PLATFORM_NAME Unix
 #else
   #error "Unknown platform"
 #endif
