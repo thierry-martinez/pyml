@@ -99,7 +99,7 @@ states with `MaxDepth = 3`. `run_ocaml` nested in itself (through
 `run_python` and a call of OCaml by Python) and `Py.Thread.call` from
 `run_ocaml` need a fourth level: the `*_deep` configs.
 
-## Results (TLA+ Tools 2.0, nightly of 2026-11-06, 4 cores)
+## Results (TLA+ Tools 2.0, nightly of 2026-11-06, 4 cores unless noted)
 
 | Config | Result | Distinct states | Time |
 |---|---|---|---|
@@ -107,16 +107,15 @@ states with `MaxDepth = 3`. `run_ocaml` nested in itself (through
 | `ft.cfg` | no error | 23,128,960 | 4 min 36 s |
 | `gil_deep.cfg` | no error | 1,285,751 | 13 s |
 | `ft_deep.cfg` | no error | 2,601,975 | 26 s |
-| `gil_live.cfg` | not rerun with `saved` (see below); with ocip's 3c63b47: no error, `Termination` holds | 9,029,348 | 16 min |
-| `ft_live.cfg` | not rerun with `saved`; with ocip's 3c63b47: no error, `Termination` holds | 23,128,960 | 41 min |
+| `gil_live.cfg` | no error, `Termination` holds | 9,029,348 | 7 min 28 s (20 cores) |
+| `ft_live.cfg` | no error, `Termination` holds | 23,128,960 | 22 min 47 s (20 cores) |
 
 The variable `saved` is determined by the call stack of each thread (it
 is set by `release` and emptied by `restore` of the same call), so it does
 not change the reachable states: the safety configs have the same number
-of distinct states with and without it. The liveness configs have not been
-rerun with it yet (they were killed for lack of memory on a machine shared
-with other jobs); their results above are those of the spec without
-`saved` (ocip's 3c63b47).
+of distinct states with and without it, and so do the liveness configs.
+The two liveness configs ran at the same time, on 20 cores; without
+`saved` (ocip's 3c63b47), on 4 cores, they took 16 and 41 min.
 
 Mutants check that the model is not vacuous. Each is a copy of the spec
 with one bug, checked with `gil.cfg`, and TLC rejects each one, also
