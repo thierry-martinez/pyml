@@ -137,11 +137,11 @@ def run_count(n, k):
     for t in threads:
         t.join()
 " in
+  let args = Py.Tuple.of_list [Py.Int.of_int 4; Py.Int.of_int 500] in
   let totals = Py.Thread.run_ocaml (fun () ->
     let domains =
       List.init 4 (fun i -> Domain.spawn (fun () -> sum_with_python i)) in
-    ignore (Py.Thread.call run
-      (Py.Tuple.of_list [Py.Int.of_int 4; Py.Int.of_int 500]));
+    ignore (Py.Thread.call run args);
     List.map Domain.join domains) in
   if totals <> expected_sums 4 then Pyml_tests_common.Failed "wrong sums"
   else check "calls" (4 * 500) (Atomic.get calls)
@@ -222,9 +222,9 @@ def run_and_wait():
   Py.Thread.run_ocaml (fun () -> ignore (Py.Thread.call run Py.Tuple.empty));
   check "calls" 2 (Atomic.get calls)
 
-(* Python code called by OCaml code in [Py.Thread.run_ocaml] calls OCaml
-   (which takes the world lock again), and [Py.Thread.run_python] is nested
-   in [run_ocaml] and in itself. *)
+(* Python code called by OCaml code (in [Py.Thread.run_python] nested in
+   [Py.Thread.run_ocaml], or with [Py.Thread.call]) calls OCaml, and
+   [run_python] is nested in itself. *)
 let nested_calls () =
   let state = ref 0 in
   set_callback "add" (fun args ->
@@ -237,52 +237,55 @@ def add_twice(n):
     threads_test.add(n)
     threads_test.add(n)
 " in
+  let ten = Py.Tuple.of_list [Py.Int.of_int 10] in
   Py.Thread.run_ocaml (fun () ->
-    ignore (Py.Callable.to_function add [| Py.Int.of_int 1 |]);
-    ignore (Py.Thread.call add (Py.Tuple.of_list [Py.Int.of_int 10]));
+    Py.Thread.run_python (fun () ->
+      ignore (Py.Callable.to_function add [| Py.Int.of_int 1 |]));
+    ignore (Py.Thread.call add ten);
     Py.Thread.run_python (fun () ->
       Py.Thread.run_python (fun () ->
         ignore (Py.Callable.to_function add [| Py.Int.of_int 100 |]))));
   check "state" 222 !state
 
-(* Python code called by the comparison or the hash of Python objects in
-   OCaml cannot call OCaml in [Py.Thread.run_ocaml] (the values compared are
-   not roots, so that the domain lock cannot be released): it raises
-   [RuntimeError]. With all the locks, it can. *)
+(* The comparison and the hash of Python objects need the locks of Python:
+   in [Py.Thread.run_ocaml], they raise [Failure] (as in the other OCaml
+   threads and domains), and they work in [Py.Thread.run_python], where the
+   Python code that they run can call OCaml. *)
 let comparison_calls_ocaml () =
   set_callback "nothing" (fun _ -> Py.none);
   ignore (python_function "Calling" "
 import threads_test
 
-errors = []
+calls = [0]
 
 class Calling:
-    def call(self):
-        try:
-            threads_test.nothing()
-        except RuntimeError as e:
-            errors.append(str(e))
     def __eq__(self, other):
-        self.call()
+        threads_test.nothing()
+        calls[0] += 1
         return True
     def __hash__(self):
-        self.call()
+        threads_test.nothing()
+        calls[0] += 1
         return 0
 ");
   let calling = Py.Module.get (Py.Module.main ()) "Calling" in
-  let errors () =
-    Py.List.length (Py.Module.get (Py.Module.main ()) "errors") in
+  let calls () =
+    Py.Int.to_int
+      (Py.List.get_item (Py.Module.get (Py.Module.main ()) "calls") 0) in
   let a = Py.Callable.to_function calling [| |] in
   let b = Py.Callable.to_function calling [| |] in
   assert (compare a b = 0);
   ignore (Hashtbl.hash a);
-  if errors () <> 0 then Pyml_tests_common.Failed "error with all the locks"
-  else begin
-    Py.Thread.run_ocaml (fun () ->
+  let fails f = match f () with _ -> false | exception Failure _ -> true in
+  let failures = Py.Thread.run_ocaml (fun () ->
+    let failures = [fails (fun () -> compare a b); fails (fun () -> Hashtbl.hash a)] in
+    Py.Thread.run_python (fun () ->
       assert (compare a b = 0);
       ignore (Hashtbl.hash a));
-    check "errors" 2 (errors ())
-  end
+    failures) in
+  if not (List.for_all Fun.id failures) then
+    Pyml_tests_common.Failed "no Failure in run_ocaml"
+  else check "calls" 4 (calls ())
 
 (* The finalizers of the OCaml values that hold Python objects run in any
    thread: in a domain without the GIL, the Python objects are released
@@ -377,23 +380,23 @@ def run_many(batches, n):
     (Py.Tuple.of_list [Py.Int.of_int 50; Py.Int.of_int 20]));
   check "calls" 1000 (Atomic.get calls)
 
-(* The two scenarios below reproduce deadlocks predicted by a TLA+ model of
-   the locks (tmartine/pyml#1): Python code that runs while the lock of a
-   domain is held (D), and a stop-the-world section of OCaml (a minor
-   collection) started by another domain. They are known to deadlock, and
-   only run with [PYML_THREADS_KNOWN_DEADLOCKS=1] (see [known_deadlocks]).
-   Without the deadlock, they complete: their loops are bounded, and no
-   thread waits for another one without blocking. *)
+(* The two scenarios below deadlocked (tmartine/pyml#1, found with a TLA+
+   model of the locks): Python code that runs while the lock of a domain is
+   held (D), and a stop-the-world section of OCaml (a minor collection)
+   started by another domain. Their loops are bounded, and no thread waits
+   for another one without blocking: they complete unless they deadlock. *)
 
-(* With the GIL: the main thread, in [Py.Thread.run_ocaml] (G and D), calls
-   a Python function directly (not with [Py.Thread.call]), whose bytecode
-   gives up G at the eval breaker when another thread waits for it: here, a
-   domain in [Py.Thread.run_python], which takes L and then waits for G
-   (without D). The main thread then waits for G while holding D. The
-   domain takes G and D, allocates, and starts a minor collection, which
-   waits for the main thread to reach a safepoint: it never does, since it
-   waits for G. *)
-let python_code_in_run_ocaml () =
+(* With the GIL: the main thread runs Python code with the lock of its
+   domain (D), in [Py.Thread.run_python]; the bytecode gives up G at the eval
+   breaker when another thread waits for it. A domain, in
+   [Py.Thread.run_ocaml], leaves blocking sections and allocates. When the
+   threads in [run_ocaml] held G, the domain took G at the end of its
+   blocking sections, then its D, and its minor collections waited for the
+   main thread to reach a safepoint, while the main thread waited for G
+   (tmartine/pyml#1). The threads in [run_ocaml] no longer take G. (Python
+   code called directly in [run_ocaml], which deadlocked the same way, now
+   raises [Failure].) *)
+let python_code_with_domain_lock () =
   let spin = python_function "spin" "
 import sys
 
@@ -406,20 +409,28 @@ def spin(n):
         x += i
     return x
 " in
-  let rounds = 200 in
+  let n = Py.Int.of_int 10_000 in
+  let rounds = 1000 in
   let done_in_domain = Py.Thread.run_ocaml (fun () ->
     let domain = Domain.spawn (fun () ->
-      for _ = 1 to rounds do
-        Py.Thread.run_python (fun () ->
-          (* Minor collections while holding G. *)
-          ignore (Sys.opaque_identity (List.init 10_000 Fun.id)))
-      done;
+      Py.Thread.run_python (fun () ->
+        Py.Thread.run_ocaml (fun () ->
+          for _ = 1 to 5 * rounds do
+            (* A blocking section, then a minor collection. *)
+            Unix.sleepf 0.0001;
+            Gc.minor ()
+          done));
       rounds) in
     for _ = 1 to rounds do
-      ignore (Py.Callable.to_function spin [| Py.Int.of_int 10_000 |])
+      Py.Thread.run_python (fun () ->
+        ignore (Py.Callable.to_function spin [| n |]))
     done;
     Domain.join domain) in
-  check "rounds" rounds done_in_domain
+  let failure =
+    match Py.Thread.run_ocaml (fun () -> Py.Callable.to_function spin [| n |])
+    with _ -> false | exception Failure _ -> true in
+  if not failure then Pyml_tests_common.Failed "no Failure in run_ocaml"
+  else check "rounds" rounds done_in_domain
 
 let free_threaded () =
   Py.Bool.to_bool (Py.Run.eval
@@ -461,13 +472,6 @@ def collect():
     check "rounds" rounds done_in_domain
   end
 
-(* Known to deadlock (tmartine/pyml#1): only run with
-   [PYML_THREADS_KNOWN_DEADLOCKS=1], and expected to time out until the
-   issue is fixed. *)
-let known_deadlocks = [
-  "python_code_in_run_ocaml", python_code_in_run_ocaml;
-  "python_collection_in_run_python", python_collection_in_run_python;
-]
 
 let scenarios = [
   "python_threads_call_ocaml", python_threads_call_ocaml;
@@ -487,6 +491,8 @@ let scenarios = [
   "python_api_without_gil", python_api_without_gil;
   "exceptions_restore_locks", exceptions_restore_locks;
   "short_lived_threads", short_lived_threads;
+  "python_code_with_domain_lock", python_code_with_domain_lock;
+  "python_collection_in_run_python", python_collection_in_run_python;
 ]
 
 (* Runs the scenario in a new process, killed after [timeout]. *)
@@ -524,15 +530,11 @@ let run_scenario name =
 let () =
   match Sys.getenv_opt "PYML_THREADS_TEST" with
   | None ->
-      let scenarios =
-        if Sys.getenv_opt "PYML_THREADS_KNOWN_DEADLOCKS" = Some "1" then
-          scenarios @ known_deadlocks
-        else scenarios in
       let failed =
         List.filter (fun (name, _) -> not (run_scenario name)) scenarios in
       if failed <> [] then exit 1
   | Some name ->
-      let scenario = List.assoc name (scenarios @ known_deadlocks) in
+      let scenario = List.assoc name scenarios in
       Pyml_tests_common.add_test ~title:name (fun () ->
         Py.Thread.enable ();
         ignore (Lazy.force python_sum : Py.Object.t array -> Py.Object.t);
