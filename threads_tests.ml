@@ -224,11 +224,15 @@ def run_and_wait():
 
 (* Python code called by OCaml code (in [Py.Thread.run_python] nested in
    [Py.Thread.run_ocaml], or with [Py.Thread.call]) calls OCaml, and
-   [run_python] is nested in itself. *)
+   [run_python] is nested in itself. The callback runs its OCaml code in
+   [run_ocaml] (as ocip does for every OCaml function): [run_ocaml] is
+   nested in itself, and each one restores the thread state that it
+   detached. *)
 let nested_calls () =
   let state = ref 0 in
   set_callback "add" (fun args ->
-    state := !state + Py.Int.to_int args.(0);
+    let n = Py.Int.to_int args.(0) in
+    Py.Thread.run_ocaml (fun () -> state := !state + n);
     Py.none);
   let add = python_function "add_twice" "
 import threads_test

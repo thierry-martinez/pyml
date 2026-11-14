@@ -1808,8 +1808,9 @@ pyml_decref(PyObject *op)
    - [STATE_ALL]: the thread holds L, G and D: the OCaml code can use the
      Python API (and compare or hash Python objects);
    - [STATE_OCAML]: the thread runs OCaml code in [Py.Thread.run_ocaml],
-     and only holds D: its Python thread state is detached (saved in
-     [saved_thread_state]), and the OCaml code uses the Python API in
+     and only holds D: its Python thread state is detached (kept by
+     [run_ocaml], which restores it), and the OCaml code uses the Python
+     API in
      [Py.Thread.run_python] (or calls Python with [Py.Thread.call]);
    - [STATE_PYTHON]: the thread runs Python code and only holds G (a
      Python thread, or [Py.Thread.call]);
@@ -1859,9 +1860,6 @@ static bool threads_enabled = false;
 static pthread_mutex_t world_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static __thread enum pyml_thread_state thread_state = STATE_UNKNOWN;
-
-/* The Python thread state detached in [STATE_OCAML]. */
-static __thread void *saved_thread_state = NULL;
 
 /* Positive during the comparison and the hash of Python objects, where D
    cannot be released (the values compared are not roots). */
@@ -2029,18 +2027,23 @@ pyml_thread_enabled(value unit)
 }
 
 /* [Py.Thread.run_ocaml]: from [STATE_ALL] to [STATE_OCAML], G (the thread
-   state is detached) and L released. */
+   state is detached) and L released. The detached thread state is
+   returned (as a [nativeint], [0n] if nothing is released) and given back
+   to [pyml_thread_restore]: [run_ocaml] can be nested in itself (in Python
+   code called with [run_python] that calls OCaml), and each one restores
+   the thread state that it detached. */
 CAMLprim value
 pyml_thread_release(value unit)
 {
     if (!threads_enabled || thread_state != STATE_ALL
         || custom_op_depth > 0) {
-        return Val_false;
+        return caml_copy_nativeint(0);
     }
     thread_state = STATE_OCAML;
-    saved_thread_state = Python_PyEval_SaveThread();
+    void *tstate = Python_PyEval_SaveThread();
     pthread_mutex_unlock(&world_lock);
-    return Val_true;
+    /* The allocation needs D only. */
+    return caml_copy_nativeint((intnat) tstate);
 }
 
 /* Back to [STATE_ALL] from [STATE_OCAML]: D is released while taking L and
@@ -2048,9 +2051,8 @@ pyml_thread_release(value unit)
 CAMLprim value
 pyml_thread_restore(value released)
 {
-    if (Bool_val(released)) {
-        void *tstate = saved_thread_state;
-        saved_thread_state = NULL;
+    void *tstate = (void *) Nativeint_val(released);
+    if (tstate != NULL) {
         caml_enter_blocking_section();
         pthread_mutex_lock(&world_lock);
         Python_PyEval_RestoreThread(tstate);
@@ -2175,7 +2177,7 @@ pyml_thread_enabled(value unit)
 CAMLprim value
 pyml_thread_release(value unit)
 {
-    return Val_false;
+    return caml_copy_nativeint(0);
 }
 
 CAMLprim value

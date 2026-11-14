@@ -3112,9 +3112,11 @@ module Thread = struct
 
   external enabled : unit -> bool = "pyml_thread_enabled"
 
-  external release : unit -> bool = "pyml_thread_release"
+  (* [release ()] is the Python thread state that it detached ([0n] if
+     nothing is released), which [restore] attaches again. *)
+  external release : unit -> nativeint = "pyml_thread_release"
 
-  external restore : bool -> unit = "pyml_thread_restore"
+  external restore : nativeint -> unit = "pyml_thread_restore"
 
   external acquire : unit -> int = "pyml_thread_acquire"
 
