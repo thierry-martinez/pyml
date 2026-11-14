@@ -341,6 +341,10 @@ Python) without deadlocking with the minor collections of the other
 domains, which cannot hold the GIL meanwhile. Other threads wait for the
 lock of pyml while it runs.
 
+A TLA+ model of these locks (``tla/``) checks their order, the absence of
+deadlocks and the termination of the waits, in bounded configurations of
+Python threads, OCaml threads and domains: see ``tla/README.md``.
+
 NumPy
 -----
 
