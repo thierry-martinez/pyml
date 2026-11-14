@@ -377,6 +377,98 @@ def run_many(batches, n):
     (Py.Tuple.of_list [Py.Int.of_int 50; Py.Int.of_int 20]));
   check "calls" 1000 (Atomic.get calls)
 
+(* The two scenarios below reproduce deadlocks predicted by a TLA+ model of
+   the locks (tmartine/pyml#1): Python code that runs while the lock of a
+   domain is held (D), and a stop-the-world section of OCaml (a minor
+   collection) started by another domain. They are known to deadlock, and
+   only run with [PYML_THREADS_KNOWN_DEADLOCKS=1] (see [known_deadlocks]).
+   Without the deadlock, they complete: their loops are bounded, and no
+   thread waits for another one without blocking. *)
+
+(* With the GIL: the main thread, in [Py.Thread.run_ocaml] (G and D), calls
+   a Python function directly (not with [Py.Thread.call]), whose bytecode
+   gives up G at the eval breaker when another thread waits for it: here, a
+   domain in [Py.Thread.run_python], which takes L and then waits for G
+   (without D). The main thread then waits for G while holding D. The
+   domain takes G and D, allocates, and starts a minor collection, which
+   waits for the main thread to reach a safepoint: it never does, since it
+   waits for G. *)
+let python_code_in_run_ocaml () =
+  let spin = python_function "spin" "
+import sys
+
+# Switch the GIL as soon as another thread waits for it.
+sys.setswitchinterval(1e-6)
+
+def spin(n):
+    x = 0
+    for i in range(n):
+        x += i
+    return x
+" in
+  let rounds = 200 in
+  let done_in_domain = Py.Thread.run_ocaml (fun () ->
+    let domain = Domain.spawn (fun () ->
+      for _ = 1 to rounds do
+        Py.Thread.run_python (fun () ->
+          (* Minor collections while holding G. *)
+          ignore (Sys.opaque_identity (List.init 10_000 Fun.id)))
+      done;
+      rounds) in
+    for _ = 1 to rounds do
+      ignore (Py.Callable.to_function spin [| Py.Int.of_int 10_000 |])
+    done;
+    Domain.join domain) in
+  check "rounds" rounds done_in_domain
+
+let free_threaded () =
+  Py.Bool.to_bool (Py.Run.eval
+    "bool(__import__('sysconfig').get_config_var('Py_GIL_DISABLED'))")
+
+(* With free-threaded Python: a domain, in [Py.Thread.run_python] (L, its
+   thread state attached, and D), starts a collection of Python, which stops
+   the world of Python: it waits for every attached thread to detach.
+   Meanwhile, the main thread runs OCaml code in [Py.Thread.run_ocaml], where
+   its thread state stays attached, and allocates: a minor collection waits
+   for the domain to reach a safepoint, while the domain, in the collection
+   of Python, waits for the main thread to detach. Without the minor
+   collections, the collection of Python would only wait for the end of the
+   loop of the main thread (one second), which then blocks in
+   [Domain.join]. *)
+let python_collection_in_run_python () =
+  if not (free_threaded ()) then
+    Pyml_tests_common.Disabled "needs a free-threaded build of Python"
+  else begin
+    let collect = python_function "collect" "
+import gc
+
+def collect():
+    gc.collect()
+" in
+    let rounds = 20 in
+    let done_in_domain = Py.Thread.run_ocaml (fun () ->
+      let domain = Domain.spawn (fun () ->
+        for _ = 1 to rounds do
+          Py.Thread.run_python (fun () ->
+            ignore (Py.Callable.to_function collect [| |]))
+        done;
+        rounds) in
+      let t = Unix.gettimeofday () in
+      while Unix.gettimeofday () -. t < 1. do
+        ignore (Sys.opaque_identity (List.init 1000 Fun.id))
+      done;
+      Domain.join domain) in
+    check "rounds" rounds done_in_domain
+  end
+
+(* Known to deadlock (tmartine/pyml#1): only run with
+   [PYML_THREADS_KNOWN_DEADLOCKS=1], and expected to time out until the
+   issue is fixed. *)
+let known_deadlocks = [
+  "python_code_in_run_ocaml", python_code_in_run_ocaml;
+  "python_collection_in_run_python", python_collection_in_run_python;
+]
+
 let scenarios = [
   "python_threads_call_ocaml", python_threads_call_ocaml;
   "domains_call_python", domains_call_python;
@@ -432,11 +524,15 @@ let run_scenario name =
 let () =
   match Sys.getenv_opt "PYML_THREADS_TEST" with
   | None ->
+      let scenarios =
+        if Sys.getenv_opt "PYML_THREADS_KNOWN_DEADLOCKS" = Some "1" then
+          scenarios @ known_deadlocks
+        else scenarios in
       let failed =
         List.filter (fun (name, _) -> not (run_scenario name)) scenarios in
       if failed <> [] then exit 1
   | Some name ->
-      let scenario = List.assoc name scenarios in
+      let scenario = List.assoc name (scenarios @ known_deadlocks) in
       Pyml_tests_common.add_test ~title:name (fun () ->
         Py.Thread.enable ();
         ignore (Lazy.force python_sum : Py.Object.t array -> Py.Object.t);
