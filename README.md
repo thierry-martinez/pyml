@@ -300,17 +300,20 @@ supported, and Python threads then run in parallel.
 
 pyml then manages three locks, always taken in this order: a lock of its
 own (pyml calls in OCaml are not reentrant), the GIL (or the thread state
-of the free-threaded builds), and the OCaml domain lock. No thread waits
-for the GIL while it holds the domain lock (the minor collections wait for
-all the domains whose lock is held). The thread that calls
-``Py.Thread.enable ()`` holds them all, and:
+of the free-threaded builds), and the OCaml domain lock. Only the thread
+that holds the lock of pyml holds the GIL and the domain lock together: no
+other thread waits for the GIL while it holds the domain lock (the minor
+collections wait for all the domains whose lock is held). The thread that
+calls ``Py.Thread.enable ()`` holds them all, and:
 
 - ``Py.Thread.call f args`` calls a Python function and releases the locks
   of OCaml meanwhile, so that the Python code can wait for Python threads
   that call OCaml;
-- ``Py.Thread.run_ocaml f`` runs OCaml code without the lock of pyml, and
-  releases the GIL in the blocking sections of OCaml (``Mutex.lock``,
-  ``Domain.join``, I/O, ...);
+- ``Py.Thread.run_ocaml f`` runs OCaml code without the locks of Python
+  (the lock of pyml and the GIL: the thread state is detached), with the
+  domain lock only: the code uses the Python API in ``Py.Thread.run_python``
+  (or calls Python with ``Py.Thread.call``), and cannot compare or hash
+  Python objects otherwise (``Failure``);
 - ``Py.Thread.run_python f`` takes the locks of Python, in any thread or
   domain.
 
@@ -330,16 +333,17 @@ let results = Py.Thread.run_ocaml (fun () ->
 assert (results = [1; 2; 3; 4])
 ```
 
-Python code that runs while the domain lock is held should not wait (for
-I/O, a lock, another thread...) nor run for long: Python can then release
-the GIL and wait for it with the domain lock, while another thread that
-holds the GIL waits for the domain lock. It is the Python code called by
-the other functions of pyml than ``Py.Thread.call`` (as
-``Py.Callable.to_function``), and by ``compare`` or ``Hashtbl.hash`` on
-Python objects. The latter cannot release the domain lock, since the
-values that they compare are not registered with the GC: their Python
-code cannot call OCaml back in ``Py.Thread.run_ocaml`` (it raises
-``RuntimeError``).
+The Python code called by the other functions of pyml than
+``Py.Thread.call`` (as ``Py.Callable.to_function``), and by ``compare`` or
+``Hashtbl.hash`` on Python objects, runs with the three locks: it can
+release the GIL (or, in free-threaded builds, wait for a collection of
+Python) without deadlocking with the minor collections of the other
+domains, which cannot hold the GIL meanwhile. Other threads wait for the
+lock of pyml while it runs.
+
+A TLA+ model of these locks (``tla/``) checks their order, the absence of
+deadlocks and the termination of the waits, in bounded configurations of
+Python threads, OCaml threads and domains: see ``tla/README.md``.
 
 NumPy
 -----

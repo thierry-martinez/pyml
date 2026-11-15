@@ -3112,9 +3112,11 @@ module Thread = struct
 
   external enabled : unit -> bool = "pyml_thread_enabled"
 
-  external release : unit -> bool = "pyml_thread_release"
+  (* [release ()] is the Python thread state that it detached ([0n] if
+     nothing is released), which [restore] attaches again. *)
+  external release : unit -> nativeint = "pyml_thread_release"
 
-  external restore : bool -> unit = "pyml_thread_restore"
+  external restore : nativeint -> unit = "pyml_thread_restore"
 
   external acquire : unit -> int = "pyml_thread_acquire"
 
@@ -3141,8 +3143,11 @@ module Thread = struct
         unacquire token;
         Printexc.raise_with_backtrace e bt
 
+  (* In [run_ocaml] (and in OCaml threads and domains), the thread does not
+     hold the locks of Python: [run_python] takes them, and [call_raw]
+     releases the locks of OCaml during the call. *)
   let call ?(kwargs = null) callable args =
-    check_not_null (call_raw callable args kwargs)
+    run_python (fun () -> check_not_null (call_raw callable args kwargs))
 end
 
 let set_argv argv =
