@@ -148,9 +148,13 @@ py_d:
   takeD(); st[self] := "ALL";
   call AllCode();
 py_leave:
-  \* pyml_threads_leave_to_python: caml_enter_blocking_section, then L.
-  dropD(); st[self] := "PYTHON"; L := None;
+  \* pyml_threads_leave_to_python: caml_enter_blocking_section, then L
+  \* (each release is a step: another thread can take D before L is
+  \* released).
+  dropD(); st[self] := "PYTHON";
   depth[self] := depth[self] - 1;
+py_leave_L:
+  L := None;
   goto py;
 }
 
@@ -173,15 +177,22 @@ all:
     \* Py.Thread.run_ocaml: release (PyEval_SaveThread, then L; D kept).
     await CanNest(self);
     spend(); depth[self] := depth[self] + 1;
-    detach(); st[self] := "OCAML"; L := None;
+    detach(); st[self] := "OCAML";
     if (PerThreadSlot) { slot[self] := self; } else { saved := self; };
-    goto all_run;
+    goto all_run_L;
   } or {
     \* Py.Thread.call (STATE_ALL): D, then L released, G kept.
     await CanNest(self);
     spend(); depth[self] := depth[self] + 1;
-    dropD(); st[self] := "PYTHON"; L := None;
-    goto all_call;
+    dropD(); st[self] := "PYTHON";
+    goto all_call_unlock;
+  } or {
+    \* A tick of the systhreads of OCaml: at a safepoint, the thread yields
+    \* D to another thread of its domain that waits for it, and waits to
+    \* take it again, keeping L and G (OCaml does not know about them).
+    await CanDo(self);
+    spend(); dropD();
+    goto all_yield;
   } or {
     \* Python code under D (conversions, __del__) that releases G.
     await PythonUnderD /\ CanDo(self);
@@ -198,6 +209,9 @@ all:
 all_gc:
   await \A d \in Domains : SafeFor(d, self);
   ostw := None; goto all;
+all_run_L:
+  \* run_ocaml: L released after G.
+  L := None;
 all_run:
   call OCamlCode();
 all_restore:
@@ -219,6 +233,9 @@ all_restore_g:
   attach();
 all_restore_d:
   takeD(); st[self] := "ALL"; goto all;
+all_call_unlock:
+  \* Py.Thread.call: L released after D.
+  L := None;
 all_call:
   call PyCode();
 all_call_back:
@@ -233,6 +250,8 @@ all_call_d:
   takeD(); st[self] := "ALL"; goto all;
 all_pyd:
   attach(); goto all;
+all_yield:
+  takeD(); goto all;
 all_pstw:
   await attached = {self}; pstw := None; goto all;
 }
@@ -288,7 +307,10 @@ oc_rp_d1:
 oc_rp_back1:
   \* unacquire: PyGILState_Release (G), back to STATE_OCAML, L released.
   depth[self] := depth[self] - 1;
-  detach(); st[self] := "OCAML"; L := None; goto oc;
+  detach(); st[self] := "OCAML";
+oc_rp_unlock1:
+  \* unacquire: L released after G.
+  L := None; goto oc;
 oc_rp_L2:
   takeL();
 oc_rp_g2:
@@ -299,7 +321,9 @@ oc_rp_d2:
 oc_rp_back2:
   \* unacquire: PyGILState_Release, previous state, L released.
   depth[self] := depth[self] - 1;
-  detach(); st[self] := "UNKNOWN"; L := None; goto oc;
+  detach(); st[self] := "UNKNOWN";
+oc_rp_unlock2:
+  L := None; goto oc;
 }
 
 \* Weak fairness: every thread keeps running. Each switch of the GIL at the
@@ -310,11 +334,15 @@ fair process (pyth \in PyThreads) {
 p_start:
   if (self = P1) {
     \* pyml_thread_leave after caml_startup: D, then L released.
-    dropD(); st[self] := "PYTHON"; L := None;
-    goto p_run;
+    dropD(); st[self] := "PYTHON";
+    goto p_unlock;
   };
 p_attach:
   attach();
+  goto p_run;
+p_unlock:
+  \* pyml_thread_leave: L released after D.
+  L := None;
 p_run:
   call PyCode();
 p_exit:
@@ -330,7 +358,7 @@ o_exit:
   dropD();
 }
 } *)
-\* BEGIN TRANSLATION (chksum(pcal) = "9f0b8e2" /\ chksum(tla) = "d1e87348")
+\* BEGIN TRANSLATION (chksum(pcal) = "d23426c3" /\ chksum(tla) = "f9fec216")
 VARIABLES pc, L, attached, D, st, registered, ostw, pstw, ops, depth, slot, 
           stack
 
@@ -478,16 +506,21 @@ py_d(self) == /\ pc[self] = "py_d"
 py_leave(self) == /\ pc[self] = "py_leave"
                   /\ D' = [D EXCEPT ![Dom(self)] = None]
                   /\ st' = [st EXCEPT ![self] = "PYTHON"]
-                  /\ L' = None
                   /\ depth' = [depth EXCEPT ![self] = depth[self] - 1]
-                  /\ pc' = [pc EXCEPT ![self] = "py"]
-                  /\ UNCHANGED << attached, registered, ostw, pstw, ops, slot, 
-                                  stack, saved >>
+                  /\ pc' = [pc EXCEPT ![self] = "py_leave_L"]
+                  /\ UNCHANGED << L, attached, registered, ostw, pstw, ops, 
+                                  slot, stack, saved >>
+
+py_leave_L(self) == /\ pc[self] = "py_leave_L"
+                    /\ L' = None
+                    /\ pc' = [pc EXCEPT ![self] = "py"]
+                    /\ UNCHANGED << attached, D, st, registered, ostw, pstw, 
+                                    ops, depth, slot, stack, saved >>
 
 PyCode(self) == py(self) \/ py_reattach(self) \/ py_pstw(self)
                    \/ py_reg_d(self) \/ py_reg_undo(self) \/ py_reg_g(self)
                    \/ py_lockL(self) \/ py_waitL(self) \/ py_g(self)
-                   \/ py_d(self) \/ py_leave(self)
+                   \/ py_d(self) \/ py_leave(self) \/ py_leave_L(self)
 
 all(self) == /\ pc[self] = "all"
              /\ ostw \in {None, self}
@@ -495,43 +528,46 @@ all(self) == /\ pc[self] = "all"
                    /\ ops' = [ops EXCEPT ![self] = ops[self] - 1]
                    /\ ostw' = self
                    /\ pc' = [pc EXCEPT ![self] = "all_gc"]
-                   /\ UNCHANGED <<L, attached, D, st, pstw, depth, slot, stack, saved>>
+                   /\ UNCHANGED <<attached, D, st, pstw, depth, slot, stack, saved>>
                 \/ /\ CanNest(self)
                    /\ ops' = [ops EXCEPT ![self] = ops[self] - 1]
                    /\ depth' = [depth EXCEPT ![self] = depth[self] + 1]
                    /\ attached' = attached \ {self}
                    /\ st' = [st EXCEPT ![self] = "OCAML"]
-                   /\ L' = None
                    /\ IF PerThreadSlot
                          THEN /\ slot' = [slot EXCEPT ![self] = self]
                               /\ saved' = saved
                          ELSE /\ saved' = [saved EXCEPT ![self] = self]
                               /\ slot' = slot
-                   /\ pc' = [pc EXCEPT ![self] = "all_run"]
+                   /\ pc' = [pc EXCEPT ![self] = "all_run_L"]
                    /\ UNCHANGED <<D, ostw, pstw, stack>>
                 \/ /\ CanNest(self)
                    /\ ops' = [ops EXCEPT ![self] = ops[self] - 1]
                    /\ depth' = [depth EXCEPT ![self] = depth[self] + 1]
                    /\ D' = [D EXCEPT ![Dom(self)] = None]
                    /\ st' = [st EXCEPT ![self] = "PYTHON"]
-                   /\ L' = None
-                   /\ pc' = [pc EXCEPT ![self] = "all_call"]
+                   /\ pc' = [pc EXCEPT ![self] = "all_call_unlock"]
                    /\ UNCHANGED <<attached, ostw, pstw, slot, stack, saved>>
+                \/ /\ CanDo(self)
+                   /\ ops' = [ops EXCEPT ![self] = ops[self] - 1]
+                   /\ D' = [D EXCEPT ![Dom(self)] = None]
+                   /\ pc' = [pc EXCEPT ![self] = "all_yield"]
+                   /\ UNCHANGED <<attached, st, ostw, pstw, depth, slot, stack, saved>>
                 \/ /\ PythonUnderD /\ CanDo(self)
                    /\ ops' = [ops EXCEPT ![self] = ops[self] - 1]
                    /\ attached' = attached \ {self}
                    /\ pc' = [pc EXCEPT ![self] = "all_pyd"]
-                   /\ UNCHANGED <<L, D, st, ostw, pstw, depth, slot, stack, saved>>
+                   /\ UNCHANGED <<D, st, ostw, pstw, depth, slot, stack, saved>>
                 \/ /\ PythonUnderD /\ FreeThreaded /\ CanDo(self) /\ pstw = None
                    /\ ops' = [ops EXCEPT ![self] = ops[self] - 1]
                    /\ pstw' = self
                    /\ pc' = [pc EXCEPT ![self] = "all_pstw"]
-                   /\ UNCHANGED <<L, attached, D, st, ostw, depth, slot, stack, saved>>
+                   /\ UNCHANGED <<attached, D, st, ostw, depth, slot, stack, saved>>
                 \/ /\ pc' = [pc EXCEPT ![self] = Head(stack[self]).pc]
                    /\ saved' = [saved EXCEPT ![self] = Head(stack[self]).saved]
                    /\ stack' = [stack EXCEPT ![self] = Tail(stack[self])]
-                   /\ UNCHANGED <<L, attached, D, st, ostw, pstw, ops, depth, slot>>
-             /\ UNCHANGED registered
+                   /\ UNCHANGED <<attached, D, st, ostw, pstw, ops, depth, slot>>
+             /\ UNCHANGED << L, registered >>
 
 all_gc(self) == /\ pc[self] = "all_gc"
                 /\ \A d \in Domains : SafeFor(d, self)
@@ -539,6 +575,12 @@ all_gc(self) == /\ pc[self] = "all_gc"
                 /\ pc' = [pc EXCEPT ![self] = "all"]
                 /\ UNCHANGED << L, attached, D, st, registered, pstw, ops, 
                                 depth, slot, stack, saved >>
+
+all_run_L(self) == /\ pc[self] = "all_run_L"
+                   /\ L' = None
+                   /\ pc' = [pc EXCEPT ![self] = "all_run"]
+                   /\ UNCHANGED << attached, D, st, registered, ostw, pstw, 
+                                   ops, depth, slot, stack, saved >>
 
 all_run(self) == /\ pc[self] = "all_run"
                  /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "OCamlCode",
@@ -552,11 +594,11 @@ all_restore(self) == /\ pc[self] = "all_restore"
                      /\ depth' = [depth EXCEPT ![self] = depth[self] - 1]
                      /\ IF PerThreadSlot
                            THEN /\ Assert(slot[self] # None, 
-                                          "Failure of assertion at line 208, column 5.")
+                                          "Failure of assertion at line 222, column 5.")
                                 /\ slot' = [slot EXCEPT ![self] = None]
                                 /\ saved' = saved
                            ELSE /\ Assert(saved[self] # None, 
-                                          "Failure of assertion at line 211, column 5.")
+                                          "Failure of assertion at line 225, column 5.")
                                 /\ saved' = [saved EXCEPT ![self] = None]
                                 /\ slot' = slot
                      /\ D' = [D EXCEPT ![Dom(self)] = None]
@@ -567,7 +609,7 @@ all_restore(self) == /\ pc[self] = "all_restore"
 all_restore_L(self) == /\ pc[self] = "all_restore_L"
                        /\ L = None
                        /\ Assert(self \notin attached /\ ~HoldsD(self), 
-                                 "Failure of assertion at line 95, column 3 of macro called at line 216, column 3.")
+                                 "Failure of assertion at line 95, column 3 of macro called at line 230, column 3.")
                        /\ L' = self
                        /\ pc' = [pc EXCEPT ![self] = "all_restore_g"]
                        /\ UNCHANGED << attached, D, st, registered, ostw, pstw, 
@@ -576,7 +618,7 @@ all_restore_L(self) == /\ pc[self] = "all_restore_L"
 all_restore_g(self) == /\ pc[self] = "all_restore_g"
                        /\ CanAttach(self)
                        /\ Assert(L = self \/ ~HoldsD(self), 
-                                 "Failure of assertion at line 90, column 3 of macro called at line 219, column 3.")
+                                 "Failure of assertion at line 90, column 3 of macro called at line 233, column 3.")
                        /\ attached' = (attached \cup {self})
                        /\ pc' = [pc EXCEPT ![self] = "all_restore_d"]
                        /\ UNCHANGED << L, D, st, registered, ostw, pstw, ops, 
@@ -589,6 +631,12 @@ all_restore_d(self) == /\ pc[self] = "all_restore_d"
                        /\ pc' = [pc EXCEPT ![self] = "all"]
                        /\ UNCHANGED << L, attached, registered, ostw, pstw, 
                                        ops, depth, slot, stack, saved >>
+
+all_call_unlock(self) == /\ pc[self] = "all_call_unlock"
+                         /\ L' = None
+                         /\ pc' = [pc EXCEPT ![self] = "all_call"]
+                         /\ UNCHANGED << attached, D, st, registered, ostw, 
+                                         pstw, ops, depth, slot, stack, saved >>
 
 all_call(self) == /\ pc[self] = "all_call"
                   /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "PyCode",
@@ -613,7 +661,7 @@ all_call_back(self) == /\ pc[self] = "all_call_back"
 all_call_L(self) == /\ pc[self] = "all_call_L"
                     /\ L = None
                     /\ Assert(self \notin attached /\ ~HoldsD(self), 
-                              "Failure of assertion at line 95, column 3 of macro called at line 229, column 3.")
+                              "Failure of assertion at line 95, column 3 of macro called at line 246, column 3.")
                     /\ L' = self
                     /\ pc' = [pc EXCEPT ![self] = "all_call_g"]
                     /\ UNCHANGED << attached, D, st, registered, ostw, pstw, 
@@ -622,7 +670,7 @@ all_call_L(self) == /\ pc[self] = "all_call_L"
 all_call_g(self) == /\ pc[self] = "all_call_g"
                     /\ CanAttach(self)
                     /\ Assert(L = self \/ ~HoldsD(self), 
-                              "Failure of assertion at line 90, column 3 of macro called at line 231, column 3.")
+                              "Failure of assertion at line 90, column 3 of macro called at line 248, column 3.")
                     /\ attached' = (attached \cup {self})
                     /\ pc' = [pc EXCEPT ![self] = "all_call_d"]
                     /\ UNCHANGED << L, D, st, registered, ostw, pstw, ops, 
@@ -639,11 +687,18 @@ all_call_d(self) == /\ pc[self] = "all_call_d"
 all_pyd(self) == /\ pc[self] = "all_pyd"
                  /\ CanAttach(self)
                  /\ Assert(L = self \/ ~HoldsD(self), 
-                           "Failure of assertion at line 90, column 3 of macro called at line 235, column 3.")
+                           "Failure of assertion at line 90, column 3 of macro called at line 252, column 3.")
                  /\ attached' = (attached \cup {self})
                  /\ pc' = [pc EXCEPT ![self] = "all"]
                  /\ UNCHANGED << L, D, st, registered, ostw, pstw, ops, depth, 
                                  slot, stack, saved >>
+
+all_yield(self) == /\ pc[self] = "all_yield"
+                   /\ D[Dom(self)] = None
+                   /\ D' = [D EXCEPT ![Dom(self)] = self]
+                   /\ pc' = [pc EXCEPT ![self] = "all"]
+                   /\ UNCHANGED << L, attached, st, registered, ostw, pstw, 
+                                   ops, depth, slot, stack, saved >>
 
 all_pstw(self) == /\ pc[self] = "all_pstw"
                   /\ attached = {self}
@@ -652,12 +707,14 @@ all_pstw(self) == /\ pc[self] = "all_pstw"
                   /\ UNCHANGED << L, attached, D, st, registered, ostw, ops, 
                                   depth, slot, stack, saved >>
 
-AllCode(self) == all(self) \/ all_gc(self) \/ all_run(self)
-                    \/ all_restore(self) \/ all_restore_L(self)
-                    \/ all_restore_g(self) \/ all_restore_d(self)
+AllCode(self) == all(self) \/ all_gc(self) \/ all_run_L(self)
+                    \/ all_run(self) \/ all_restore(self)
+                    \/ all_restore_L(self) \/ all_restore_g(self)
+                    \/ all_restore_d(self) \/ all_call_unlock(self)
                     \/ all_call(self) \/ all_call_back(self)
                     \/ all_call_L(self) \/ all_call_g(self)
-                    \/ all_call_d(self) \/ all_pyd(self) \/ all_pstw(self)
+                    \/ all_call_d(self) \/ all_pyd(self) \/ all_yield(self)
+                    \/ all_pstw(self)
 
 oc(self) == /\ pc[self] = "oc"
             /\ ostw \in {None, self}
@@ -702,7 +759,7 @@ oc_bl_d(self) == /\ pc[self] = "oc_bl_d"
 oc_rp_L1(self) == /\ pc[self] = "oc_rp_L1"
                   /\ L = None
                   /\ Assert(self \notin attached /\ ~HoldsD(self), 
-                            "Failure of assertion at line 95, column 3 of macro called at line 282, column 3.")
+                            "Failure of assertion at line 95, column 3 of macro called at line 301, column 3.")
                   /\ L' = self
                   /\ pc' = [pc EXCEPT ![self] = "oc_rp_g1"]
                   /\ UNCHANGED << attached, D, st, registered, ostw, pstw, ops, 
@@ -711,7 +768,7 @@ oc_rp_L1(self) == /\ pc[self] = "oc_rp_L1"
 oc_rp_g1(self) == /\ pc[self] = "oc_rp_g1"
                   /\ CanAttach(self)
                   /\ Assert(L = self \/ ~HoldsD(self), 
-                            "Failure of assertion at line 90, column 3 of macro called at line 284, column 3.")
+                            "Failure of assertion at line 90, column 3 of macro called at line 303, column 3.")
                   /\ attached' = (attached \cup {self})
                   /\ pc' = [pc EXCEPT ![self] = "oc_rp_d1"]
                   /\ UNCHANGED << L, D, st, registered, ostw, pstw, ops, depth, 
@@ -734,15 +791,20 @@ oc_rp_back1(self) == /\ pc[self] = "oc_rp_back1"
                      /\ depth' = [depth EXCEPT ![self] = depth[self] - 1]
                      /\ attached' = attached \ {self}
                      /\ st' = [st EXCEPT ![self] = "OCAML"]
-                     /\ L' = None
-                     /\ pc' = [pc EXCEPT ![self] = "oc"]
-                     /\ UNCHANGED << D, registered, ostw, pstw, ops, slot, 
+                     /\ pc' = [pc EXCEPT ![self] = "oc_rp_unlock1"]
+                     /\ UNCHANGED << L, D, registered, ostw, pstw, ops, slot, 
                                      stack, saved >>
+
+oc_rp_unlock1(self) == /\ pc[self] = "oc_rp_unlock1"
+                       /\ L' = None
+                       /\ pc' = [pc EXCEPT ![self] = "oc"]
+                       /\ UNCHANGED << attached, D, st, registered, ostw, pstw, 
+                                       ops, depth, slot, stack, saved >>
 
 oc_rp_L2(self) == /\ pc[self] = "oc_rp_L2"
                   /\ L = None
                   /\ Assert(self \notin attached /\ ~HoldsD(self), 
-                            "Failure of assertion at line 95, column 3 of macro called at line 293, column 3.")
+                            "Failure of assertion at line 95, column 3 of macro called at line 315, column 3.")
                   /\ L' = self
                   /\ pc' = [pc EXCEPT ![self] = "oc_rp_g2"]
                   /\ UNCHANGED << attached, D, st, registered, ostw, pstw, ops, 
@@ -751,7 +813,7 @@ oc_rp_L2(self) == /\ pc[self] = "oc_rp_L2"
 oc_rp_g2(self) == /\ pc[self] = "oc_rp_g2"
                   /\ CanAttach(self)
                   /\ Assert(L = self \/ ~HoldsD(self), 
-                            "Failure of assertion at line 90, column 3 of macro called at line 295, column 3.")
+                            "Failure of assertion at line 90, column 3 of macro called at line 317, column 3.")
                   /\ attached' = (attached \cup {self})
                   /\ pc' = [pc EXCEPT ![self] = "oc_rp_d2"]
                   /\ UNCHANGED << L, D, st, registered, ostw, pstw, ops, depth, 
@@ -774,36 +836,46 @@ oc_rp_back2(self) == /\ pc[self] = "oc_rp_back2"
                      /\ depth' = [depth EXCEPT ![self] = depth[self] - 1]
                      /\ attached' = attached \ {self}
                      /\ st' = [st EXCEPT ![self] = "UNKNOWN"]
-                     /\ L' = None
-                     /\ pc' = [pc EXCEPT ![self] = "oc"]
-                     /\ UNCHANGED << D, registered, ostw, pstw, ops, slot, 
+                     /\ pc' = [pc EXCEPT ![self] = "oc_rp_unlock2"]
+                     /\ UNCHANGED << L, D, registered, ostw, pstw, ops, slot, 
                                      stack, saved >>
+
+oc_rp_unlock2(self) == /\ pc[self] = "oc_rp_unlock2"
+                       /\ L' = None
+                       /\ pc' = [pc EXCEPT ![self] = "oc"]
+                       /\ UNCHANGED << attached, D, st, registered, ostw, pstw, 
+                                       ops, depth, slot, stack, saved >>
 
 OCamlCode(self) == oc(self) \/ oc_gc(self) \/ oc_bl_d(self)
                       \/ oc_rp_L1(self) \/ oc_rp_g1(self) \/ oc_rp_d1(self)
-                      \/ oc_rp_back1(self) \/ oc_rp_L2(self)
-                      \/ oc_rp_g2(self) \/ oc_rp_d2(self)
-                      \/ oc_rp_back2(self)
+                      \/ oc_rp_back1(self) \/ oc_rp_unlock1(self)
+                      \/ oc_rp_L2(self) \/ oc_rp_g2(self) \/ oc_rp_d2(self)
+                      \/ oc_rp_back2(self) \/ oc_rp_unlock2(self)
 
 p_start(self) == /\ pc[self] = "p_start"
                  /\ IF self = P1
                        THEN /\ D' = [D EXCEPT ![Dom(self)] = None]
                             /\ st' = [st EXCEPT ![self] = "PYTHON"]
-                            /\ L' = None
-                            /\ pc' = [pc EXCEPT ![self] = "p_run"]
+                            /\ pc' = [pc EXCEPT ![self] = "p_unlock"]
                        ELSE /\ pc' = [pc EXCEPT ![self] = "p_attach"]
-                            /\ UNCHANGED << L, D, st >>
-                 /\ UNCHANGED << attached, registered, ostw, pstw, ops, depth, 
-                                 slot, stack, saved >>
+                            /\ UNCHANGED << D, st >>
+                 /\ UNCHANGED << L, attached, registered, ostw, pstw, ops, 
+                                 depth, slot, stack, saved >>
 
 p_attach(self) == /\ pc[self] = "p_attach"
                   /\ CanAttach(self)
                   /\ Assert(L = self \/ ~HoldsD(self), 
-                            "Failure of assertion at line 90, column 3 of macro called at line 317, column 3.")
+                            "Failure of assertion at line 90, column 3 of macro called at line 341, column 3.")
                   /\ attached' = (attached \cup {self})
                   /\ pc' = [pc EXCEPT ![self] = "p_run"]
                   /\ UNCHANGED << L, D, st, registered, ostw, pstw, ops, depth, 
                                   slot, stack, saved >>
+
+p_unlock(self) == /\ pc[self] = "p_unlock"
+                  /\ L' = None
+                  /\ pc' = [pc EXCEPT ![self] = "p_run"]
+                  /\ UNCHANGED << attached, D, st, registered, ostw, pstw, ops, 
+                                  depth, slot, stack, saved >>
 
 p_run(self) == /\ pc[self] = "p_run"
                /\ stack' = [stack EXCEPT ![self] = << [ procedure |->  "PyCode",
@@ -819,8 +891,8 @@ p_exit(self) == /\ pc[self] = "p_exit"
                 /\ UNCHANGED << L, D, st, registered, ostw, pstw, ops, depth, 
                                 slot, stack, saved >>
 
-pyth(self) == p_start(self) \/ p_attach(self) \/ p_run(self)
-                 \/ p_exit(self)
+pyth(self) == p_start(self) \/ p_attach(self) \/ p_unlock(self)
+                 \/ p_run(self) \/ p_exit(self)
 
 o_start(self) == /\ pc[self] = "o_start"
                  /\ D[Dom(self)] = None
@@ -867,6 +939,8 @@ Spec == /\ Init /\ [][Next]_vars
 
 Termination == <>(\A self \in ProcSet: pc[self] = "Done")
 
+\* END TRANSLATION 
+\* END TRANSLATION 
 \* END TRANSLATION 
 \* END TRANSLATION 
 
