@@ -194,9 +194,9 @@ M3, `Py.Thread.call` keeps D during the call, found by the assertion of
 ## Validation against executions
 
 The model is checked against traces of executions of pyml: with
-`PYML_THREADS_TRACE=<file>` (branch `threads-trace` of pyml), each step of
-the model that pyml takes is written to `<file>`, named after the labels of
-the model (`trace_step` in `pyml_stubs.c`). The steps that take a lock are
+`PYML_THREADS_TRACE=<file>`, each step of the model that pyml takes is
+written to `<file>`, named after the labels of the model (`trace_step` in
+`pyml_stubs.c`). The steps that take a lock are
 written after the lock is taken, and the others (which release one lock)
 before it is released, with a global sequence number: the trace orders the
 acquisitions and releases of each lock as they happened.

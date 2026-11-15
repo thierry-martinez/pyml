@@ -24,6 +24,10 @@
 #define PYML_THREADS
 #include <pthread.h>
 #include <caml/threads.h>
+#include <stdatomic.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/syscall.h>
 /* Weak references: NULL if the program does not link threads. */
 CAMLextern int caml_c_thread_register(void) __attribute__((weak));
 CAMLextern int caml_c_thread_unregister(void) __attribute__((weak));
@@ -1865,6 +1869,34 @@ static __thread enum pyml_thread_state thread_state = STATE_UNKNOWN;
    cannot be released (the values compared are not roots). */
 static __thread int custom_op_depth = 0;
 
+/* Tracing, for the validation of the TLA+ model of tla/PymlThreads.tla
+   against executions: with PYML_THREADS_TRACE=<file>, each step of the
+   model that pyml takes is written to <file> as a line
+   "<seq> <thread id> <label> <next label> <domain>", named after the
+   labels of the model. The steps that take a lock are written after the
+   lock is taken, and the others (which release locks) before the first
+   release: the order of [seq] is then the order in which the threads take
+   and release each lock. <domain> is the id of the domain of the thread,
+   or -1 if the thread does not hold the lock of its domain. */
+static int trace_fd = -1;
+static atomic_long trace_seq = 0;
+
+static void
+trace_step(const char *label, const char *next)
+{
+    if (trace_fd < 0) {
+        return;
+    }
+    char line[160];
+    long seq = atomic_fetch_add(&trace_seq, 1);
+    int domain = Caml_state_opt != NULL ? (int) Caml_state_opt->id : -1;
+    int n = snprintf(line, sizeof line, "%ld %ld %s %s %d\n", seq,
+        (long) syscall(SYS_gettid), label, next, domain);
+    if (n > 0 && write(trace_fd, line, n) < 0) {
+        trace_fd = -1;
+    }
+}
+
 /* The threads that pyml registers in the OCaml runtime are unregistered
    when they exit, by the destructor of this key. */
 static pthread_key_t registered_key;
@@ -1882,13 +1914,25 @@ pyml_threads_can_decref(void)
 }
 
 /* Takes L while holding G (and not D): G is released while waiting. */
+/* The labels of the model are those of the call of OCaml by Python
+   ([py]), or of the return of [Py.Thread.call] ([all_call]). */
 static void
-lock_world_holding_gil(void)
+lock_world_holding_gil(bool from_python)
 {
     if (pthread_mutex_trylock(&world_lock) != 0) {
+        trace_step(from_python ? "py_lockL" : "all_call_back",
+            from_python ? "py_waitL" : "all_call_L");
         void *tstate = Python_PyEval_SaveThread();
         pthread_mutex_lock(&world_lock);
+        trace_step(from_python ? "py_waitL" : "all_call_L",
+            from_python ? "py_g" : "all_call_g");
         Python_PyEval_RestoreThread(tstate);
+        trace_step(from_python ? "py_g" : "all_call_g",
+            from_python ? "py_d" : "all_call_d");
+    }
+    else {
+        trace_step(from_python ? "py_lockL" : "all_call_back",
+            from_python ? "py_d" : "all_call_d");
     }
 }
 
@@ -1919,6 +1963,7 @@ pyml_threads_enter_from_python(int *previous)
         set_runtime_error("OCaml called by Python in Py.Thread.run_ocaml");
         return false;
     }
+    trace_step("py", thread_state == STATE_UNKNOWN ? "py_reg_d" : "py_lockL");
     if (thread_state == STATE_UNKNOWN) {
         /* A Python thread that pyml has not seen (the OCaml threads and
            domains are in other states when Python calls OCaml, since they
@@ -1929,6 +1974,7 @@ pyml_threads_enter_from_python(int *previous)
         void *tstate = Python_PyEval_SaveThread();
         int registered = caml_c_thread_register();
         Python_PyEval_RestoreThread(tstate);
+        trace_step("py_reg_g", "py_lockL");
         if (!registered) {
             set_runtime_error("cannot register the thread in OCaml");
             return false;
@@ -1936,8 +1982,9 @@ pyml_threads_enter_from_python(int *previous)
         pthread_setspecific(registered_key, (void *) 1);
     }
     *previous = thread_state;
-    lock_world_holding_gil();
+    lock_world_holding_gil(true);
     caml_leave_blocking_section();
+    trace_step("py_d", "all");
     thread_state = STATE_ALL;
     pyml_drain_decrefs();
     return true;
@@ -1950,8 +1997,10 @@ pyml_threads_leave_to_python(int previous)
     if (previous < 0) {
         return;
     }
+    trace_step("py_leave", "py_leave_L");
     caml_enter_blocking_section();
     thread_state = previous == STATE_UNKNOWN ? STATE_PYTHON : previous;
+    trace_step("py_leave_L", "py");
     pthread_mutex_unlock(&world_lock);
 }
 
@@ -2006,6 +2055,10 @@ pyml_thread_enable(value unit)
     pthread_mutex_lock(&world_lock);
     thread_state = STATE_ALL;
     threads_enabled = true;
+    const char *trace = getenv("PYML_THREADS_TRACE");
+    if (trace != NULL && *trace != '\0') {
+        trace_fd = open(trace, O_WRONLY | O_CREAT | O_TRUNC | O_APPEND, 0644);
+    }
     CAMLreturn(Val_unit);
 }
 
@@ -2016,7 +2069,12 @@ void
 pyml_thread_leave(void)
 {
     if (threads_enabled && thread_state == STATE_ALL) {
-        pyml_threads_leave_to_python(STATE_PYTHON);
+        /* The first step of the main thread of the model ([p_start]). */
+        trace_step("p_start", "p_unlock");
+        caml_enter_blocking_section();
+        thread_state = STATE_PYTHON;
+        trace_step("p_unlock", "p_run");
+        pthread_mutex_unlock(&world_lock);
     }
 }
 
@@ -2039,8 +2097,10 @@ pyml_thread_release(value unit)
         || custom_op_depth > 0) {
         return caml_copy_nativeint(0);
     }
+    trace_step("all", "all_run_L");
     thread_state = STATE_OCAML;
     void *tstate = Python_PyEval_SaveThread();
+    trace_step("all_run_L", "all_run");
     pthread_mutex_unlock(&world_lock);
     /* The allocation needs D only. */
     return caml_copy_nativeint((intnat) tstate);
@@ -2053,10 +2113,14 @@ pyml_thread_restore(value released)
 {
     void *tstate = (void *) Nativeint_val(released);
     if (tstate != NULL) {
+        trace_step("all_restore", "all_restore_L");
         caml_enter_blocking_section();
         pthread_mutex_lock(&world_lock);
+        trace_step("all_restore_L", "all_restore_g");
         Python_PyEval_RestoreThread(tstate);
+        trace_step("all_restore_g", "all_restore_d");
         caml_leave_blocking_section();
+        trace_step("all_restore_d", "all");
         thread_state = STATE_ALL;
         pyml_drain_decrefs();
     }
@@ -2074,10 +2138,17 @@ pyml_thread_acquire(value unit)
         return Val_int(-1);
     }
     int previous = thread_state;
+    bool from_ocaml = previous == STATE_OCAML;
+    trace_step("oc", from_ocaml ? "oc_rp_L1" : "oc_rp_L2");
     caml_enter_blocking_section();
     pthread_mutex_lock(&world_lock);
+    trace_step(from_ocaml ? "oc_rp_L1" : "oc_rp_L2",
+        from_ocaml ? "oc_rp_g1" : "oc_rp_g2");
     int gstate = Python_PyGILState_Ensure_();
+    trace_step(from_ocaml ? "oc_rp_g1" : "oc_rp_g2",
+        from_ocaml ? "oc_rp_d1" : "oc_rp_d2");
     caml_leave_blocking_section();
+    trace_step(from_ocaml ? "oc_rp_d1" : "oc_rp_d2", "all");
     thread_state = STATE_ALL;
     pyml_drain_decrefs();
     return Val_int(gstate * 8 + previous);
@@ -2088,8 +2159,12 @@ pyml_thread_unacquire(value token)
 {
     int t = Int_val(token);
     if (t >= 0) {
+        bool to_ocaml = t % 8 == STATE_OCAML;
+        trace_step(to_ocaml ? "oc_rp_back1" : "oc_rp_back2",
+            to_ocaml ? "oc_rp_unlock1" : "oc_rp_unlock2");
         Python_PyGILState_Release_(t / 8);
         thread_state = t % 8;
+        trace_step(to_ocaml ? "oc_rp_unlock1" : "oc_rp_unlock2", "oc");
         pthread_mutex_unlock(&world_lock);
     }
     return Val_unit;
@@ -2113,12 +2188,15 @@ pyml_thread_call(value callable_ocaml, value args_ocaml, value kwargs_ocaml)
        cannot be released (the values compared are not roots). */
     if (threads_enabled && thread_state == STATE_ALL
         && custom_op_depth == 0) {
+        trace_step("all", "all_call_unlock");
         caml_enter_blocking_section();
         thread_state = STATE_PYTHON;
+        trace_step("all_call_unlock", "all_call");
         pthread_mutex_unlock(&world_lock);
         result = Python_PyObject_Call(callable, args, kwargs);
-        lock_world_holding_gil();
+        lock_world_holding_gil(false);
         caml_leave_blocking_section();
+        trace_step("all_call_d", "all");
         thread_state = STATE_ALL;
     }
     else {
